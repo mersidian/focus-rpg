@@ -20,6 +20,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   }),
   providers: [GitHub],
   session: { strategy: "jwt" },
+  /**
+   * Behind Vercel's proxy the request host arrives as a forwarded header, which
+   * Auth.js refuses to trust by default — a failure that shows up only once
+   * deployed, as a sign-in redirecting to the wrong origin. Trusting it is safe
+   * here: the host is Vercel's, and ALLOWED_GITHUB_LOGIN still decides who may
+   * actually sign in.
+   */
+  trustHost: true,
   // Failures land back on the sign-in page, which explains them (§ auth).
   pages: { signIn: "/signin", error: "/signin" },
   callbacks: {

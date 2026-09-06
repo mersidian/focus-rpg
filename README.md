@@ -59,8 +59,21 @@ npm run db:push
 npm run dev
 ```
 
-Deploying to Vercel: import the repo, paste the same four variables into project
-settings, and add your production callback URL to the GitHub OAuth app. Nothing else.
+## Deploying
+
+1. Push to a GitHub repository.
+2. Import it at [vercel.com/new](https://vercel.com/new). Framework detection handles the
+   build; there is nothing to configure.
+3. Add four environment variables in Vercel → Settings → Environment Variables:
+   `DATABASE_URL`, `AUTH_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`, and optionally
+   `ALLOWED_GITHUB_LOGIN`.
+4. In your GitHub OAuth app, add a second callback URL:
+   `https://<your-app>.vercel.app/api/auth/callback/github`. GitHub allows several, so the
+   localhost one can stay.
+
+`trustHost` is on, because behind Vercel's proxy the request host arrives as a forwarded
+header that Auth.js will not trust by default — a failure that appears only in production,
+as a sign-in redirecting to the wrong origin.
 
 ```bash
 npm test                   # 141 unit tests, no database needed
