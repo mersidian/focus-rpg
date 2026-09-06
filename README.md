@@ -156,6 +156,22 @@ right year, and has all three Songkran days.
 
 Only the birthday is asked for, because only you know it.
 
+## Notifications on a phone
+
+The app installs to the home screen: `src/app/manifest.ts` plus a service worker that
+caches nothing. Caching would be actively wrong here — every page is time-sensitive, and a
+cached timer or streak is a lie — so `public/sw.js` exists only to own notifications.
+
+That worker is not optional on iOS. Safari has no Notification API in a browser tab at all,
+only in an installed app, so the timer screen tells an iPhone to add the app to the home
+screen instead of offering a button that would do nothing. Notifications are shown through
+`registration.showNotification()` rather than `new Notification()`, which Android stops
+honouring once the page is backgrounded.
+
+**What this does not yet do is wake a phone whose app is fully closed.** That needs Web
+Push — a VAPID keypair, a stored subscription, and something server-side firing at the
+moment a session ends. See "Waking a closed phone" below.
+
 ## Small screens
 
 Every page is checked down to 320px with no sideways scroll on the body; wide content —

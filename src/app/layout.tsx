@@ -29,6 +29,16 @@ const plexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "Focus RPG",
   description: "Focused minutes, banked.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Focus RPG",
+    statusBarStyle: "black-translucent",
+  },
+  icons: {
+    icon: "/icon-192.png",
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {

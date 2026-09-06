@@ -7,7 +7,12 @@ import { LevelUpOverlay } from "./LevelUpOverlay";
 import { UnlockToast } from "./UnlockToast";
 import { XpRail } from "./XpRail";
 import { useTick } from "@/lib/client/use-tick";
-import { askForNotifications, notificationState } from "@/lib/client/notify";
+import {
+  askForNotifications,
+  needsInstallFirst,
+  notificationState,
+  registerServiceWorker,
+} from "@/lib/client/notify";
 import {
   ABANDON_REASON_LABEL,
   MAX_PAUSES,
@@ -370,8 +375,28 @@ function RulesetNote({
 
 function NotificationPrompt() {
   const [state, setState] = useState<NotificationPermission | "unsupported" | null>(null);
+  const [installFirst, setInstallFirst] = useState(false);
 
-  useEffect(() => setState(notificationState()), []);
+  useEffect(() => {
+    setState(notificationState());
+    setInstallFirst(needsInstallFirst());
+    // Registering early means the worker is ready before a session ends.
+    if (notificationState() === "granted") void registerServiceWorker();
+  }, []);
+
+  /**
+   * iOS has no Notification API in a browser tab at all, so there is nothing to
+   * ask for until the app is on the home screen. Saying that is more use than
+   * a button that would do nothing.
+   */
+  if (installFirst) {
+    return (
+      <p className="mt-10 border-t border-rule pt-6 text-[13px] leading-relaxed text-faint">
+        To be told when a session ends, add this to your home screen — Share, then Add to
+        Home Screen. iPhone only allows notifications to an installed app.
+      </p>
+    );
+  }
 
   if (state !== "default") return null;
 
