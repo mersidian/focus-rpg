@@ -1,0 +1,188 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { useGame } from "./GameProvider";
+import { SLACKED_XP_MULTIPLIER } from "@/lib/constants";
+import { groupNumber } from "@/lib/format";
+
+const DRAFT_KEY = "focusrpg:draft";
+
+type Draft = { projectId: string | null; newProjectName: string; note: string };
+
+/**
+ * Mandatory, roughly ten seconds, shown the moment a session completes (§6).
+ * There is no skip: it is the only thing holding the numbers up (§10).
+ */
+export function ReportCard() {
+  const { snapshot, report, pending, error } = useGame();
+  const session = snapshot.awaitingReport!;
+  const projects = snapshot.projects;
+
+  const [projectId, setProjectId] = useState<string | null>(projects[0]?.id ?? null);
+  const [newProjectName, setNewProjectName] = useState("");
+  const [note, setNote] = useState("");
+  const [creating, setCreating] = useState(projects.length === 0);
+  const nameInput = useRef<HTMLInputElement>(null);
+
+  // The draft survives a refresh mid-report.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(`${DRAFT_KEY}:${session.id}`);
+      if (!raw) return;
+      const d = JSON.parse(raw) as Draft;
+      setProjectId(d.projectId);
+      setNewProjectName(d.newProjectName);
+      setNote(d.note);
+      if (d.newProjectName) setCreating(true);
+    } catch {
+      // No draft is fine.
+    }
+  }, [session.id]);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        `${DRAFT_KEY}:${session.id}`,
+        JSON.stringify({ projectId, newProjectName, note } satisfies Draft),
+      );
+    } catch {
+      // Nothing depends on the draft surviving.
+    }
+  }, [session.id, projectId, newProjectName, note]);
+
+  useEffect(() => {
+    if (creating) nameInput.current?.focus();
+  }, [creating]);
+
+  const chosen = creating ? newProjectName.trim().length > 0 : Boolean(projectId);
+  const slackedXp = Math.round(session.xpAwarded * SLACKED_XP_MULTIPLIER);
+
+  const send = (honest: boolean) => {
+    if (!chosen || pending) return;
+    try {
+      sessionStorage.removeItem(`${DRAFT_KEY}:${session.id}`);
+    } catch {
+      // ignore
+    }
+    report({
+      projectId: creating ? null : projectId,
+      newProjectName: creating ? newProjectName.trim() : null,
+      note,
+      honest,
+    });
+  };
+
+  return (
+    <main className="mx-auto w-full max-w-2xl animate-rise px-6 pb-24 pt-16 sm:px-10">
+      <p className="text-[13px] text-faint">
+        <span className="tnum">{session.plannedMinutes}</span> minutes done.
+      </p>
+      <h1 className="display mt-2 text-4xl sm:text-5xl" style={{ color: "var(--tier)" }}>
+        <span className="tnum animate-pop inline-block">+{session.xpAwarded}</span> XP banked
+      </h1>
+      <p className="mt-3 max-w-prose text-[13px] leading-relaxed text-faint">
+        It stays banked once you log it. Nothing else in the app works until you do.
+      </p>
+
+      <section className="mt-10 border-t border-rule pt-8">
+        <h2 className="text-[15px] text-text">What were you working on?</h2>
+
+        {projects.length > 0 && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {projects.map((p) => {
+              const selected = !creating && projectId === p.id;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => {
+                    setCreating(false);
+                    setProjectId(p.id);
+                  }}
+                  className="rounded-sm border px-3 py-2 text-[13px] transition-colors"
+                  style={{
+                    borderColor: selected ? "var(--tier)" : "var(--color-rule)",
+                    color: selected ? "var(--tier)" : undefined,
+                  }}
+                >
+                  {p.name}
+                  <span className="tnum ml-2 text-faint">{p.sessions}</span>
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              onClick={() => setCreating(true)}
+              className="rounded-sm border border-dashed border-rule px-3 py-2 text-[13px] text-faint transition-colors hover:text-dim"
+              style={creating ? { borderColor: "var(--tier)", color: "var(--tier)" } : undefined}
+            >
+              New project
+            </button>
+          </div>
+        )}
+
+        {creating && (
+          <input
+            ref={nameInput}
+            value={newProjectName}
+            onChange={(e) => setNewProjectName(e.target.value)}
+            placeholder="Thesis, side project, guitar…"
+            maxLength={80}
+            className="mt-4 w-full rounded-sm border border-rule bg-lift px-4 py-3 text-[15px] outline-none placeholder:text-faint"
+          />
+        )}
+      </section>
+
+      <section className="mt-8">
+        <label htmlFor="note" className="text-[15px] text-text">
+          Anything worth remembering?
+        </label>
+        <textarea
+          id="note"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          rows={3}
+          maxLength={2000}
+          placeholder="Optional."
+          className="mt-3 w-full resize-none rounded-sm border border-rule bg-lift px-4 py-3 text-[15px] leading-relaxed outline-none placeholder:text-faint"
+        />
+      </section>
+
+      <section className="mt-8 border-t border-rule pt-8">
+        <h2 className="text-[15px] text-text">Did you actually focus?</h2>
+        <p className="mt-2 text-[13px] text-faint">
+          Admitting you slacked costs this session{" "}
+          <span className="tnum">{session.xpAwarded - slackedXp}</span> XP and nothing else. The
+          honesty is the whole point.
+        </p>
+        <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+          <button
+            type="button"
+            onClick={() => send(true)}
+            disabled={!chosen || pending}
+            className="flex-1 rounded-sm px-6 py-4 text-[15px] font-medium text-ground transition-opacity disabled:opacity-40"
+            style={{ backgroundColor: "var(--tier)" }}
+          >
+            I focused — log {groupNumber(session.xpAwarded)} XP
+          </button>
+          <button
+            type="button"
+            onClick={() => send(false)}
+            disabled={!chosen || pending}
+            className="flex-1 rounded-sm border border-rule px-6 py-4 text-[15px] text-dim transition-colors hover:text-text disabled:opacity-40"
+          >
+            I slacked — log {groupNumber(slackedXp)} XP
+          </button>
+        </div>
+        {!chosen && (
+          <p className="mt-4 text-[13px] text-faint">Pick a project first.</p>
+        )}
+        {error && (
+          <p className="mt-4 text-[13px]" style={{ color: "var(--color-warn)" }}>
+            {error}
+          </p>
+        )}
+      </section>
+    </main>
+  );
+}

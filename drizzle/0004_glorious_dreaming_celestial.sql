@@ -1,0 +1,1 @@
+ALTER TABLE "game_state" ADD COLUMN "peak_level" integer DEFAULT 1 NOT NULL;

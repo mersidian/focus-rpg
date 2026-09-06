@@ -1,0 +1,1 @@
+ALTER TABLE "project" ADD COLUMN "merged_into_id" text;

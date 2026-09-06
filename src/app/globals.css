@@ -1,0 +1,121 @@
+@import "tailwindcss";
+
+/*
+  Focus RPG.
+
+  One idea carries the interface: the accent colour is earned. Every tier in the
+  ladder owns a hue, and --tier is set from the character's current tier at the
+  document root. A Drifter's app is nearly colourless; a Mythic's burns violet.
+  Nothing else on the page is allowed to be saturated.
+*/
+
+@theme {
+  --color-ground: oklch(0.185 0.028 268);
+  --color-lift: oklch(0.232 0.031 268);
+  --color-rule: oklch(0.315 0.028 268);
+  --color-text: oklch(0.93 0.012 85);
+  --color-dim: oklch(0.66 0.021 268);
+  --color-faint: oklch(0.5 0.022 268);
+  --color-warn: oklch(0.66 0.14 38);
+
+  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+}
+
+:root {
+  /* Overwritten per-render with the current tier's hue. */
+  --tier: oklch(0.74 0.035 250);
+  --tier-deep: oklch(0.42 0.03 250);
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: var(--color-ground);
+  color: var(--color-text);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "ss01";
+}
+
+/* Numerals that matter are monospaced and tabular, always (§8). */
+.tnum {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "zero" 1;
+}
+
+.display {
+  font-family: var(--font-display);
+  font-variation-settings: "SOFT" 12, "WONK" 0, "opsz" 40;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+::selection {
+  background: var(--tier);
+  color: var(--color-ground);
+}
+
+:focus-visible {
+  outline: 2px solid var(--tier);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* The one orchestrated moment: a session ending, and a rank arriving. */
+@keyframes tier-pulse {
+  0% { opacity: 0; }
+  18% { opacity: 0.5; }
+  100% { opacity: 0; }
+}
+
+/* A tier change renames the character, so it gets the bigger moment (§4.1). */
+@keyframes tier-bloom {
+  0% { opacity: 0; transform: scale(0.2); }
+  40% { opacity: 0.42; }
+  100% { opacity: 0; transform: scale(2.6); }
+}
+@keyframes letter-in {
+  from { opacity: 0; transform: translateY(0.32em) rotate(-2deg); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes sweep {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(220%); }
+}
+@keyframes hairline {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes count-pop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.14); }
+  100% { transform: scale(1); }
+}
+
+.animate-pulse-tier { animation: tier-pulse 1200ms ease-out forwards; }
+.animate-bloom { animation: tier-bloom 1600ms cubic-bezier(0.16, 0.8, 0.3, 1) forwards; }
+.animate-sweep { animation: sweep 1100ms cubic-bezier(0.4, 0, 0.2, 1) 260ms both; }
+.animate-hairline { animation: hairline 700ms cubic-bezier(0.2, 0.7, 0.3, 1) 120ms both; transform-origin: left; }
+.letter { display: inline-block; animation: letter-in 520ms cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+.animate-rise { animation: rise 320ms cubic-bezier(0.2, 0.7, 0.3, 1) both; }
+.animate-pop { animation: count-pop 420ms cubic-bezier(0.3, 1.4, 0.5, 1); }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
