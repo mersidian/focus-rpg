@@ -12,6 +12,11 @@ import { deviceId } from "@/lib/client/device";
 import { WEEKDAY_NAMES } from "@/lib/game-day";
 import { FREEZE_PURCHASE_XP, MAX_REST_DAYS, MAX_VACATION_DAYS } from "@/lib/streak-engine";
 import { groupNumber } from "@/lib/format";
+import {
+  knownThaiYears,
+  lastKnownThaiYear,
+  thaiHolidaysFor,
+} from "@/lib/holidays/thailand";
 
 type Vacation = { id: string; startDay: string; endDay: string; quarter: string };
 
@@ -201,8 +206,50 @@ export function StreakControls({
           <p className="pb-2 text-[12px] text-faint">Only the day and month are read.</p>
         </div>
 
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          {knownThaiYears().map((year) => {
+            const dates = thaiHolidaysFor(year).map((h) => h.date);
+            const missing = dates.filter((d) => !days.includes(d));
+            return (
+              <button
+                key={year}
+                type="button"
+                disabled={pending || missing.length === 0}
+                onClick={() => {
+                  const next = [...new Set([...days, ...dates])].sort();
+                  setDays(next);
+                  run(() =>
+                    setCalendarSettings(
+                      { birthday: birth || null, holidays: next },
+                      deviceId(),
+                    ),
+                  );
+                }}
+                className="rounded-sm border border-rule px-4 py-2 text-[13px] text-dim transition-colors hover:text-text disabled:opacity-40"
+              >
+                {missing.length === 0 ? (
+                  <>
+                    <span className="tnum">{year}</span> Thai holidays added
+                  </>
+                ) : (
+                  <>
+                    Add Thailand&rsquo;s <span className="tnum">{year}</span> holidays
+                    <span className="text-faint"> ({missing.length})</span>
+                  </>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-3 max-w-prose text-[12px] leading-relaxed text-faint">
+          Taken from the Bank of Thailand&rsquo;s annual list. Makha Bucha, Visakha Bucha and
+          Asahna Bucha follow the lunar calendar and cannot be worked out in advance, so the
+          table stops at <span className="tnum">{lastKnownThaiYear()}</span> — add the next
+          year&rsquo;s dates yourself once Thailand publishes them.
+        </p>
+
         {days.length > 0 && (
-          <ul className="mt-5 flex flex-wrap gap-2">
+          <ul className="mt-6 flex flex-wrap gap-2">
             {days.map((d) => (
               <li key={d}>
                 <button

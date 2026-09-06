@@ -76,7 +76,7 @@ header that Auth.js will not trust by default — a failure that appears only in
 as a sign-in redirecting to the wrong origin.
 
 ```bash
-npm test                   # 143 unit tests, no database needed
+npm test                   # 150 unit tests, no database needed
 npm run test:integration   # 35 probes against the real database
 ```
 
@@ -138,6 +138,20 @@ session ends turn out to be a real problem in daily use", and the app has not be
 daily use yet. The OS notification, chime and tab-title countdown from Phase 1 are the
 current answer; if sessions start slipping past unnoticed, that is the signal to build the
 PWA.
+
+## Public holidays
+
+"Working the Holiday" needs to know what a holiday is where you are, and Thailand's list
+cannot be computed: about half the dates are fixed, but Makha Bucha, Visakha Bucha and
+Asahna Bucha follow the lunar calendar, and anything landing at a weekend gets a
+substitution day decided by announcement rather than by rule.
+
+So `src/lib/holidays/thailand.ts` is a transcribed table from the Bank of Thailand's annual
+financial-institution holiday list, currently covering 2026 and 2027. One button on the
+streak panel adds a year. When the table runs out the interface says so instead of
+guessing — a wrong date would hand out an achievement that was never earned. Adding a year
+is one array; the tests check the dates are well-formed, in order, unique, filed under the
+right year, and that the fixed-date holidays and all three Songkran days are present.
 
 ## Small screens
 
