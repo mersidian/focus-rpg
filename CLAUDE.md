@@ -8,7 +8,7 @@ deployment; a review step with nobody on the other side of it is ceremony, not s
 The safety that does matter is further down this file: the invariants, and running the
 checks below before pushing anything.
 
-## Before asking for a review
+## Before pushing
 
 ```bash
 npm test                   # 150 unit tests, no database needed
