@@ -204,6 +204,38 @@ export function GameProvider({
     };
   }, [activeId, ruleset, adopt]);
 
+  /* ------------------------------------------------------- phone polling */
+
+  /**
+   * Mobile sends no heartbeat, because a frozen background tab would stop
+   * pinging and register a false abandon (§3) — but that left a phone with no
+   * way to learn that the session had been paused on another device.
+   *
+   * This reads the state and writes nothing, so it can neither cause an abandon
+   * nor prevent one. It needs no visibility check either: a phone that
+   * backgrounds this tab suspends its timers, which stops the polling on its
+   * own, and `visibilitychange` already refreshes on the way back.
+   */
+  useEffect(() => {
+    if (!activeId || ruleset !== "mobile") return;
+
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const snap = await refreshSnapshot(device.current);
+        if (!cancelled) adopt(snap);
+      } catch {
+        // A dropped poll costs nothing; the next one is fifteen seconds away.
+      }
+    };
+
+    const id = setInterval(poll, HEARTBEAT_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [activeId, ruleset, adopt]);
+
   /* ------------------------------------ come back from sleep or a new tab */
 
   useEffect(() => {
