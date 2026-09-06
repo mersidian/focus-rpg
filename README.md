@@ -76,7 +76,7 @@ header that Auth.js will not trust by default — a failure that appears only in
 as a sign-in redirecting to the wrong origin.
 
 ```bash
-npm test                   # 141 unit tests, no database needed
+npm test                   # 143 unit tests, no database needed
 npm run test:integration   # 35 probes against the real database
 ```
 

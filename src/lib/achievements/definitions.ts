@@ -269,7 +269,7 @@ const prestige: Achievement[] = [
   a("pre-once", "prestige", "Begin Again", "Prestige for the first time.", "epic", (s) => s.prestigeStars >= 1, { title: "the Reborn" }),
   a("pre-2", "prestige", "Two Stars", "Reach two prestige stars.", "epic", (s) => s.prestigeStars >= 2),
   a("pre-3", "prestige", "Three Stars", "Reach three prestige stars.", "legendary", (s) => s.prestigeStars >= 3),
-  a("pre-5", "prestige", "Five Stars", "Reach five prestige stars.", "legendary", (s) => s.prestigeStars >= 5, { deferred: true,  }),
+  a("pre-5", "prestige", "Five Stars", "Reach five prestige stars.", "legendary", (s) => s.prestigeStars >= 5),
   a("pre-10", "prestige", "Eternal Recurrence", "Reach ten prestige stars.", "legendary", (s) => s.prestigeStars >= 10, { title: "Eternal Recurrence" }),
   a("pre-clean-cycle", "prestige", "A Clean Cycle", "Prestige with no abandoned session in the whole cycle.", "legendary", (s) => s.prestigedCleanCycles >= 1, { title: "the Spotless" }),
   a("pre-twice-in-year", "prestige", "Twice Around", "Reach level 50 twice, each inside a year.", "legendary", (s) => s.cyclesToFiftyWithinAYear >= 2),
