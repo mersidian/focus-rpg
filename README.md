@@ -168,9 +168,33 @@ screen instead of offering a button that would do nothing. Notifications are sho
 `registration.showNotification()` rather than `new Notification()`, which Android stops
 honouring once the page is backgrounded.
 
-**What this does not yet do is wake a phone whose app is fully closed.** That needs Web
-Push — a VAPID keypair, a stored subscription, and something server-side firing at the
-moment a session ends. See "Waking a closed phone" below.
+### Waking a closed phone
+
+With the app shut, nothing of ours is running on the phone and nothing on the server wakes
+by itself, so a session end is announced by Web Push driven from outside.
+
+`POST /api/cron/session-ends` does two things: it settles any live session against the
+server clock — the same work a page load does — and pushes for anything that ended and has
+not been announced. It is guarded by `CRON_SECRET` rather than a login, because the caller
+is a machine, and it is safe to call as often as you like: settling is idempotent and each
+session is announced exactly once.
+
+Point a free scheduler such as [cron-job.org](https://cron-job.org) at it, every minute:
+
+```
+URL     https://<your-app>.vercel.app/api/cron/session-ends
+Header  x-cron-secret: <your CRON_SECRET>
+```
+
+It deliberately does **not** announce only what it just settled. If a laptop had the page
+open it will have settled the session itself, and the phone in your pocket still needs
+telling — so anything unannounced in the last thirty minutes is fair game. The window keeps
+a scheduler outage from firing a backlog at you an hour later.
+
+Subscriptions are retired when the push service returns 404 or 410, and otherwise after
+eight consecutive failures — a corrupt key fails before any request is made and would sit
+there forever, while counting rather than deleting means a network outage cannot wipe good
+subscriptions.
 
 ## Small screens
 

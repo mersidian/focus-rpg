@@ -128,6 +128,8 @@ export const focusSessions = pgTable(
 
     endedAt: timestamp("ended_at", { mode: "date", withTimezone: true }),
     abandonReason: text("abandon_reason"),
+    /** When a push went out for this session's end, so it goes out only once. */
+    notifiedAt: timestamp("notified_at", { mode: "date", withTimezone: true }),
 
     xpAwarded: integer("xp_awarded").notNull().default(0),
 
@@ -385,4 +387,39 @@ export const prestigeCycles = pgTable(
     levelAtReset: integer("level_at_reset").notNull().default(0),
   },
   (t) => [index("prestige_cycle_user_idx").on(t.userId, t.ordinal)],
+);
+
+/* ------------------------------------------------------------ web push */
+
+/**
+ * One row per browser that agreed to be told when a session ends. A phone with
+ * the app closed can be reached no other way — nothing of ours is running on it
+ * (§11's Phase 4 gate).
+ *
+ * Subscriptions expire and are revoked by the push service without warning, so
+ * a send that comes back 404 or 410 deletes the row rather than retrying.
+ */
+export const pushSubscriptions = pgTable(
+  "push_subscription",
+  {
+    endpoint: text("endpoint").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    deviceId: text("device_id"),
+    createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    lastUsedAt: timestamp("last_used_at", { mode: "date", withTimezone: true }),
+    /**
+     * Consecutive failed sends. A push service says "gone" with a 404 or 410,
+     * but a subscription with corrupt keys fails before any request is made and
+     * would otherwise sit here forever. Counting instead of deleting on the
+     * first error means a network outage cannot wipe good subscriptions.
+     */
+    failures: integer("failures").notNull().default(0),
+  },
+  (t) => [index("push_subscription_user_idx").on(t.userId)],
 );
