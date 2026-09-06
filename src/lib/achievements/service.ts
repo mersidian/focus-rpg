@@ -12,6 +12,7 @@ import {
 import { grantFreeze } from "../streak-engine";
 import { gameDay } from "../game-day";
 import { prestigeStats } from "../prestige-service";
+import { allThaiHolidayDates } from "../holidays/thailand";
 import { buildStats, type DayFacts, type StatSession } from "./stats";
 import { evaluate, progressOf } from "./engine";
 import { ACHIEVEMENTS, BY_ID, achievementXp, type Achievement } from "./definitions";
@@ -126,7 +127,13 @@ async function loadStatsFor(userId: string) {
       cyclesToFiftyWithinAYear: prestige.cyclesToFiftyWithinAYear,
       declinedPrestige: prestige.declinedPrestige,
       birthday: settings.birthday,
-      holidays: settings.holidays,
+      /**
+       * Built in rather than kept by the user. A public holiday is a fact about
+       * where you are, not a preference, and asking someone to type nineteen
+       * dates to make one achievement work is a chore disguised as a setting.
+       * Any dates stored on the account still count, so nothing is lost.
+       */
+      holidays: [...new Set([...allThaiHolidayDates(), ...settings.holidays])],
     }),
   };
 }

@@ -141,17 +141,20 @@ PWA.
 
 ## Public holidays
 
-"Working the Holiday" needs to know what a holiday is where you are, and Thailand's list
-cannot be computed: about half the dates are fixed, but Makha Bucha, Visakha Bucha and
-Asahna Bucha follow the lunar calendar, and anything landing at a weekend gets a
-substitution day decided by announcement rather than by rule.
+"Working the Holiday" needs to know what counts as a holiday where you are, and Thailand's
+list cannot be computed: about half the dates are fixed, but Makha Bucha, Visakha Bucha and
+Asahna Bucha follow the lunar calendar, anything landing at a weekend gets a substitution
+day decided by announcement, and the cabinet adds one-off special holidays that it
+sometimes withdraws again.
 
 So `src/lib/holidays/thailand.ts` is a transcribed table from the Bank of Thailand's annual
-financial-institution holiday list, currently covering 2026 and 2027. One button on the
-streak panel adds a year. When the table runs out the interface says so instead of
-guessing — a wrong date would hand out an achievement that was never earned. Adding a year
-is one array; the tests check the dates are well-formed, in order, unique, filed under the
-right year, and that the fixed-date holidays and all three Songkran days are present.
+list, covering 2026 and 2027. It is **built in, not a setting** — a public holiday is a
+fact about where you are rather than a preference, and asking someone to enter nineteen
+dates to make one achievement work is a chore dressed up as configuration. Adding a year is
+one array; the tests check any new one is well-formed, unique, in order, filed under the
+right year, and has all three Songkran days.
+
+Only the birthday is asked for, because only you know it.
 
 ## Small screens
 

@@ -146,7 +146,6 @@ export default async function StreakPage() {
           canBuy={state.xp >= FREEZE_PURCHASE_XP && s.freezes < FREEZE_CAP}
           today={advance.today}
           birthday={advance.settings.birthday}
-          holidays={advance.settings.holidays}
         />
       </main>
     </div>

@@ -85,3 +85,8 @@ export function thaiHolidaysFor(year: number): Holiday[] {
 export function lastKnownThaiYear(): number {
   return knownThaiYears().at(-1) ?? 0;
 }
+
+/** Every date in the table, across all years covered. */
+export function allThaiHolidayDates(): string[] {
+  return knownThaiYears().flatMap((year) => THAI_HOLIDAYS[year].map((h) => h.date));
+}

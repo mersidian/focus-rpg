@@ -360,20 +360,15 @@ export async function recheckAchievements(deviceId: string): Promise<Snapshot> {
   return withUnlocked(await buildSnapshot(userId, deviceId), unlocked);
 }
 
-/** The birthday and holiday achievements need dates only the user knows (§5). */
+/** The birthday achievement needs a date only the user knows (§5). */
 export async function setCalendarSettings(
-  input: { birthday: string | null; holidays: string[] },
+  input: { birthday: string | null },
   deviceId: string,
 ): Promise<Snapshot> {
   const userId = await requireUserId();
-  const holidays = [...new Set(input.holidays.filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)))];
   await db
     .update(userSettings)
-    .set({
-      birthday: input.birthday || null,
-      holidays,
-      updatedAt: new Date(),
-    })
+    .set({ birthday: input.birthday || null, updatedAt: new Date() })
     .where(eq(userSettings.userId, userId));
   return buildSnapshot(userId, deviceId);
 }

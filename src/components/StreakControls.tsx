@@ -12,11 +12,6 @@ import { deviceId } from "@/lib/client/device";
 import { WEEKDAY_NAMES } from "@/lib/game-day";
 import { FREEZE_PURCHASE_XP, MAX_REST_DAYS, MAX_VACATION_DAYS } from "@/lib/streak-engine";
 import { groupNumber } from "@/lib/format";
-import {
-  knownThaiYears,
-  lastKnownThaiYear,
-  thaiHolidaysFor,
-} from "@/lib/holidays/thailand";
 
 type Vacation = { id: string; startDay: string; endDay: string; quarter: string };
 
@@ -27,7 +22,6 @@ export function StreakControls({
   canBuy,
   today,
   birthday,
-  holidays,
 }: {
   restWeekdays: number[];
   vacations: Vacation[];
@@ -35,14 +29,11 @@ export function StreakControls({
   canBuy: boolean;
   today: string;
   birthday: string | null;
-  holidays: string[];
 }) {
   const [rest, setRest] = useState(restWeekdays);
   const [start, setStart] = useState(today);
   const [end, setEnd] = useState(today);
   const [birth, setBirth] = useState(birthday ?? "");
-  const [days, setDays] = useState(holidays);
-  const [newHoliday, setNewHoliday] = useState(today);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -179,25 +170,22 @@ export function StreakControls({
       </section>
 
       <section>
-        <h2 className="text-[15px] text-text">Dates the calendar cares about</h2>
+        <h2 className="text-[15px] text-text">Your birthday</h2>
         <p className="mt-2 max-w-prose text-[13px] leading-relaxed text-faint">
-          Two achievements need dates only you know. A public holiday is wherever you are,
-          so it is a list you keep rather than a calendar guessed on your behalf.
+          One achievement waits for it. Thailand&rsquo;s public holidays are built in, so
+          there is nothing else to keep here.
         </p>
 
         <div className="mt-4 flex flex-wrap items-end gap-3">
           <label className="text-[13px] text-faint">
-            Your birthday
+            Date
             <input
               type="date"
               value={birth}
               onChange={(e) => {
                 setBirth(e.target.value);
                 run(() =>
-                  setCalendarSettings(
-                    { birthday: e.target.value || null, holidays: days },
-                    deviceId(),
-                  ),
+                  setCalendarSettings({ birthday: e.target.value || null }, deviceId()),
                 );
               }}
               className="tnum mt-1 block rounded-sm border border-rule bg-lift px-3 py-2 text-[14px] text-text outline-none"
@@ -206,100 +194,6 @@ export function StreakControls({
           <p className="pb-2 text-[12px] text-faint">Only the day and month are read.</p>
         </div>
 
-        <div className="mt-5 flex flex-wrap items-center gap-3">
-          {knownThaiYears().map((year) => {
-            const dates = thaiHolidaysFor(year).map((h) => h.date);
-            const missing = dates.filter((d) => !days.includes(d));
-            return (
-              <button
-                key={year}
-                type="button"
-                disabled={pending || missing.length === 0}
-                onClick={() => {
-                  const next = [...new Set([...days, ...dates])].sort();
-                  setDays(next);
-                  run(() =>
-                    setCalendarSettings(
-                      { birthday: birth || null, holidays: next },
-                      deviceId(),
-                    ),
-                  );
-                }}
-                className="rounded-sm border border-rule px-4 py-2 text-[13px] text-dim transition-colors hover:text-text disabled:opacity-40"
-              >
-                {missing.length === 0 ? (
-                  <>
-                    <span className="tnum">{year}</span> Thai holidays added
-                  </>
-                ) : (
-                  <>
-                    Add Thailand&rsquo;s <span className="tnum">{year}</span> holidays
-                    <span className="text-faint"> ({missing.length})</span>
-                  </>
-                )}
-              </button>
-            );
-          })}
-        </div>
-        <p className="mt-3 max-w-prose text-[12px] leading-relaxed text-faint">
-          Taken from the Bank of Thailand&rsquo;s annual list. Makha Bucha, Visakha Bucha and
-          Asahna Bucha follow the lunar calendar and cannot be worked out in advance, so the
-          table stops at <span className="tnum">{lastKnownThaiYear()}</span> — add the next
-          year&rsquo;s dates yourself once Thailand publishes them.
-        </p>
-
-        {days.length > 0 && (
-          <ul className="mt-6 flex flex-wrap gap-2">
-            {days.map((d) => (
-              <li key={d}>
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => {
-                    const next = days.filter((x) => x !== d);
-                    setDays(next);
-                    run(() =>
-                      setCalendarSettings(
-                        { birthday: birth || null, holidays: next },
-                        deviceId(),
-                      ),
-                    );
-                  }}
-                  title={`Remove ${d}`}
-                  className="tnum rounded-sm border border-rule px-3 py-2 text-[13px] text-dim transition-colors hover:text-warn disabled:opacity-40"
-                >
-                  {d} <span aria-hidden>×</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <div className="mt-4 flex flex-wrap items-end gap-3">
-          <label className="text-[13px] text-faint">
-            Add a public holiday
-            <input
-              type="date"
-              value={newHoliday}
-              onChange={(e) => setNewHoliday(e.target.value)}
-              className="tnum mt-1 block rounded-sm border border-rule bg-lift px-3 py-2 text-[14px] text-text outline-none"
-            />
-          </label>
-          <button
-            type="button"
-            disabled={pending || days.includes(newHoliday)}
-            onClick={() => {
-              const next = [...new Set([...days, newHoliday])].sort();
-              setDays(next);
-              run(() =>
-                setCalendarSettings({ birthday: birth || null, holidays: next }, deviceId()),
-              );
-            }}
-            className="rounded-sm border border-rule px-5 py-2 text-[14px] text-dim transition-colors hover:text-text disabled:opacity-40"
-          >
-            {days.includes(newHoliday) ? "Already listed" : "Add holiday"}
-          </button>
-        </div>
       </section>
 
       {error && (
