@@ -156,7 +156,7 @@ right year, and has all three Songkran days.
 
 Only the birthday is asked for, because only you know it.
 
-## Notifications on a phone
+## Notifications
 
 The app installs to the home screen: `src/app/manifest.ts` plus a service worker that
 caches nothing. Caching would be actively wrong here — every page is time-sensitive, and a
@@ -164,37 +164,14 @@ cached timer or streak is a lie — so `public/sw.js` exists only to own notific
 
 That worker is not optional on iOS. Safari has no Notification API in a browser tab at all,
 only in an installed app, so the timer screen tells an iPhone to add the app to the home
-screen instead of offering a button that would do nothing. Notifications are shown through
-`registration.showNotification()` rather than `new Notification()`, which Android stops
-honouring once the page is backgrounded.
+screen instead of offering a button that would do nothing.
 
-### Waking a closed phone
-
-With the app shut, nothing of ours is running on the phone and nothing on the server wakes
-by itself, so a session end is announced by Web Push driven from outside.
-
-`POST /api/cron/session-ends` does two things: it settles any live session against the
-server clock — the same work a page load does — and pushes for anything that ended and has
-not been announced. It is guarded by `CRON_SECRET` rather than a login, because the caller
-is a machine, and it is safe to call as often as you like: settling is idempotent and each
-session is announced exactly once.
-
-Point a free scheduler such as [cron-job.org](https://cron-job.org) at it, every minute:
-
-```
-URL     https://<your-app>.vercel.app/api/cron/session-ends
-Header  x-cron-secret: <your CRON_SECRET>
-```
-
-It deliberately does **not** announce only what it just settled. If a laptop had the page
-open it will have settled the session itself, and the phone in your pocket still needs
-telling — so anything unannounced in the last thirty minutes is fair game. The window keeps
-a scheduler outage from firing a backlog at you an hour later.
-
-Subscriptions are retired when the push service returns 404 or 410, and otherwise after
-eight consecutive failures — a corrupt key fails before any request is made and would sit
-there forever, while counting rather than deleting means a network outage cannot wipe good
-subscriptions.
+**A notification fires while the app is alive, and not otherwise.** Waking a closed phone
+would need Web Push plus a scheduler running every minute, and §11 makes that conditional
+rather than assumed. It was built, measured against what it actually costs — a third party
+holding a key to the deployment, or $20 a month — and taken back out. A session that ends
+in your pocket is simply still there when you open the app; nothing is lost, because
+completion is decided by the server clock and not by anyone watching.
 
 ## Small screens
 

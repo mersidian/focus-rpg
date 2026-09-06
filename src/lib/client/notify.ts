@@ -41,48 +41,7 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
   }
 }
 
-/**
- * Registers this browser for push, so a session can be announced even with the
- * app closed. Without this the notification only fires while something of ours
- * is still running (§11, Phase 4).
- */
-export async function subscribeToPush(deviceId: string): Promise<boolean> {
-  const key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-  if (!key) return false;
-
-  const registration = await registerServiceWorker();
-  if (!registration || !("pushManager" in registration)) return false;
-
-  try {
-    const existing = await registration.pushManager.getSubscription();
-    const subscription =
-      existing ??
-      (await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(key),
-      }));
-
-    const response = await fetch("/api/push/subscribe", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ subscription: subscription.toJSON(), deviceId }),
-    });
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
-/** VAPID keys travel as base64url; the subscribe call wants raw bytes. */
-function urlBase64ToUint8Array(base64: string): ArrayBuffer {
-  const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
-  const binary = atob(padded.replace(/-/g, "+").replace(/_/g, "/"));
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes.buffer;
-}
-
-export async function askForNotifications(deviceId: string): Promise<NotifyState> {
+export async function askForNotifications(): Promise<NotifyState> {
   if (notificationState() === "unsupported") return "unsupported";
 
   const result =
@@ -90,7 +49,7 @@ export async function askForNotifications(deviceId: string): Promise<NotifyState
       ? "granted"
       : await Notification.requestPermission();
 
-  if (result === "granted") await subscribeToPush(deviceId);
+  if (result === "granted") await registerServiceWorker();
   return result;
 }
 

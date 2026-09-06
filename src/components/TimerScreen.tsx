@@ -11,9 +11,8 @@ import {
   askForNotifications,
   needsInstallFirst,
   notificationState,
-  subscribeToPush,
+  registerServiceWorker,
 } from "@/lib/client/notify";
-import { deviceId } from "@/lib/client/device";
 import {
   ABANDON_REASON_LABEL,
   MAX_PAUSES,
@@ -381,9 +380,8 @@ function NotificationPrompt() {
   useEffect(() => {
     setState(notificationState());
     setInstallFirst(needsInstallFirst());
-    // Re-subscribing on load is cheap and repairs a subscription the push
-    // service quietly retired while the app was closed.
-    if (notificationState() === "granted") void subscribeToPush(deviceId());
+    // Registering early means the worker is ready before a session ends.
+    if (notificationState() === "granted") void registerServiceWorker();
   }, []);
 
   /**
@@ -407,7 +405,7 @@ function NotificationPrompt() {
       Sessions end quietly unless you allow notifications.{" "}
       <button
         type="button"
-        onClick={() => void askForNotifications(deviceId()).then(setState)}
+        onClick={() => void askForNotifications().then(setState)}
         className="text-dim underline underline-offset-4 hover:text-text"
       >
         Allow notifications

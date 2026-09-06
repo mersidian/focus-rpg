@@ -57,6 +57,13 @@
       "when": 1788707064739,
       "tag": "0007_absent_vampiro",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788708745850,
+      "tag": "0008_sad_loa",
+      "breakpoints": true
     }
   ]
 }
