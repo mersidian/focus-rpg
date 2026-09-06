@@ -11,9 +11,14 @@
  * When the table runs out, the interface says so rather than guessing: a wrong
  * date here would hand out an achievement that was never earned.
  *
+ * One-off special holidays are declared by the cabinet, usually to bridge a
+ * weekend and encourage domestic travel, and are sometimes withdrawn again — so
+ * they are only ever transcribed once the year's list is settled.
+ *
  * Sources:
  *   2026 — https://www.humanresourcesonline.net/full-list-of-thailand-s-2026-public-holidays
  *   2027 — https://www.nationthailand.com/news/general/40070369
+ *   2 Jan 2026 — https://thethaiger.com/news/national/thai-cabinet-withdraws-plan-to-add-more-public-holidays-in-2026
  */
 
 export type Holiday = { date: string; name: string };
@@ -21,7 +26,10 @@ export type Holiday = { date: string; name: string };
 export const THAI_HOLIDAYS: Record<number, Holiday[]> = {
   2026: [
     { date: "2026-01-01", name: "New Year's Day" },
-    { date: "2026-01-02", name: "Additional special holiday" },
+    // Cabinet-declared, to stretch the New Year break to five days and
+    // encourage domestic travel. Two other proposed 2026 additions — 2 June and
+    // 31 July — were withdrawn, and are correctly absent below.
+    { date: "2026-01-02", name: "New Year special holiday" },
     { date: "2026-03-03", name: "Makha Bucha Day" },
     { date: "2026-04-06", name: "Chakri Memorial Day" },
     { date: "2026-04-13", name: "Songkran" },
