@@ -2,16 +2,11 @@
 
 ## Workflow
 
-**Never commit to `main`.** Branch, push, open a pull request, let the author merge.
+Commit straight to `main` and push. This is a solo project with one user and one
+deployment; a review step with nobody on the other side of it is ceremony, not safety.
 
-```bash
-git checkout -b <type>/<short-name>     # feat/ fix/ chore/ docs/
-# ... work, committing as you go ...
-git push -u origin HEAD                 # the push prints a "create pull request" link
-```
-
-`gh` is not installed on this machine and there is no Homebrew, so a session cannot open or
-merge the PR itself — push the branch and hand over the link.
+The safety that does matter is further down this file: the invariants, and running the
+checks below before pushing anything.
 
 ## Before asking for a review
 
