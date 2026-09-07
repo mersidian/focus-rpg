@@ -4,6 +4,7 @@ import { db } from "../db";
 import { achievementUnlocks, focusSessions, dayLedger, userSettings } from "../db/schema";
 import { loadState, applyDelta } from "../game-state";
 import {
+  accrueMeterForXp,
   advanceStreak,
   loadSettings,
   loadStreakState,
@@ -168,6 +169,8 @@ export async function evaluateAchievements(
     await applyDelta(userId, deviceId, `achievements:${newly.map((x) => x.id).join(",")}`, {
       xp,
     });
+    // Achievement XP is earned XP, so it feeds the Freeze Meter like any other.
+    await accrueMeterForXp(userId, xp);
   }
 
   const freezes = newly.reduce((n, x) => n + (x.freezes ?? 0), 0);

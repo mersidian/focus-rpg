@@ -35,6 +35,7 @@ import {
   resolveProject,
 } from "./project-service";
 import {
+  accrueMeterForXp,
   checkVacation,
   loadSettings,
   loadStreakState,
@@ -423,4 +424,72 @@ export async function setProjectArchived(id: string, archived: boolean): Promise
   const userId = await requireUserId();
   await archiveProject(userId, id, archived);
   revalidatePath("/projects");
+}
+
+/**
+ * Corrects a session that was already logged.
+ *
+ * §6 makes the self-report mandatory and §10 calls it the only thing holding
+ * the numbers up — which cuts both ways. A project tagged wrongly was, until
+ * now, wrong forever, and "480 hours on the thesis" is only worth believing if
+ * a slip can be put right. The session's timing is untouched; only what the
+ * user said about it can change.
+ */
+export async function correctSession(input: {
+  sessionId: string;
+  projectId: string | null;
+  newProjectName: string | null;
+  note: string;
+  honest: boolean;
+  deviceId: string;
+}): Promise<Snapshot> {
+  const userId = await requireUserId();
+
+  const [row] = await db
+    .select()
+    .from(focusSessions)
+    .where(
+      and(
+        eq(focusSessions.id, input.sessionId),
+        eq(focusSessions.userId, userId),
+        eq(focusSessions.status, "completed"),
+      ),
+    )
+    .limit(1);
+  if (!row) throw new Error("That session cannot be edited.");
+
+  const projectId = await resolveProject(userId, input.projectId, input.newProjectName);
+  if (!projectId) throw new Error("Pick a project, or name a new one.");
+
+  // The base is what the session paid before any slack reduction, so toggling
+  // the flag lands on the same figure it would have had at the time.
+  const base = row.baseXp > 0 ? row.baseXp : row.xpAwarded;
+  const corrected = input.honest ? base : Math.round(base * SLACKED_XP_MULTIPLIER);
+  const delta = corrected - row.xpAwarded;
+
+  await db
+    .update(focusSessions)
+    .set({
+      projectId,
+      note: input.note.trim() || null,
+      honest: input.honest,
+      xpAwarded: corrected,
+      baseXp: base,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(focusSessions.id, row.id), eq(focusSessions.status, "completed")));
+
+  if (delta !== 0) {
+    await applyDelta(userId, input.deviceId, `session-corrected:${row.id}`, { xp: delta });
+    // The meter keeps what it has drawn (§7), so it only ever takes more.
+    if (delta > 0) await accrueMeterForXp(userId, delta);
+  }
+
+  // Project totals, note lengths and slack admissions all feed achievements.
+  const unlocked = await evaluateAchievements(userId, input.deviceId);
+
+  revalidatePath("/log");
+  revalidatePath("/projects");
+  revalidatePath("/dashboard");
+  return withUnlocked(await buildSnapshot(userId, input.deviceId), unlocked);
 }

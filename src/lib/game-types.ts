@@ -38,6 +38,8 @@ export type LogEntry = {
   startedAt: number;
   endedAt: number | null;
   xpAwarded: number;
+  /** What it paid before any slack reduction, so a correction is exact. */
+  baseXp: number;
   pauseCount: number;
   abandonReason: AbandonReason | null;
   projectName: string | null;

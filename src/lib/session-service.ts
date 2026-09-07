@@ -100,6 +100,7 @@ async function bankCompletion(
       status: "awaiting_report",
       endedAt: completedAt,
       xpAwarded: xp,
+      baseXp: xp,
       updatedAt: new Date(),
     })
     .where(eq(focusSessions.id, row.id));
@@ -236,6 +237,7 @@ export async function listLog(userId: string, limit = 60): Promise<LogEntry[]> {
     startedAt: s.startedAt.getTime(),
     endedAt: s.endedAt?.getTime() ?? null,
     xpAwarded: s.xpAwarded,
+    baseXp: s.baseXp,
     pauseCount: s.pauseCount,
     abandonReason: (s.abandonReason as AbandonReason | null) ?? null,
     projectName,

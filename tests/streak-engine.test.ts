@@ -273,3 +273,11 @@ test("the walk records how far it got", () => {
   const { state } = walk("2026-09-01", "2026-09-03", {});
   assert.equal(state.lastEvaluatedDay, "2026-09-03");
 });
+
+test("the meter takes its fifth from any earned XP, not only sessions", () => {
+  // §7 says "20% of all XP earned". An achievement paying 700 XP is earned XP.
+  const fromSession = accrueMeter(emptyState(), 60);
+  const fromAchievement = accrueMeter(emptyState(), 60);
+  assert.deepEqual(fromAchievement, fromSession, "the meter cannot tell them apart");
+  assert.equal(accrueMeter(emptyState(), 700).meter, 140 * 100);
+});

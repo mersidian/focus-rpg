@@ -237,6 +237,17 @@ export async function recordCompletedSession(
   await saveStreakState(userId, row, next);
 }
 
+/**
+ * Drips a fifth of any earned XP into the Freeze Meter (§7 — "20% of all XP
+ * earned"). Sessions are not the only source: achievements pay XP too, and
+ * "all" means all. Penalties and purchases are negative and contribute nothing.
+ */
+export async function accrueMeterForXp(userId: string, xpEarned: number): Promise<void> {
+  if (xpEarned <= 0) return;
+  const row = await loadStreakState(userId);
+  await saveStreakState(userId, row, accrueMeter(toEngine(row), xpEarned));
+}
+
 export type VacationCheck =
   | { ok: true; quarter: string }
   | { ok: false; reason: "too_long" | "in_the_past" | "quarter_used" | "backwards" };

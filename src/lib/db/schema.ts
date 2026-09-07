@@ -130,6 +130,13 @@ export const focusSessions = pgTable(
     abandonReason: text("abandon_reason"),
 
     xpAwarded: integer("xp_awarded").notNull().default(0),
+    /**
+     * What the session paid before any slack reduction, including whatever
+     * prestige bonus applied at the time. Kept so the honest/slacked flag can
+     * be corrected later and land on the same figure: halving and doubling do
+     * not round-trip through an odd number.
+     */
+    baseXp: integer("base_xp").notNull().default(0),
 
     projectId: text("project_id").references(() => projects.id),
     note: text("note"),
@@ -323,6 +330,13 @@ export const achievementUnlocks = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     achievementId: text("achievement_id").notNull(),
     xpAwarded: integer("xp_awarded").notNull().default(0),
+    /**
+     * What the session paid before any slack reduction, including whatever
+     * prestige bonus applied at the time. Kept so the honest/slacked flag can
+     * be corrected later and land on the same figure: halving and doubling do
+     * not round-trip through an odd number.
+     */
+    baseXp: integer("base_xp").notNull().default(0),
     freezesAwarded: integer("freezes_awarded").notNull().default(0),
     unlockedAt: timestamp("unlocked_at", { mode: "date", withTimezone: true })
       .notNull()

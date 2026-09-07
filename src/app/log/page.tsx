@@ -3,6 +3,8 @@ import type { CSSProperties } from "react";
 import { auth } from "@/lib/auth";
 import { Nav } from "@/components/Nav";
 import { listLog } from "@/lib/session-service";
+import { listProjectDetails } from "@/lib/project-service";
+import { SessionCorrection } from "@/components/SessionCorrection";
 import { loadState } from "@/lib/game-state";
 import { describeLevel } from "@/lib/levels";
 import { groupNumber, tierAccent } from "@/lib/format";
@@ -21,10 +23,12 @@ export default async function LogPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/signin");
 
-  const [entries, state] = await Promise.all([
+  const [entries, state, projects] = await Promise.all([
     listLog(session.user.id, 200),
     loadState(session.user.id),
+    listProjectDetails(session.user.id),
   ]);
+  const projectOptions = projects.map((p) => ({ id: p.id, name: p.name }));
   const info = describeLevel(state.level);
   const accent = tierAccent(info.hue, info.intensity);
 
@@ -103,6 +107,18 @@ export default async function LogPage() {
                             <span className="tnum">{entry.pauseCount}</span>{" "}
                             {entry.pauseCount === 1 ? "pause" : "pauses"}
                           </p>
+                        )}
+                        {entry.status === "completed" && (
+                          <div className="mt-1">
+                            <SessionCorrection
+                              sessionId={entry.id}
+                              projects={projectOptions}
+                              currentProjectName={entry.projectName}
+                              currentNote={entry.note}
+                              currentHonest={entry.honest}
+                              baseXp={entry.baseXp > 0 ? entry.baseXp : entry.xpAwarded}
+                            />
+                          </div>
                         )}
                       </div>
 
