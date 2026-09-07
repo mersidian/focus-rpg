@@ -264,7 +264,7 @@ function Running({
   return (
     <main className="relative flex min-h-dvh flex-col items-center justify-center px-6 text-center">
       {/* The room filling up. Full-bleed, readable from across the desk. */}
-      <div className="fixed inset-x-0 top-0 h-[3px] bg-rule">
+      <div className="safe-offset-top fixed inset-x-0 h-[3px] bg-rule">
         <div
           className="h-full transition-[width] duration-1000 ease-linear"
           style={{
@@ -335,7 +335,7 @@ function Running({
         </button>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 px-6 pb-6">
+      <div className="safe-bottom fixed inset-x-0 bottom-0 px-6">
         <RulesetNote ruleset={ruleset} />
       </div>
     </main>

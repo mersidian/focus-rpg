@@ -20,7 +20,7 @@ export function UnlockToast() {
   if (shown.length === 0) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 px-6 pb-6">
+    <div className="safe-bottom fixed inset-x-0 bottom-0 z-40 px-6">
       <div className="mx-auto w-full max-w-md animate-rise rounded-sm border border-rule bg-lift p-5">
         <p className="text-[13px] text-faint">
           {shown.length === 1 ? "Achievement earned" : `${shown.length} achievements earned`}

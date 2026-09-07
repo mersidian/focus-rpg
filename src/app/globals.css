@@ -28,6 +28,31 @@
   --tier: oklch(0.74 0.035 250);
   --tier-deep: oklch(0.42 0.03 250);
   color-scheme: dark;
+
+  /*
+    Installed on iOS the app draws edge to edge, under the status bar at the top
+    and the home indicator at the bottom. That is the look we want — the indigo
+    ground continues behind the clock rather than stopping at a grey band — but
+    it means anything at an edge has to keep clear of the hardware itself.
+    These resolve to 0px everywhere that has no inset, so desktop is untouched.
+  */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/** For a bar at the very top of the viewport: the clock sits above it. */
+.safe-top {
+  padding-top: calc(var(--safe-top) + 0.5rem);
+}
+
+/** For anything pinned to the bottom, clear of the home indicator. */
+.safe-bottom {
+  padding-bottom: calc(var(--safe-bottom) + 1.5rem);
+}
+
+/** For a fixed element measured from the top edge, such as the session rail. */
+.safe-offset-top {
+  top: var(--safe-top);
 }
 
 html,

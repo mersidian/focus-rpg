@@ -18,7 +18,7 @@ const links = [
  */
 export function Nav({ current }: { current: string }) {
   return (
-    <nav className="flex flex-wrap items-center gap-x-5 border-b border-rule px-6 py-2 text-[13px] sm:gap-x-6 sm:px-10 sm:py-3">
+    <nav className="safe-top flex flex-wrap items-center gap-x-5 border-b border-rule px-6 pb-2 text-[13px] sm:gap-x-6 sm:px-10 sm:pb-3">
       {links.map((link) => (
         <Link
           key={link.href}
