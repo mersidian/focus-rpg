@@ -71,6 +71,13 @@
       "when": 1788792500332,
       "tag": "0009_nebulous_archangel",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788793087915,
+      "tag": "0010_steep_jigsaw",
+      "breakpoints": true
     }
   ]
 }

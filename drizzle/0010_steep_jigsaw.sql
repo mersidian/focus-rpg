@@ -1,0 +1,1 @@
+ALTER TABLE "achievement_unlock" DROP COLUMN "base_xp";
