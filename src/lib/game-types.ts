@@ -79,6 +79,15 @@ export type Snapshot = {
   /** Achievements this call just unlocked, so the UI can mark the moment (§5). */
   unlocked: UnlockedAchievement[];
   prestige: PrestigeSummary;
+  /** The session chain: what the next session would pay, and how long is left. */
+  chain: ChainSummary;
+};
+
+export type ChainSummary = {
+  links: number;
+  multiplier: number;
+  windowMs: number | null;
+  atCap: boolean;
 };
 
 export type PrestigeSummary = {

@@ -13,7 +13,8 @@ import {
 import { evaluate, requiredMs, type EngineSession } from "./session-engine";
 import { advanceStreak } from "./streak-service";
 import { loadPrestige, loadPrestigeView, noteLevel } from "./prestige-service";
-import { applyBonus } from "./prestige";
+import { applyBonus, xpMultiplier } from "./prestige";
+import { chainState, linksBefore, chainMultiplier, type ChainSession } from "./chain";
 import { meterProgress } from "./streak-engine";
 import type {
   ClientSession,
@@ -64,6 +65,40 @@ export function isValidLength(minutes: number): minutes is SessionLength {
   return (SESSION_LENGTHS as readonly number[]).includes(minutes);
 }
 
+/**
+ * Settled sessions, newest first, for working out the chain. Excludes the one
+ * being asked about, which must never count as its own link.
+ */
+export async function chainHistory(
+  userId: string,
+  exclude?: string,
+): Promise<ChainSession[]> {
+  const rows = await db
+    .select({
+      status: focusSessions.status,
+      startedAt: focusSessions.startedAt,
+      endedAt: focusSessions.endedAt,
+      id: focusSessions.id,
+    })
+    .from(focusSessions)
+    .where(
+      and(
+        eq(focusSessions.userId, userId),
+        inArray(focusSessions.status, ["completed", "abandoned", "awaiting_report"]),
+      ),
+    )
+    .orderBy(desc(focusSessions.endedAt))
+    .limit(12);
+
+  return rows
+    .filter((r) => r.id !== exclude && r.endedAt !== null)
+    .map((r) => ({
+      status: r.status as ChainSession["status"],
+      startedAt: r.startedAt.getTime(),
+      endedAt: r.endedAt!.getTime(),
+    }));
+}
+
 async function findLive(userId: string): Promise<Row | undefined> {
   const [row] = await db
     .select()
@@ -91,9 +126,18 @@ async function bankCompletion(
   completedAt: Date,
   deviceId: string | null,
 ) {
-  // Stars pay a permanent bonus on the XP a session earns (§4.2).
+  /**
+   * Stars pay a permanent bonus (§4.2) and the chain pays a temporary one. Both
+   * multiply the same base, and the chain is measured from the session's own
+   * start — the rate the user was told when they chose to begin.
+   */
   const prestige = await loadPrestige(userId);
-  const xp = applyBonus(xpForLength(row.plannedMinutes), prestige.stars);
+  const links = linksBefore(await chainHistory(userId, row.id), row.startedAt.getTime());
+  const xp = Math.round(
+    xpForLength(row.plannedMinutes) *
+      xpMultiplier(prestige.stars) *
+      chainMultiplier(links),
+  );
   await db
     .update(focusSessions)
     .set({
@@ -268,6 +312,7 @@ export async function buildSnapshot(
   // Records the first crossing of the gate, which one achievement times.
   await noteLevel(userId, state.level);
   const prestige = await loadPrestigeView(userId);
+  const chain = chainState(await chainHistory(userId, live?.id ?? awaiting?.id), Date.now());
 
   return {
     serverNow: Date.now(),
@@ -286,6 +331,7 @@ export async function buildSnapshot(
     settled,
     levelChange,
     unlocked: [],
+    chain,
     prestige: {
       stars: prestige.stars,
       bonusPercent: prestige.bonusPercent,

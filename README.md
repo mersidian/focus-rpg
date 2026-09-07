@@ -76,7 +76,7 @@ header that Auth.js will not trust by default — a failure that appears only in
 as a sign-in redirecting to the wrong origin.
 
 ```bash
-npm test                   # 150 unit tests, no database needed
+npm test                   # 163 unit tests, no database needed
 npm run test:integration   # 35 probes against the real database
 ```
 
@@ -121,6 +121,27 @@ which grant freezes. All three are set in `src/lib/achievements/definitions.ts`:
 - **Nine wait on Phase 4.** "Decline prestige and reach level 75" cannot be earned by
   someone who was never offered the choice, so the engine skips them rather than firing on
   the half of the condition that is already true.
+
+## The session chain
+
+Not in SPEC.md. It answers the risk the spec records against itself in §10 — that every
+mechanic rewards and none asks the user to choose, with prestige the only genuine either/or
+and a thousand hours away. The spec names the cut mechanic that used to create the
+decision: descend-or-extract. This is that shape without the combat §1 threw out.
+
+Finish a session and a ten-minute window opens. Start another inside it and the next one
+pays ×1.1, then ×1.2, up to ×1.5 at five links. Let the window close, or give up, and you
+are back to the plain rate. The link you have not started is always worth the most and is
+always the one you are least able to finish — which is the decision.
+
+**§3 is not bent to do this.** "XP banks immediately on completion. There is no run, no
+unbanked pool, no extract step." Every session still banks its own XP the moment it
+completes, at the rate that was in force when it started and that the interface quoted
+before you began. What is at risk is never banked XP — only the multiplier, and the usual
+−30.
+
+The chain is derived from the session table rather than stored, so it cannot drift from the
+ledger, and it multiplies alongside the prestige bonus rather than replacing it.
 
 ## Prestige
 

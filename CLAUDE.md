@@ -11,7 +11,7 @@ checks below before pushing anything.
 ## Before pushing
 
 ```bash
-npm test                   # 150 unit tests, no database needed
+npm test                   # 163 unit tests, no database needed
 npm run test:integration   # 35 probes against the real database
 npx tsc --noEmit
 npm run build
@@ -32,8 +32,10 @@ All four must pass. The integration probe makes its own throwaway user and delet
   project keeps its row pointing at where its hours went.
 - **Levels ratchet.** XP can fall; the level cannot. Prestige is the single sanctioned
   reset, and even then `peak_level` remembers.
+- **The chain is derived, never stored.** `chain.ts` reads the session table and works out
+  what the next session pays. Storing a multiplier would let it drift from the ledger.
 - **Pure rules take `now` as an argument.** `session-engine`, `streak-engine`, `game-day`,
-  `levels`, `projects` and `prestige` have no database and no clock of their own. That is
+  `levels`, `projects`, `chain` and `prestige` have no database and no clock of their own. That is
   what makes them testable; keep new rules that shape.
 
 ## Testing achievements and rules

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useGame } from "./GameProvider";
 import { SLACKED_XP_MULTIPLIER } from "@/lib/constants";
-import { groupNumber } from "@/lib/format";
+import { clock, groupNumber } from "@/lib/format";
 
 const DRAFT_KEY = "focusrpg:draft";
 
@@ -147,6 +147,22 @@ export function ReportCard() {
           className="mt-3 w-full resize-none rounded-sm border border-rule bg-lift px-4 py-3 text-[15px] leading-relaxed outline-none placeholder:text-faint"
         />
       </section>
+
+      {snapshot.chain.windowMs !== null && snapshot.chain.links > 0 && (
+        <p
+          className="mt-8 border-l-2 pl-4 text-[13px] leading-relaxed text-dim"
+          style={{ borderColor: "var(--tier)" }}
+        >
+          Log this and another session inside{" "}
+          <span className="tnum">{clock(snapshot.chain.windowMs)}</span> pays{" "}
+          <span className="tnum" style={{ color: "var(--tier)" }}>
+            ×{snapshot.chain.multiplier.toFixed(1)}
+          </span>
+          {snapshot.chain.atCap
+            ? " — the chain is as long as it goes."
+            : ". Give up and it is back to the plain rate."}
+        </p>
+      )}
 
       <section className="mt-8 border-t border-rule pt-8">
         <h2 className="text-[15px] text-text">Did you actually focus?</h2>

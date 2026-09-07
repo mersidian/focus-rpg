@@ -21,7 +21,8 @@ import {
 } from "@/lib/constants";
 import { evaluate, pauseBudgetLeftMs, type EngineSession } from "@/lib/session-engine";
 import { describeLevel } from "@/lib/levels";
-import { applyBonus } from "@/lib/prestige";
+import { xpMultiplier } from "@/lib/prestige";
+import { CHAIN_WINDOW_MS, MAX_CHAIN_LINKS } from "@/lib/chain";
 import { clock, completionRatio, groupNumber, hours } from "@/lib/format";
 
 export function TimerScreen() {
@@ -170,6 +171,8 @@ function Idle({ choice, onChoose }: { choice: number; onChoose: (n: number) => v
         </p>
       )}
 
+      <ChainOffer />
+
       <section className="mt-14">
         <div className="grid grid-cols-3 gap-px overflow-hidden rounded-sm bg-rule">
           {SESSION_LENGTHS.map((minutes) => {
@@ -192,7 +195,12 @@ function Idle({ choice, onChoose }: { choice: number; onChoose: (n: number) => v
                 <span className="mt-2 block text-[13px] text-faint">minutes</span>
                 <span className="mt-1 block text-[13px] text-faint">
                   <span className="tnum text-dim">
-                    +{applyBonus(XP_BY_LENGTH[minutes], snapshot.prestige.stars)}
+                    +
+                    {Math.round(
+                      XP_BY_LENGTH[minutes] *
+                        xpMultiplier(snapshot.prestige.stars) *
+                        snapshot.chain.multiplier,
+                    )}
                   </span>{" "}
                   XP
                   {/* The bonus note wraps the slab onto a second line on a
@@ -231,6 +239,49 @@ function Idle({ choice, onChoose }: { choice: number; onChoose: (n: number) => v
 
       <NotificationPrompt />
     </main>
+  );
+}
+
+/**
+ * The one place the app asks for a decision rather than handing out a reward
+ * (§10). The clock is the point: the offer is worth most exactly when you are
+ * least likely to finish another session.
+ */
+function ChainOffer() {
+  const { snapshot, serverNow } = useGame();
+  const { chain } = snapshot;
+  useTick(1000, chain.windowMs !== null);
+
+  if (chain.windowMs === null || chain.links === 0) return null;
+
+  // Recomputed from the snapshot's own clock so the countdown does not drift.
+  const left = chain.windowMs - (serverNow() - snapshot.serverNow);
+  if (left <= 0) return null;
+
+  const pct = Math.max(0, Math.min(1, left / CHAIN_WINDOW_MS));
+
+  return (
+    <section className="mt-12 border-l-2 pl-4" style={{ borderColor: "var(--tier)" }}>
+      <p className="text-[15px]">
+        <span className="tnum" style={{ color: "var(--tier)" }}>
+          ×{chain.multiplier.toFixed(1)}
+        </span>{" "}
+        <span className="text-dim">
+          on your next session — {chain.links} in a row
+          {chain.atCap && ", as long as the chain goes"}
+        </span>
+      </p>
+      <p className="mt-2 text-[13px] text-faint">
+        Start within <span className="tnum text-dim">{clock(left)}</span> to keep it. Give up
+        or run out of time and it is back to the plain rate.
+      </p>
+      <div className="mt-3 h-px w-full max-w-xs bg-rule">
+        <div
+          className="h-px transition-[width] duration-1000 ease-linear"
+          style={{ width: `${pct * 100}%`, backgroundColor: "var(--tier)" }}
+        />
+      </div>
+    </section>
   );
 }
 
@@ -292,9 +343,11 @@ function Running({
             <span className="tnum text-dim">{session.plannedMinutes}</span> minute session,
             worth{" "}
             <span className="tnum text-dim">
-              {applyBonus(
-                XP_BY_LENGTH[session.plannedMinutes as 15 | 25 | 50] ?? session.plannedMinutes,
-                snapshot.prestige.stars,
+              {Math.round(
+                (XP_BY_LENGTH[session.plannedMinutes as 15 | 25 | 50] ??
+                  session.plannedMinutes) *
+                  xpMultiplier(snapshot.prestige.stars) *
+                  snapshot.chain.multiplier,
               )}
             </span>{" "}
             XP.
