@@ -2,6 +2,7 @@
 
 import { describeLevel, rankProgress } from "@/lib/levels";
 import { groupNumber } from "@/lib/format";
+import { CountUp } from "./CountUp";
 
 /**
  * Progress toward the next rank. A single hairline that fills — the same shape
@@ -21,7 +22,9 @@ export function XpRail({ xp, level }: { xp: number; level: number }) {
         />
       </div>
       <div className="mt-2 flex items-baseline justify-between text-[13px] text-faint">
-        <span className="tnum text-dim">{groupNumber(xp)} XP</span>
+        <span className="tnum text-dim">
+          <CountUp value={xp} /> XP
+        </span>
         {capped ? (
           <span>the ladder ends here</span>
         ) : (

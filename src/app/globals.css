@@ -117,6 +117,27 @@ body {
   from { transform: scaleX(0); }
   to { transform: scaleX(1); }
 }
+
+/*
+  The year building itself, a column at a time (§8's frosted-square
+  transitions). Worked days rise into place; a frozen day settles differently,
+  because a freeze spending itself overnight is not the same event as work.
+*/
+@keyframes cell-in {
+  from { opacity: 0; transform: scale(0.55); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes frost-in {
+  0% { opacity: 0; transform: scale(0.4) rotate(-12deg); }
+  60% { opacity: 1; transform: scale(1.18) rotate(2deg); }
+  100% { opacity: 1; transform: none; }
+}
+
+/* A press that answers back. */
+@keyframes press {
+  from { transform: scale(0.97); }
+  to { transform: none; }
+}
 @keyframes rise {
   from { opacity: 0; transform: translateY(14px); }
   to { opacity: 1; transform: none; }
@@ -132,6 +153,13 @@ body {
 .animate-sweep { animation: sweep 1100ms cubic-bezier(0.4, 0, 0.2, 1) 260ms both; }
 .animate-hairline { animation: hairline 700ms cubic-bezier(0.2, 0.7, 0.3, 1) 120ms both; transform-origin: left; }
 .letter { display: inline-block; animation: letter-in 520ms cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+.cell-in { animation: cell-in 300ms cubic-bezier(0.2, 0.8, 0.3, 1) both; }
+.frost-in { animation: frost-in 620ms cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+
+/* Buttons acknowledge the tap before the network does. */
+button:not(:disabled):active {
+  animation: press 140ms ease-out;
+}
 .animate-rise { animation: rise 320ms cubic-bezier(0.2, 0.7, 0.3, 1) both; }
 .animate-pop { animation: count-pop 420ms cubic-bezier(0.3, 1.4, 0.5, 1); }
 

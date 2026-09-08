@@ -29,10 +29,19 @@ export function Heatmap({ days, today }: { days: HeatDay[]; today: string }) {
   return (
     <div className="overflow-x-auto pb-2">
       <div className="flex gap-[3px]" style={{ minWidth: "min-content" }}>
-        {weeks.map((week) => (
+        {weeks.map((week, column) => (
           <div key={week[0]} className="flex flex-col gap-[3px]">
             {week.map((day) => (
-              <Cell key={day} day={day} entry={byDay.get(day)} isToday={day === today} />
+              <Cell
+                key={day}
+                day={day}
+                entry={byDay.get(day)}
+                isToday={day === today}
+                /* A column at a time, left to right, so the year assembles
+                   rather than appearing. Capped so the last week is not a
+                   second late. */
+                delayMs={Math.min(column * 7, 380)}
+              />
             ))}
           </div>
         ))}
@@ -45,10 +54,12 @@ function Cell({
   day,
   entry,
   isToday,
+  delayMs,
 }: {
   day: string;
   entry: HeatDay | undefined;
   isToday: boolean;
+  delayMs: number;
 }) {
   const state = entry?.state ?? "gap";
   const sessions = entry?.completed ?? 0;
@@ -56,7 +67,12 @@ function Cell({
   // Worked days deepen with the number of sessions rather than switching hue.
   const intensity = sessions === 0 ? 0 : Math.min(1, 0.42 + sessions * 0.16);
 
-  const style: React.CSSProperties = { width: 11, height: 11, borderRadius: 2 };
+  const style: React.CSSProperties = {
+    width: 11,
+    height: 11,
+    borderRadius: 2,
+    animationDelay: `${delayMs}ms`,
+  };
   let label: string;
 
   if (state === "active") {
@@ -82,7 +98,14 @@ function Cell({
 
   if (isToday) style.boxShadow = `${style.boxShadow ? style.boxShadow + ", " : ""}0 0 0 1px var(--color-dim)`;
 
-  return <div style={style} title={`${day} — ${label}`} aria-label={`${day}, ${label}`} />;
+  return (
+    <div
+      className={state === "frozen" ? "frost-in" : "cell-in"}
+      style={style}
+      title={`${day} — ${label}`}
+      aria-label={`${day}, ${label}`}
+    />
+  );
 }
 
 export function HeatmapKey() {

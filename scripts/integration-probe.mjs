@@ -25,6 +25,21 @@ const sql = neon(process.env.DATABASE_URL);
 const userId = `probe-${crypto.randomUUID()}`;
 let failures = 0;
 
+async function finish(error) {
+  await removeProbeAccounts();
+  const [{ c }] = await sql`select count(*)::int c from focus_session where user_id = ${userId}`;
+  console.log(`\ncleanup: probe accounts removed, ${c} sessions left behind`);
+  if (error) {
+    console.error("\nPROBE CRASHED:", error.message);
+    process.exit(1);
+  }
+  console.log(failures === 0 ? "\nALL PROBES PASSED" : `\n${failures} PROBE(S) FAILED`);
+  process.exit(failures === 0 ? 0 : 1);
+}
+
+process.on("uncaughtException", (e) => void finish(e));
+process.on("unhandledRejection", (e) => void finish(e instanceof Error ? e : new Error(String(e))));
+
 const check = (name, ok, detail = "") => {
   console.log(`  ${ok ? "ok  " : "FAIL"} ${name}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failures++;
@@ -32,6 +47,21 @@ const check = (name, ok, detail = "") => {
 
 await sql`insert into "user" (id, name, email) values (${userId}, 'probe', ${userId + "@probe.invalid"})`;
 await sql`insert into user_settings (user_id, timezone) values (${userId}, 'Asia/Bangkok')`;
+
+/**
+ * The probe must not survive its own crash. An earlier run threw partway and
+ * left its account behind; cleanup scripts that picked a target with
+ * `select id from "user" limit 1` then had a real chance of deleting the wrong
+ * person's history. Nothing here targets an account by position, and this
+ * account removes itself whatever happens.
+ */
+let exitCode = 0;
+process.on("exit", () => {
+  if (exitCode !== 0) console.log("\n(the probe user is removed even on failure)");
+});
+async function removeProbeAccounts() {
+  await sql`delete from "user" where id like 'probe-%'`;
+}
 
 const day = (back, hour = 9) => {
   const d = new Date();
@@ -191,9 +221,4 @@ console.log("\n10. XP can never go negative");
 await applyDelta(userId, null, "probe", { xp: -999_999 });
 check("a huge penalty floors at zero", (await loadState(userId)).xp === 0);
 
-/* cleanup */
-await sql`delete from "user" where id = ${userId}`;
-const [{ c }] = await sql`select count(*)::int c from focus_session where user_id = ${userId}`;
-console.log(`\ncleanup: probe user removed, ${c} sessions left behind`);
-console.log(failures === 0 ? "\nALL PROBES PASSED" : `\n${failures} PROBE(S) FAILED`);
-process.exit(failures === 0 ? 0 : 1);
+await finish();

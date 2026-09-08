@@ -7,7 +7,7 @@ import { loadDashboard, listProjectDetails } from "@/lib/project-service";
 import { loadState } from "@/lib/game-state";
 import { loadPrestigeView } from "@/lib/prestige-service";
 import { describeLevel, xpToNextRank } from "@/lib/levels";
-import { measurePace, projectNextRank } from "@/lib/projection";
+import { MIN_ACTIVE_DAYS, measurePace, projectNextRank } from "@/lib/projection";
 import { xpMultiplier } from "@/lib/prestige";
 import { completionRatio, groupNumber, hours, tierAccent } from "@/lib/format";
 
@@ -97,6 +97,13 @@ export default async function DashboardPage() {
                 </>
               ) : projection.reason === "at_cap" ? (
                 <>Mythic V. There is nothing above this.</>
+              ) : projection.reason === "too_early" ? (
+                <>
+                  <span className="tnum" style={{ color: accent, fontFamily: "var(--font-mono)" }}>
+                    {pace.activeDays}
+                  </span>{" "}
+                  {pace.activeDays === 1 ? "day" : "days"} in
+                </>
               ) : (
                 <>No pace to project from yet</>
               )}
@@ -113,8 +120,15 @@ export default async function DashboardPage() {
                   </span>
                   .
                 </>
+              ) : projection.reason === "too_early" ? (
+                <>
+                  Too early to say when the next rank lands. A few days is not a pace, and a
+                  number with nothing behind it would only be wrong — this fills in once
+                  you have worked on{" "}
+                  <span className="tnum text-dim">{MIN_ACTIVE_DAYS}</span> separate days.
+                </>
               ) : (
-                <>The last four weeks have no finished sessions to measure a pace from.</>
+                <>Nothing finished recently, so there is no pace to measure.</>
               )}
             </p>
 

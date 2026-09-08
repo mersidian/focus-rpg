@@ -48,3 +48,30 @@ test("there is nothing to project at the top of the ladder", () => {
     reason: "at_cap",
   });
 });
+
+test("days before your first session are not days you missed", () => {
+  // Two days of real use at the end of a 28-day series.
+  const series = daily([...Array(26).fill(0), 120, 120]);
+  const pace = measurePace(series);
+  assert.equal(pace.minutesPerDay, 120, "the empty prehistory is not averaged in");
+  assert.equal(pace.windowDays, 2);
+  assert.equal(pace.activeDays, 2);
+});
+
+test("a gap after you have started still counts against you", () => {
+  const pace = measurePace(daily([60, 0, 0, 60]));
+  assert.equal(pace.minutesPerDay, 30, "the two idle days are real days you missed");
+});
+
+test("two days of use is not a pace to project from", () => {
+  const p = projectNextRank(600, measurePace(daily([120, 120])), "2026-09-06");
+  assert.equal(p.known, false);
+  assert.equal(p.known === false && p.reason, "too_early");
+  assert.equal(p.known === false && p.activeDays, 2);
+});
+
+test("once there is enough history the projection returns", () => {
+  const p = projectNextRank(600, measurePace(daily([60, 60, 60, 60, 60])), "2026-09-06");
+  assert.equal(p.known, true);
+  assert.equal(p.known && p.days, 10);
+});
