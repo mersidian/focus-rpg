@@ -76,7 +76,7 @@ header that Auth.js will not trust by default — a failure that appears only in
 as a sign-in redirecting to the wrong origin.
 
 ```bash
-npm test                   # 163 unit tests, no database needed
+npm test                   # 172 unit tests, no database needed
 npm run test:integration   # 35 probes against the real database
 ```
 
@@ -118,6 +118,11 @@ which grant freezes. All three are set in `src/lib/achievements/definitions.ts`:
   that describe a person rather than a number: you can wear "Night Shift", not "50 sessions".
 - **13 grant freezes**, 31 in total, all in Consistency and Recovery — the two families
   about surviving time away, so the reward matches what the achievement is about.
+- **A period must have something in it.** "A calendar month without abandoning a single
+  session" is a claim about a month of work, not a month you barely used — so a clean month
+  needs 20 sessions in it and a pause-free week needs 5. Without that floor a new account
+  earned three period achievements on its first evening, taking 410 XP against 30 XP of
+  actual work and landing on Novice I after half an hour.
 - **Nine wait on Phase 4.** "Decline prestige and reach level 75" cannot be earned by
   someone who was never offered the choice, so the engine skips them rather than firing on
   the half of the condition that is already true.

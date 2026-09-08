@@ -228,6 +228,17 @@ function longestRun<T>(items: T[], ok: (item: T) => boolean): number {
   return best;
 }
 
+/**
+ * A period only counts as clean if there was something in it to keep clean.
+ *
+ * "A calendar month without abandoning a single session" is a claim about a
+ * month of work, not about a month you barely used: two sessions and no
+ * abandons is an empty month, not a spotless one. Without a floor, a new
+ * account earns three period achievements on its first evening.
+ */
+const MIN_SESSIONS_FOR_CLEAN_MONTH = 20;
+const MIN_SESSIONS_FOR_CLEAN_WEEK = 5;
+
 const SEASONS = ["winter", "spring", "summer", "autumn"] as const;
 function seasonOf(month: number): string {
   return SEASONS[Math.floor((month % 12) / 3)];
@@ -544,7 +555,7 @@ export function buildStats(input: StatsInput): Stats {
   for (const s of done) countByLength[s.plannedMinutes] = (countByLength[s.plannedMinutes] ?? 0) + 1;
 
   const pauseFreeWeeks = [...byWeek.entries()].filter(([key, w]) => {
-    if (w.sessions === 0) return false;
+    if (w.sessions < MIN_SESSIONS_FOR_CLEAN_WEEK) return false;
     return dayRangeSessions(dayMap, key).every((s) => s.pauseCount === 0);
   }).length;
 
@@ -617,9 +628,11 @@ export function buildStats(input: StatsInput): Stats {
     maxConsecutiveHonest: honestRun,
     sameDayRecoveries,
     pauseFreeWeeks,
-    cleanMonths: [...byMonth.values()].filter((m) => m.sessions > 0 && m.abandons === 0).length,
+    cleanMonths: [...byMonth.values()].filter(
+      (m) => m.sessions >= MIN_SESSIONS_FOR_CLEAN_MONTH && m.abandons === 0,
+    ).length,
     perfectCompletionMonths: [...byMonth.values()].filter(
-      (m) => m.sessions > 0 && m.abandons === 0,
+      (m) => m.sessions >= MIN_SESSIONS_FOR_CLEAN_MONTH && m.abandons === 0,
     ).length,
 
     longestAbsenceDays: longestAbsence,

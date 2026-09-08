@@ -11,7 +11,7 @@ checks below before pushing anything.
 ## Before pushing
 
 ```bash
-npm test                   # 163 unit tests, no database needed
+npm test                   # 172 unit tests, no database needed
 npm run test:integration   # 35 probes against the real database
 npx tsc --noEmit
 npm run build

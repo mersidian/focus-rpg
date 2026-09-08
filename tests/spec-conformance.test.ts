@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { buildStats, type StatSession } from "../src/lib/achievements/stats.ts";
-import { ACHIEVEMENTS } from "../src/lib/achievements/definitions.ts";
+import { ACHIEVEMENTS, RARITY_XP } from "../src/lib/achievements/definitions.ts";
 import { evaluate } from "../src/lib/achievements/engine.ts";
 
 const TZ = "Asia/Bangkok";
@@ -274,4 +274,50 @@ test("'active 3 months' is earned once three months have actually passed", () =>
     s({ startedAt: bangkok("2026-11-05T09:00:00") }),
   ];
   assert.equal(fires("lh-3m", stats(history)), true);
+});
+
+/* ------------------------------- §5, periods with nothing in them */
+
+test("two sessions in a month is not 'a calendar month without abandoning'", () => {
+  const evening = [
+    s({ startedAt: bangkok("2026-11-02T21:00:00") }),
+    s({ startedAt: bangkok("2026-11-02T22:00:00") }),
+  ];
+  assert.equal(fires("con-clean-month", stats(evening)), false);
+  assert.equal(fires("dis-100-month", stats(evening)), false);
+});
+
+test("two sessions in a week is not 'a whole week of sessions with no pause'", () => {
+  const evening = [
+    s({ startedAt: bangkok("2026-11-02T21:00:00") }),
+    s({ startedAt: bangkok("2026-11-02T22:00:00") }),
+  ];
+  assert.equal(fires("dis-pause-free-week", stats(evening)), false);
+});
+
+test("a month of real work with no abandons still earns it", () => {
+  const month = days("2026-11-01", 22, 1);
+  assert.equal(fires("con-clean-month", stats(month)), true);
+  assert.equal(fires("dis-100-month", stats(month)), true);
+});
+
+test("a real week with no pause still earns it, and one pause takes it away", () => {
+  const week = days("2026-11-01", 6, 1);
+  assert.equal(fires("dis-pause-free-week", stats(week)), true);
+
+  const paused = [...week];
+  paused[2] = { ...paused[2], pauseCount: 1, pausedMs: 30_000 };
+  assert.equal(fires("dis-pause-free-week", stats(paused)), false);
+});
+
+test("a first evening no longer out-earns the work by an order of magnitude", () => {
+  const evening = [
+    s({ startedAt: bangkok("2026-11-02T21:00:00"), plannedMinutes: 15 }),
+    s({ startedAt: bangkok("2026-11-02T22:00:00"), plannedMinutes: 15 }),
+  ];
+  // `today` has to be the evening itself, or the account also looks like one
+  // that has been away for two months and earns the Recovery family too.
+  const earned = evaluate(stats(evening, { today: "2026-11-02" }), []);
+  const xp = earned.reduce((n, a) => n + RARITY_XP[a.rarity], 0);
+  assert.ok(xp <= 120, `a first evening paid ${xp} achievement XP against 30 of work`);
 });
