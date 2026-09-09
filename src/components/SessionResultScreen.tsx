@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { useGame } from "./GameProvider";
+import { useGameOptional } from "./GameProvider";
 import { CountUp } from "./CountUp";
 import { groupNumber } from "@/lib/format";
 import type { ResolutionSummary } from "@/lib/game-types";
@@ -27,8 +27,17 @@ import type { ResolutionSummary } from "@/lib/game-types";
  * No Fraunces (§8), no cards, no shadows. Hairlines, one accent, and the
  * motion the app already owns.
  */
-export function SessionResultScreen({ result }: { result: ResolutionSummary }) {
-  const { dismissGameResult } = useGame();
+export function SessionResultScreen({
+  result,
+  onDismiss,
+}: {
+  result: ResolutionSummary;
+  onDismiss?: () => void;
+}) {
+  // Same shape as the toasts: the provider when there is one, a prop when there
+  // is not, so the screen can be rendered and looked at on its own.
+  const game = useGameOptional();
+  const dismissGameResult = onDismiss ?? game?.dismissGameResult ?? (() => {});
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && dismissGameResult();
@@ -40,9 +49,13 @@ export function SessionResultScreen({ result }: { result: ResolutionSummary }) {
 
   return (
     <main className="animate-rise mx-auto w-full max-w-2xl px-6 pb-24 pt-16 sm:px-10">
+      {/* One preposition per kind. "in" wants a place: you are in an area, but
+          you are *against* a boss and you are simply mining. */}
       <p className="text-body text-faint">
         <span className="tnum">{result.minutes ?? 0}</span> minutes
-        {result.where && <> in {result.where}</>}.
+        {result.kind === "gathering" && <> {result.skill}</>}
+        {result.kind === "combat" && result.where && <> in {result.where}</>}
+        {result.kind === "boss" && result.where && <> against {result.where}</>}.
       </p>
 
       <Headline result={result} />
