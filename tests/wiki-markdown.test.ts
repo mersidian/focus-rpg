@@ -191,3 +191,41 @@ test("links between the wiki's own documents resolve to documents it carries", (
     }
   }
 });
+
+/* ---------------------------- the doc registry ----------------------------- */
+
+test("no hand-written blurb makes a claim that can go stale", () => {
+  // The registry is the only part of the wiki that cannot be generated, so it is
+  // the only part that can drift — and it did: V2's blurb read "21 skills, ~326
+  // items … Designed, not built" for days after V2 was 22 skills, 8,568 items
+  // and built. Figures belong to `v2Figures()`, which computes them.
+  for (const doc of WIKI_DOCS) {
+    assert.ok(
+      !/\d/.test(doc.blurb),
+      `${doc.slug}'s blurb quotes a figure: "${doc.blurb}"`,
+    );
+    assert.ok(doc.blurb.length > 20, `${doc.slug} has no blurb worth reading`);
+  }
+});
+
+test("every document the registry names exists and is readable", () => {
+  for (const doc of WIKI_DOCS) {
+    const text = read(doc.file);
+    assert.ok(text.length > 500, `${doc.file} is empty or missing`);
+    assert.ok(text.startsWith("#"), `${doc.file} does not open with a heading`);
+  }
+});
+
+test("no document is marked as unbuilt while the code says otherwise", () => {
+  // If a spec's standing says "designed", nothing in it should be claiming to
+  // be built — that mismatch is what the question "what does designed not built
+  // mean?" was actually about.
+  for (const doc of WIKI_DOCS) {
+    if (doc.standing !== "designed") continue;
+    const text = read(doc.file);
+    assert.ok(
+      !/\*\*Status: built\.\*\*/.test(text),
+      `${doc.file} says it is built but the registry says designed`,
+    );
+  }
+});

@@ -11,7 +11,7 @@ checks below before pushing anything.
 ## Before pushing
 
 ```bash
-npm test                   # 325 unit tests, no database needed
+npm test                   # 328 unit tests, no database needed
 node --env-file=.env.local scripts/schema-check.mjs   # the live schema matches the code
 npm run test:integration   # 35 probes against the real database
 npx tsc --noEmit
@@ -123,6 +123,18 @@ before `git push`, and this says whether it took.
 - **Milestone XP stays a garnish.** The ladder is ~600,000 XP; V1's achievements are ~27,000 and
   the milestones are ~37,000, both under 8%, and a test holds the line. Anything that pays into
   the ladder competes with focused minutes for the meaning of a level.
+
+## Hand-written prose may not quote a figure
+
+The wiki generates everything it can, and the one thing it cannot generate — the doc
+registry that names the documents — is the one thing that went stale: V2's blurb read
+"21 skills, ~326 items … Designed, not built" for days after V2 was 22 skills, 8,568 items
+and built. `src/lib/wiki/v2.ts` had drifted twice the same way before it was made to compute
+everything.
+
+So a blurb says what a document is *about* and the page prints the figures from
+`v2Figures()`. A test asserts no blurb contains a digit, and it is absolute even where the
+figure is frozen — exempting the safe ones is how the habit dies.
 
 ## Explaining a number to the user
 
