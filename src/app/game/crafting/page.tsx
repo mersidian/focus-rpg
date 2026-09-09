@@ -7,6 +7,7 @@ import { balances, loadWallet } from "@/lib/inventory-service";
 import { allRecipes, canCraft } from "@/lib/game/recipes";
 import { SKILLS } from "@/lib/game/skills";
 import { groupNumber } from "@/lib/format";
+import { CraftButton } from "@/components/GameActions";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +53,7 @@ export default async function CraftingPage() {
         return (
           <Block key={skill.key} title={skill.label} aside={`level ${level} · ${mine.length} recipes`}>
             <Rows
-              head={["Makes", "Needs", "Fuel", "Level", "Now?"]}
+              head={["Makes", "Needs", "Fuel", "Level", ""]}
               rows={reachable.map((r) => {
                 const check = canCraft(r, have, wallet.fuel, level, itemName);
                 return [
@@ -66,11 +67,9 @@ export default async function CraftingPage() {
                   String(r.fuel),
                   String(r.level),
                   check.ok ? (
-                    <span key="y" style={{ color: "var(--tier)" }}>
-                      yes
-                    </span>
+                    <CraftButton key="c" recipeId={r.id} />
                   ) : (
-                    <span key="n" className="text-faint">
+                    <span key="n" className="text-[12px] text-faint">
                       {check.missing[0]}
                     </span>
                   ),

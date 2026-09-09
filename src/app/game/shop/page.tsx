@@ -16,16 +16,25 @@ import {
 } from "@/lib/game/economy";
 import { TIERS } from "@/lib/game/tiers";
 import { groupNumber } from "@/lib/format";
+import { shopStock } from "@/lib/shop-service";
+import { tierForHours } from "@/lib/game/tiers";
+import { loadState } from "@/lib/game-state";
+import { BuyButton, BuyFuelCapButton, BuySlotsButton } from "@/components/GameActions";
 
 export const dynamic = "force-dynamic";
 
 export default async function ShopPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/signin");
-  const [wallet, usage] = await Promise.all([
+  const [wallet, usage, state] = await Promise.all([
     loadWallet(session.user.id),
     bankUsage(session.user.id),
+    loadState(session.user.id),
   ]);
+  // The shop stocks a tier above what your hours have opened, so there is always
+  // something to save for.
+  const openTier = Math.min(24, tierForHours(state.lifetimeFocusedMs / 3_600_000) + 1);
+  const stock = shopStock(openTier);
   const capStep = Math.max(0, Math.round((wallet.fuelCap - FUEL_CAP_BASE) / FUEL_CAP_STEP));
 
   return (
@@ -45,6 +54,10 @@ export default async function ShopPage() {
       </p>
 
       <Block title="Upgrades" aside="the sinks">
+        <div className="mt-4 flex flex-wrap gap-4">
+          <BuySlotsButton />
+          <BuyFuelCapButton />
+        </div>
         <Rows
           head={["", "Now", "Next", "Cost"]}
           rows={[
@@ -66,6 +79,25 @@ export default async function ShopPage() {
           Bank slots are the largest sink in the game, and the reason late-game coin income has
           somewhere to go.
         </p>
+      </Block>
+
+      <Block title="In stock" aside={`up to tier ${openTier}`}>
+        <p className="mt-3 max-w-2xl text-[13px] leading-relaxed text-faint">
+          Tools, ammunition, rations, upgrade stones and seeds. Everything else has to be made or
+          found — the shop will not sell you a weapon you could smith.
+        </p>
+        <Rows
+          head={["Item", "Class", "Tier", "Price", ""]}
+          rows={stock.slice(0, 80).map((i) => [
+            i.name,
+            <span key="c" className="text-faint">
+              {i.cls}
+            </span>,
+            String(i.tier),
+            groupNumber(i.price),
+            <BuyButton key="b" itemId={i.id} />,
+          ])}
+        />
       </Block>
 
       <Block title="Prices" aside="V(T) = 10 × 1.20^(T−1)">

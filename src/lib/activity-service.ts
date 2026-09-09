@@ -10,7 +10,7 @@ import {
   slayingContracts,
   worldProgress,
 } from "./db/schema";
-import { append, adjustWallet, loadWallet, type Grant } from "./inventory-service";
+import { append, adjustWallet, loadWallet, logCollected, type Grant } from "./inventory-service";
 import { ARCHETYPE_BY_NAME, type Style } from "./game/archetypes";
 import { BIOME_BY_INDEX } from "./game/biomes";
 import { resolveCombat, RARITIES, rationsPerFailure, spawnPower } from "./game/combat";
@@ -625,6 +625,10 @@ export async function resolveActivity(
         rolled: Math.round((lo + (hi - lo) * piece.percentile) * 1000),
         sessionId,
       });
+      // An instance never passes through the ledger, so the collection log has
+      // to be told separately — otherwise found equipment would never count
+      // toward a collection achievement, which reads the log and not holdings.
+      await logCollected(userId, piece.itemId, piece.percentile);
       kept += 1;
     }
 

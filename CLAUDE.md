@@ -11,7 +11,7 @@ checks below before pushing anything.
 ## Before pushing
 
 ```bash
-npm test                   # 287 unit tests, no database needed
+npm test                   # 295 unit tests, no database needed
 node --env-file=.env.local scripts/schema-check.mjs   # the live schema matches the code
 npm run test:integration   # 35 probes against the real database
 npx tsc --noEmit
@@ -85,6 +85,16 @@ before `git push`, and this says whether it took.
   marker with `onConflictDoNothing` and pays only when it created a row. Never trust a caller
   not to fire twice — a server action can be retried and a button can be double-clicked, and a
   milestone that pays twice inflates the ladder with nothing to show it happened.
+- **The loadout is read at resolution, so a live session freezes it.** `equip-service` refuses
+  while a session is active, paused or awaiting its report. Allowing a swap would change a
+  fight already underway and would let the requirement gate be passed in one set and fought in
+  another — and it is refused with a reason, never a disabled button that does not say why.
+- **An instance never passes through the ledger, so tell the collection log directly.**
+  Equipment is a row in `equipment_instance`, not a stack, and `logCollected` exists because
+  the alternative was writing a +1 and a −1 into an append-only ledger to cancel out. A ledger
+  whose value is that every row means something cannot afford rows that mean nothing. Found and
+  crafted gear both go through it; forgetting would make collection achievements silently
+  unearnable, since they read the log and not holdings.
 - **Milestone XP stays a garnish.** The ladder is ~600,000 XP; V1's achievements are ~27,000 and
   the milestones are ~37,000, both under 8%, and a test holds the line. Anything that pays into
   the ladder competes with focused minutes for the meaning of a level.

@@ -6,6 +6,7 @@ import { skillViews } from "@/lib/game-view-service";
 import { BIOMES } from "@/lib/game/biomes";
 import { variantsIn } from "@/lib/game/variants";
 import { groupNumber } from "@/lib/format";
+import { DropContractButton, TakeContractButton } from "@/components/GameActions";
 
 export const dynamic = "force-dynamic";
 
@@ -34,10 +35,15 @@ export default async function SlayingPage() {
     >
       <Block title="Current contract" aside={`Slaying ${level}`}>
         {o.contract === null ? (
-          <Empty>
-            None taken. With 200 areas and no corridor through them, the contract ladder is what
-            says where to go next.
-          </Empty>
+          <>
+            <Empty>
+              None taken. With 200 areas and no corridor through them, the contract ladder is what
+              says where to go next.
+            </Empty>
+            <div className="mt-4">
+              <TakeContractButton />
+            </div>
+          </>
         ) : (
           <div className="mt-4 text-[13px]">
             <div className="flex items-baseline justify-between gap-4">
@@ -47,6 +53,10 @@ export default async function SlayingPage() {
               </p>
             </div>
             <Rail progress={o.contract.killed / Math.max(1, o.contract.required)} />
+            <p className="mt-3 text-[12px] text-faint">
+              It never expires. <DropContractButton /> costs nothing — nothing here punishes
+              changing your mind.
+            </p>
           </div>
         )}
       </Block>

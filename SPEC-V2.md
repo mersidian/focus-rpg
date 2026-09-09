@@ -12,6 +12,14 @@ uniques, 40 bosses — the numeric balance model, ten database tables, five serv
 `/game` screens, an activity picker on the timer, and 224 achievements wired into the shipped
 engine. **279 unit tests pass**, and `scripts/game-audit.mjs` reports the live balance figures.
 
+**The loop closes.** Gather or fight in a session; process with fuel; equip, refine, sell, sow
+and harvest between them. Every between-session action refuses the same way the requirement
+gate does — binary, and naming what is short.
+
+One rule worth knowing before reading §8: **gear cannot be changed while a session is
+running.** The loadout is read at resolution, so a swap would change a fight already underway,
+and would let you pass the gate in one set and fight in another.
+
 What does not exist: the four proposals in §15, and whatever §13 still lists.
 
 V1 is [SPEC-V1.md](SPEC-V1.md) and is closed. Its section numbers are cited by ~150 code
@@ -696,7 +704,7 @@ anything below a 60% roll, always keep above 90%* — means the flood never reac
 at all. A limited bank without them is the inventory-management minigame this app cannot
 afford; with them, the bank is somewhere you go deliberately.
 
-### The shop — **DECIDED**
+### The shop — **BUILT**
 
 **Buying and selling both happen at the shop.** It is a destination screen, not a panel that
 follows you around: coins only change hands in one place.
@@ -1081,14 +1089,9 @@ every V1 screen becomes half-game, and the screens that currently do one job wel
 
 ## 13. Open questions
 
-1. **The between-session actions.** Sessions produce things and the screens show them, but
-   almost nothing can be *done* with them yet: refinement has an action, and crafting,
-   equipping, selling, planting a plot and taking a contract do not. Until they exist the loop
-   runs one way — gather or fight, watch the bank fill — and §4's "gather → process → equip →
-   fight" is only half true. This is the largest remaining gap and it is not a small one.
-2. **The four researched proposals in §15** — each fills a verified hole and costs almost no
+1. **The four researched proposals in §15** — each fills a verified hole and costs almost no
    items, but none is decided.
-3. **Eight uniques are named but not wired.** Of the 250, eight carry a `descriptive` effect —
+2. **Eight uniques are named but not wired.** Of the 250, eight carry a `descriptive` effect —
    named, intended, and doing nothing, because the engine has no way to express them yet
    (revealing a hidden area, suppressing elite spawns, a contract reroll). They say so rather
    than pretending; `effects.ts` types the other 242.

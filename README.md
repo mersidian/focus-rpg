@@ -58,6 +58,12 @@ prestige player ever sees.
 | Ten game screens under one nav entry | `src/app/game/` |
 | Milestone XP into V1's ladder | `src/lib/game/milestones.ts` |
 | Refinement, +1 to +10 | `src/lib/refine-service.ts` |
+| Crafting | `src/lib/craft-service.ts` |
+| Equip, unequip, mend | `src/lib/equip-service.ts` |
+| Buying, selling, slots, fuel cap, contracts | `src/lib/shop-service.ts` |
+| Plots: buy, sow, harvest | `src/lib/farm-service.ts`, `src/lib/game/farm.ts` |
+| Slaying contract targets | `src/lib/game/contracts.ts` |
+| One button per action | `src/components/GameActions.tsx`, `ActionButton.tsx` |
 | The balance audit | `scripts/game-audit.mjs` |
 | Does the live schema match the code | `scripts/schema-check.mjs` |
 | The generated wiki | `src/app/wiki/`, `src/lib/wiki/` |

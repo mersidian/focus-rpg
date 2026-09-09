@@ -29,6 +29,18 @@ import {
 import { evaluateAchievements, setWornTitle } from "./achievements/service";
 import { chooseActivity, offers, resolveActivity, type Activity } from "./activity-service";
 import { refineItem } from "./refine-service";
+import { craftItem } from "./craft-service";
+import { equipItem, repairAll, unequipSlot } from "./equip-service";
+import {
+  abandonContract,
+  buyBankSlots,
+  buyFuelCap,
+  buyStock,
+  sellInstance,
+  sellStack,
+  takeContract,
+} from "./shop-service";
+import { buyPlot, harvestPlot, sowPlot } from "./farm-service";
 import { declinePrestige, doPrestige } from "./prestige-service";
 import {
   archiveProject,
@@ -164,6 +176,138 @@ export async function refineItemAction(instanceId: string) {
   const userId = await requireUserId();
   const result = await refineItem(userId, instanceId);
   if (result.ok) revalidatePath("/game/equipment");
+  return result;
+}
+
+/* ------------------------------------------------------ the game's actions */
+
+/**
+ * Everything a player does between sessions.
+ *
+ * All of them share one shape: they return `{ ok }` with either a note or a
+ * reason, never throw for an ordinary refusal, and revalidate the screen they
+ * belong to. A refusal names what is short — the same rule the requirement gate
+ * follows, because "you cannot" without "because" is the thing that makes a
+ * game feel arbitrary.
+ */
+
+export async function craftAction(recipeId: string, times = 1) {
+  const userId = await requireUserId();
+  const result = await craftItem(userId, recipeId, times);
+  if (result.ok) {
+    revalidatePath("/game/crafting");
+    revalidatePath("/game/bank");
+    revalidatePath("/game");
+  }
+  return result;
+}
+
+export async function equipAction(instanceId: string) {
+  const userId = await requireUserId();
+  const result = await equipItem(userId, instanceId);
+  if (result.ok) revalidatePath("/game/equipment");
+  return result;
+}
+
+export async function unequipAction(slot: string) {
+  const userId = await requireUserId();
+  const result = await unequipSlot(userId, slot);
+  if (result.ok) revalidatePath("/game/equipment");
+  return result;
+}
+
+export async function repairAllAction() {
+  const userId = await requireUserId();
+  const result = await repairAll(userId);
+  if (result.ok) revalidatePath("/game/equipment");
+  return result;
+}
+
+export async function sellStackAction(itemId: string, qty: number) {
+  const userId = await requireUserId();
+  const result = await sellStack(userId, itemId, qty);
+  if (result.ok) {
+    revalidatePath("/game/bank");
+    revalidatePath("/game/shop");
+  }
+  return result;
+}
+
+export async function sellInstanceAction(instanceId: string) {
+  const userId = await requireUserId();
+  const result = await sellInstance(userId, instanceId);
+  if (result.ok) {
+    revalidatePath("/game/equipment");
+    revalidatePath("/game/shop");
+  }
+  return result;
+}
+
+export async function buyStockAction(itemId: string, qty = 1) {
+  const userId = await requireUserId();
+  const result = await buyStock(userId, itemId, qty);
+  if (result.ok) {
+    revalidatePath("/game/shop");
+    revalidatePath("/game/bank");
+  }
+  return result;
+}
+
+export async function buyBankSlotsAction() {
+  const userId = await requireUserId();
+  const result = await buyBankSlots(userId);
+  if (result.ok) {
+    revalidatePath("/game/shop");
+    revalidatePath("/game/bank");
+  }
+  return result;
+}
+
+export async function buyFuelCapAction() {
+  const userId = await requireUserId();
+  const result = await buyFuelCap(userId);
+  if (result.ok) revalidatePath("/game/shop");
+  return result;
+}
+
+export async function buyPlotAction() {
+  const userId = await requireUserId();
+  const result = await buyPlot(userId);
+  if (result.ok) revalidatePath("/game/farm");
+  return result;
+}
+
+export async function sowPlotAction(slot: number, seedItemId: string) {
+  const userId = await requireUserId();
+  const result = await sowPlot(userId, slot, seedItemId);
+  if (result.ok) revalidatePath("/game/farm");
+  return result;
+}
+
+export async function harvestPlotAction(slot: number) {
+  const userId = await requireUserId();
+  const result = await harvestPlot(userId, slot);
+  if (result.ok) {
+    revalidatePath("/game/farm");
+    revalidatePath("/game/bank");
+  }
+  return result;
+}
+
+export async function takeContractAction() {
+  const userId = await requireUserId();
+  const result = await takeContract(userId);
+  if (result.ok) {
+    revalidatePath("/game/slaying");
+    revalidatePath("/game");
+  }
+  return result;
+}
+
+export async function dropContractAction() {
+  const userId = await requireUserId();
+  const result = await abandonContract(userId);
+  if (result.ok) revalidatePath("/game/slaying");
   return result;
 }
 

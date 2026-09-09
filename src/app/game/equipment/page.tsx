@@ -7,6 +7,13 @@ import { loadoutPower, SLOTS, MAX_REFINE } from "@/lib/game/power";
 import { BEATS } from "@/lib/game/archetypes";
 import { refineStoneCost, refineCoinCost } from "@/lib/game/economy";
 import { groupNumber } from "@/lib/format";
+import {
+  EquipButton,
+  RefineButton,
+  RepairButton,
+  SellInstanceButton,
+  UnequipButton,
+} from "@/components/GameActions";
 
 export const dynamic = "force-dynamic";
 
@@ -35,18 +42,18 @@ export default async function EquipmentPage() {
     >
       <Block title="Worn" aside={style ? `${style} · strong against ${BEATS[style]}` : "no style"}>
         <Rows
-          head={["Slot", "Item", "Roll", "Refine", "Durability"]}
+          head={["Slot", "Item", "Roll", "Durability", ""]}
           rows={SLOTS.map((slot) => {
             const item = worn.find((i) => i.equippedSlot === slot);
             if (!item) {
               return [
                 slot,
                 <span key="e" className="text-faint">
-                  empty
+                  empty — counts as tier zero at the gate
                 </span>,
                 "—",
                 "—",
-                "—",
+                "",
               ];
             }
             return [
@@ -58,8 +65,13 @@ export default async function EquipmentPage() {
                 )}
               </span>,
               `${Math.round(item.percentile * 100)}%`,
-              item.refine > 0 ? `+${item.refine}` : "—",
               item.durability <= 0 ? "Worn" : `${item.durability}%`,
+              <span key="a" className="inline-flex flex-wrap gap-x-3">
+                <UnequipButton slot={slot} />
+                {item.refine < MAX_REFINE && (
+                  <RefineButton instanceId={item.id} step={item.refine + 1} />
+                )}
+              </span>,
             ];
           })}
         />
@@ -69,6 +81,14 @@ export default async function EquipmentPage() {
           An empty slot counts as tier zero at the requirement gate, so a full set matters before
           a better one does. Worn gear is never destroyed — it is halved until repaired.
         </p>
+        <p className="mt-3 text-[13px] leading-relaxed text-faint">
+          Gear cannot be changed while a session is running: the loadout is read when the session
+          resolves, so a swap would change a fight already underway — and would let you pass the
+          gate in one set and fight in another.
+        </p>
+        <div className="mt-4">
+          <RepairButton />
+        </div>
       </Block>
 
       <Block title="In the bank" aside={`${spare.length} pieces`}>
@@ -76,13 +96,22 @@ export default async function EquipmentPage() {
           <Empty>No spare gear. Equipment only drops from things worth fighting.</Empty>
         ) : (
           <Rows
-            head={["Item", "Slot", "Tier", "Quality", "Roll"]}
+            head={["Item", "Slot", "Tier", "Roll", ""]}
             rows={spare.slice(0, 60).map((i) => [
-              i.name,
+              <span key="n" className="text-dim">
+                {i.name}
+                {i.refine > 0 && <span style={{ color: "var(--tier)" }}> +{i.refine}</span>}
+              </span>,
               i.slot,
               String(i.tier),
-              i.quality,
               `${Math.round(i.percentile * 100)}%`,
+              <span key="a" className="inline-flex flex-wrap gap-x-3">
+                <EquipButton instanceId={i.id} />
+                {i.refine < MAX_REFINE && (
+                  <RefineButton instanceId={i.id} step={i.refine + 1} />
+                )}
+                <SellInstanceButton instanceId={i.id} />
+              </span>,
             ])}
           />
         )}

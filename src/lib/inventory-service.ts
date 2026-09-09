@@ -112,6 +112,36 @@ export async function append(userId: string, grants: Grant[]): Promise<void> {
   }
 }
 
+/**
+ * Record that an item type was obtained, without moving a balance.
+ *
+ * Equipment is an instance rather than a stack, so it never passes through the
+ * ledger — but the collection log still has to know, because collection
+ * achievements read the log and a found weapon that never registers would make
+ * "every item of one material tier" quietly impossible.
+ *
+ * This exists because the alternative was writing a +1 and a −1 into the ledger
+ * to cancel out, and a ledger whose value is that every row means something
+ * cannot afford rows that mean nothing.
+ */
+export async function logCollected(
+  userId: string,
+  itemId: string,
+  percentile = 0,
+): Promise<void> {
+  const roll = Math.round(Math.min(1, Math.max(0, percentile)) * 1000);
+  await db
+    .insert(collectionLog)
+    .values({ userId, itemId, bestRoll: roll, seen: 1 })
+    .onConflictDoUpdate({
+      target: [collectionLog.userId, collectionLog.itemId],
+      set: {
+        seen: sql`${collectionLog.seen} + 1`,
+        bestRoll: sql`greatest(${collectionLog.bestRoll}, ${roll})`,
+      },
+    });
+}
+
 export async function balances(userId: string): Promise<Map<string, number>> {
   const rows = await db
     .select({ itemId: inventoryBalances.itemId, qty: inventoryBalances.qty })

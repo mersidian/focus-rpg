@@ -3,14 +3,19 @@ import { auth } from "@/lib/auth";
 import { Screen, Block, Rows, Rail, Empty } from "@/components/GameUi";
 import { overview } from "@/lib/game-view-service";
 import { itemName } from "@/lib/game-view-service";
+import { ensurePlots, seedsHeld } from "@/lib/farm-service";
+import { plotCost, MAX_PLOTS, growthStages } from "@/lib/game/farm";
 import { CROP_LINES } from "@/lib/game/items";
+import { BuyPlotButton, HarvestButton, SowButton } from "@/components/GameActions";
+import { groupNumber } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 export default async function FarmPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/signin");
-  const o = await overview(session.user.id);
+  await ensurePlots(session.user.id);
+  const [o, seeds] = await Promise.all([overview(session.user.id), seedsHeld(session.user.id)]);
 
   return (
     <Screen
@@ -23,35 +28,52 @@ export default async function FarmPage() {
         </>
       }
     >
-      <Block title="Plots" aside={`${o.plots.length} owned`}>
-        {o.plots.length === 0 ? (
-          <Empty>
-            No plots yet. They are bought with coins, and they are the one thing in the game that
-            costs patience rather than sessions.
-          </Empty>
-        ) : (
-          <ul className="mt-2">
-            {o.plots.map((p) => (
-              <li key={p.slot} className="border-b border-rule py-3 last:border-0 text-[13px]">
-                <div className="flex items-baseline justify-between gap-4">
-                  <p className="text-dim">
-                    Plot #{p.slot}{" "}
-                    <span className="text-faint">
-                      {p.seedItemId ? itemName(p.seedItemId) : "empty"}
+      <Block title="Plots" aside={`${o.plots.length} of ${MAX_PLOTS}`}>
+        <ul className="mt-2">
+          {o.plots.map((p) => (
+            <li key={p.slot} className="border-b border-rule py-3 last:border-0 text-[13px]">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+                <p className="text-dim">
+                  Plot #{p.slot}{" "}
+                  <span className="text-faint">
+                    {p.seedItemId ? itemName(p.seedItemId) : "empty"}
+                  </span>
+                </p>
+                <span className="shrink-0">
+                  {p.seedItemId === null ? (
+                    <SowButton slot={p.slot} seeds={seeds} />
+                  ) : p.stagesLeft === 0 ? (
+                    <HarvestButton slot={p.slot} />
+                  ) : (
+                    <span className="tnum text-[12px] text-faint">
+                      {p.stagesLeft} more session{p.stagesLeft === 1 ? "" : "s"}
                     </span>
-                  </p>
-                  <p className="tnum shrink-0 text-faint">
-                    {p.seedItemId === null
-                      ? "—"
-                      : p.stagesLeft === 0
-                        ? "ready"
-                        : `${p.stagesLeft} sessions`}
-                  </p>
-                </div>
-                {p.seedItemId && <Rail progress={p.stagesLeft === 0 ? 1 : 0.5} />}
-              </li>
-            ))}
-          </ul>
+                  )}
+                </span>
+              </div>
+              {p.seedItemId && (
+                <Rail
+                  progress={
+                    p.stagesLeft === 0
+                      ? 1
+                      : Math.max(
+                          0,
+                          1 - p.stagesLeft / Math.max(1, growthStages(Number(p.seedItemId.split(":")[2] ?? 1))),
+                        )
+                  }
+                />
+              )}
+            </li>
+          ))}
+        </ul>
+        {o.plots.length < MAX_PLOTS && (
+          <div className="mt-5">
+            <BuyPlotButton />
+            <p className="mt-2 text-[12px] text-faint">
+              The next plot costs{" "}
+              <span className="tnum text-dim">{groupNumber(plotCost(o.plots.length))}</span> coins.
+            </p>
+          </div>
         )}
       </Block>
 

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { BankRow } from "@/lib/game-view-service";
+import { SellStackButton } from "./GameActions";
 
 /**
  * The bank is search-first, and that is a design requirement rather than a
@@ -61,7 +62,7 @@ export function BankFilter({ rows }: { rows: BankRow[] }) {
           {shown.map((row) => (
             <li
               key={row.itemId}
-              className="flex items-baseline justify-between gap-4 border-b border-rule py-2 text-[13px] last:border-0"
+              className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-rule py-2 text-[13px] last:border-0"
             >
               <span className="min-w-0 text-dim">
                 {row.name}
@@ -71,7 +72,10 @@ export function BankFilter({ rows }: { rows: BankRow[] }) {
                   {row.tier > 0 && ` t${row.tier}`}
                 </span>
               </span>
-              <span className="tnum shrink-0 text-faint">{row.qty.toLocaleString()}</span>
+              <span className="flex shrink-0 items-baseline gap-4">
+                <span className="tnum text-faint">{row.qty.toLocaleString()}</span>
+                <SellStackButton itemId={row.itemId} held={row.qty} />
+              </span>
             </li>
           ))}
         </ul>

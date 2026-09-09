@@ -42,6 +42,16 @@ import {
   skillMilestonesCrossed,
 } from "../src/lib/game/milestones.ts";
 import { LEVEL_XP } from "../src/lib/levels.ts";
+import {
+  CROP_OUTPUT,
+  MAX_PLOTS,
+  STARTING_PLOTS,
+  cropOutputId,
+  growthStages,
+  plotCost,
+} from "../src/lib/game/farm.ts";
+import { contractDepth, rollContract } from "../src/lib/game/contracts.ts";
+import { CROP_LINES } from "../src/lib/game/items.ts";
 
 /**
  * A zeroed V1 Stats, so a V2 predicate can be exercised without a session
@@ -1117,4 +1127,81 @@ test("the lumps are ordered: a skill's top milestone beats a biome, which beats 
   assert.ok(skillLevelXp(99) > BIOME_UNLOCK_XP);
   assert.ok(BIOME_UNLOCK_XP > FIRST_REFINE_TEN_XP);
   assert.ok(FIRST_REFINE_TEN_XP > 0);
+});
+
+/* --------------------------------- farming --------------------------------- */
+
+test("growth is measured in sessions, and deeper crops take longer", () => {
+  assert.equal(growthStages(1), 2);
+  assert.equal(growthStages(MAX_TIER), 30);
+  for (let t = 2; t <= MAX_TIER; t++) {
+    assert.ok(growthStages(t) >= growthStages(t - 1), `tier ${t} matures faster than ${t - 1}`);
+  }
+});
+
+test("a plot's cost escalates and the first four are free", () => {
+  assert.equal(plotCost(STARTING_PLOTS), 2000);
+  for (let n = STARTING_PLOTS + 1; n <= MAX_PLOTS; n++) {
+    assert.ok(plotCost(n) > plotCost(n - 1), `plot ${n} is no dearer than ${n - 1}`);
+  }
+});
+
+test("each crop line grows something the wild cannot supply", () => {
+  // Saplings are the clearest case: a tier above anything choppable.
+  assert.equal(cropOutputId("seed:Sapling:10", 10), "raw:Log:11");
+  assert.equal(cropOutputId("seed:Fibre:12", 12), "raw:Fibre:12");
+  assert.equal(cropOutputId("seed:Stock:8", 8), "raw:Hide:8");
+  assert.equal(cropOutputId("seed:Herb:3", 3), "raw:Herb:3");
+  assert.equal(cropOutputId("raw:Ore:3", 3), null, "a non-seed grew something");
+  // And the top tier cannot overflow the spine.
+  assert.equal(cropOutputId(`seed:Sapling:${MAX_TIER}`, MAX_TIER), `raw:Log:${MAX_TIER}`);
+});
+
+test("every crop line the item generator makes seeds for actually grows something", () => {
+  for (const line of CROP_LINES) {
+    assert.ok(CROP_OUTPUT[line], `${line} seeds grow nothing`);
+  }
+});
+
+/* -------------------------------- contracts -------------------------------- */
+
+test("a contract is drawn from the seed, not from a clock", () => {
+  const a = rollContract("user:contract:3", 40);
+  const b = rollContract("user:contract:3", 40);
+  assert.deepEqual(a, b, "the same contract number drew a different target");
+  assert.notDeepEqual(rollContract("user:contract:4", 40), a);
+});
+
+test("the ladder only reaches as deep as Slaying has earned", () => {
+  for (const level of [1, 20, 50, 99]) {
+    const depth = contractDepth(level);
+    for (let n = 0; n < 40; n++) {
+      const offer = rollContract(`c:${level}:${n}`, level);
+      assert.ok(offer, "no contract was available");
+      assert.ok(offer.biome <= depth, `level ${level} offered biome ${offer.biome} past ${depth}`);
+    }
+  }
+  assert.ok(contractDepth(99) >= BIOMES.length - 1, "a maxed Slaying still cannot reach the end");
+  assert.ok(contractDepth(1) >= 2, "a fresh account has nothing to take");
+});
+
+test("contracts ask for a sane number of a real monster", () => {
+  const names = new Set(allVariants().map((v) => v.name));
+  for (let n = 0; n < 60; n++) {
+    const offer = rollContract(`s:${n}`, 60);
+    assert.ok(offer);
+    assert.ok(names.has(offer.variantName), `${offer.variantName} does not exist`);
+    assert.ok(offer.required >= 20 && offer.required <= 100, `asks for ${offer.required}`);
+    assert.ok(offer.tier >= 1 && offer.tier <= MAX_TIER);
+  }
+});
+
+test("the ladder leans deep, because a contract sending you back to the meadow is a chore", () => {
+  const biomes: number[] = [];
+  for (let n = 0; n < 300; n++) {
+    const offer = rollContract(`d:${n}`, 99);
+    if (offer) biomes.push(offer.biome);
+  }
+  const mean = biomes.reduce((a, b) => a + b, 0) / biomes.length;
+  assert.ok(mean > BIOMES.length / 2, `contracts average biome ${mean.toFixed(1)}`);
 });
