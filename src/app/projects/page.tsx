@@ -37,7 +37,7 @@ export default async function ProjectsPage() {
           </>
         ) : (
           <>
-            <h1 className="display text-4xl sm:text-5xl">Projects</h1>
+            <h1 className="text-title font-medium tracking-tight sm:text-hero">Projects</h1>
             <p className="mt-3 max-w-prose text-[13px] leading-relaxed text-faint">
               Every session attaches to exactly one. Their hours are the number this app is
               really for.

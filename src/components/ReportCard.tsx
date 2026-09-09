@@ -77,7 +77,17 @@ export function ReportCard() {
       <p className="text-[13px] text-faint">
         <span className="tnum">{session.plannedMinutes}</span> minutes done.
       </p>
-      <h1 className="display mt-2 text-4xl sm:text-5xl" style={{ color: "var(--tier)" }}>
+      {/*
+        Not the display face. .tnum on the numeral forces the mono family, so
+        this line rendered "+250" in mono and "XP banked" in Fraunces — two
+        faces in one heading, by accident. It is also a figure rather than a
+        name, and §8 gives Fraunces one job. The moment is carried by size,
+        the accent and animate-pop, which is what it was carried by anyway.
+      */}
+      <h1
+        className="mt-2 text-title font-medium tracking-tight sm:text-hero"
+        style={{ color: "var(--tier)" }}
+      >
         <span className="tnum animate-pop inline-block">+{session.xpAwarded}</span> XP banked
       </h1>
       <p className="mt-3 max-w-prose text-[13px] leading-relaxed text-faint">

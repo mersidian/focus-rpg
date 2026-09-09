@@ -28,7 +28,12 @@ export default async function SignInPage({
   return (
     <main className="flex min-h-dvh flex-col justify-center px-6 sm:px-10">
       <div className="mx-auto w-full max-w-md">
-        <h1 className="display text-5xl leading-[0.95] sm:text-6xl">Focus RPG</h1>
+        {/*
+          The one deliberate exception to "Fraunces sets the earned title and
+          nothing else": this is the wordmark, on the only screen where there is
+          no character yet, so it cannot be mistaken for a rank.
+        */}
+        <h1 className="display text-hero leading-[0.95]">Focus RPG</h1>
         <p className="mt-5 max-w-prose text-[15px] leading-relaxed text-dim">
           Focused minutes, banked. One XP a minute, a hundred ranks, and ten thousand hours
           at the top of the ladder.

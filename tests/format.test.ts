@@ -126,3 +126,52 @@ test("the accent curve is described by its own constants", () => {
   assert.equal(accentChroma(1), ACCENT_FLOOR + ACCENT_RANGE);
   assert.equal(chromaOf(tierAccent(250, 0)), Number(ACCENT_FLOOR.toFixed(3)));
 });
+
+/* -------------------------------------------------------------------------- */
+/*  §8: "Fraunces sets the earned title and nothing else, so the name reads    */
+/*  as a name."                                                                */
+/* -------------------------------------------------------------------------- */
+
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import path from "node:path";
+
+const SRC = path.join(import.meta.dirname, "..", "src");
+
+function walk(dir: string): string[] {
+  return readdirSync(dir).flatMap((name) => {
+    const full = path.join(dir, name);
+    if (statSync(full).isDirectory()) return walk(full);
+    return name.endsWith(".tsx") ? [full] : [];
+  });
+}
+
+/**
+ * Where the display face is allowed, and why, one entry per file.
+ *
+ * It had nineteen call sites and only six were the earned title: the rest were
+ * ordinary page headings, and one of them — GameUi's Screen — put Fraunces on
+ * all ten game screens at once. A face on every heading cannot mark the one
+ * thing that was earned.
+ */
+const DISPLAY_ALLOWED: Record<string, string> = {
+  "components/TimerScreen.tsx": "the earned rank, on the timer",
+  "components/PrestigeFrame.tsx": "no display use; listed so the map stays honest",
+  "app/character/page.tsx": "the earned rank, on the character sheet",
+  "app/streak/page.tsx": "the streak headline, in the earned colour",
+  "app/projects/page.tsx": "the biggest project, in the earned colour",
+  "app/signin/page.tsx": "the wordmark, on the one screen with no character",
+};
+
+test("the display face marks the earned title and nothing else", () => {
+  const offenders: string[] = [];
+  for (const file of walk(SRC)) {
+    const rel = path.relative(SRC, file).split(path.sep).join("/");
+    if (!/className="[^"]*\bdisplay\b/.test(readFileSync(file, "utf8"))) continue;
+    if (!(rel in DISPLAY_ALLOWED)) offenders.push(rel);
+  }
+  assert.deepEqual(
+    offenders,
+    [],
+    `these wear Fraunces without being the earned title:\n  ${offenders.join("\n  ")}`,
+  );
+});

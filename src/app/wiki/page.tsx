@@ -47,7 +47,7 @@ export default function WikiIndex() {
 
   return (
     <main className="mx-auto w-full max-w-4xl px-6 pb-24 pt-14 sm:px-10">
-      <h1 className="display text-4xl sm:text-5xl">Wiki</h1>
+      <h1 className="text-title font-medium tracking-tight sm:text-hero">Wiki</h1>
       <p className="mt-3 max-w-2xl text-[13px] leading-relaxed text-faint">
         Everything this project is, in one place. The reference pages are generated from the
         modules the game runs on, so they cannot drift from it; the documents are rendered

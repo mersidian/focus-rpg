@@ -73,7 +73,8 @@ export default async function CharacterPage() {
         )}
 
         <div className="mt-10 h-[2px] w-full bg-rule">
-          <div className="h-full" style={{ width: `${progress * 100}%`, backgroundColor: "var(--tier)" }} />
+          <div className="h-full transition-[width] duration-700 ease-out"
+            style={{ width: `${progress * 100}%`, backgroundColor: "var(--tier)" }} />
         </div>
         <p className="mt-2 text-[13px] text-faint">
           <span className="tnum text-dim">{groupNumber(state.xp)}</span> XP

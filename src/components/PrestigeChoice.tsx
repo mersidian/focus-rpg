@@ -38,7 +38,7 @@ export function PrestigeChoice({
 
   return (
     <section className="mt-16 border-t border-rule pt-10">
-      <h2 className="display text-3xl" style={{ color: "var(--tier)" }}>
+      <h2 className="text-stat font-medium tracking-tight" style={{ color: "var(--tier)" }}>
         The choice
       </h2>
       <p className="mt-3 max-w-prose text-[15px] leading-relaxed text-dim">

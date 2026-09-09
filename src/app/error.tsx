@@ -21,7 +21,7 @@ export default function ErrorPage({
   return (
     <main className="flex min-h-dvh flex-col justify-center px-6 sm:px-10">
       <div className="mx-auto w-full max-w-md">
-        <h1 className="display text-4xl sm:text-5xl">That did not load</h1>
+        <h1 className="text-title font-medium tracking-tight sm:text-hero">That did not load</h1>
         <p className="mt-4 max-w-prose text-[15px] leading-relaxed text-dim">
           The database was not reachable just then. Nothing was lost — your sessions live on
           the server, not in this page.

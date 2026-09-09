@@ -38,7 +38,7 @@ export default async function LogPage() {
     <>
       <Nav current="/log" />
       <main className="mx-auto w-full max-w-3xl px-6 pb-24 pt-14 sm:px-10">
-        <h1 className="display text-4xl sm:text-5xl">Session log</h1>
+        <h1 className="text-title font-medium tracking-tight sm:text-hero">Session log</h1>
 
         {entries.length === 0 ? (
           <p className="mt-8 max-w-prose text-[15px] leading-relaxed text-dim">

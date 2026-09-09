@@ -74,7 +74,7 @@ const minutes = (ms: number) => `${ms / 60_000} min`;
 export default function WikiRulesPage() {
   return (
     <main className="mx-auto w-full max-w-4xl px-6 pb-24 pt-14 sm:px-10">
-      <h1 className="display text-4xl sm:text-5xl">Rules</h1>
+      <h1 className="text-title font-medium tracking-tight sm:text-hero">Rules</h1>
       <p className="mt-3 max-w-2xl text-[13px] leading-relaxed text-faint">
         The numbers the game runs on, read out of the modules that own them. The right-hand
         label on each block is where the value lives, so a rule you want to argue with is one

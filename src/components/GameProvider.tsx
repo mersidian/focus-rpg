@@ -57,6 +57,18 @@ type Ctx = {
 
 const GameContext = createContext<Ctx | null>(null);
 
+/**
+ * The context when there is one, and null when there is not.
+ *
+ * Only the timer mounts a provider, because buildSnapshot reconciles sessions
+ * and advances the streak — it is a write, and a page has no business doing one
+ * to draw itself. So anything that wants to work on the other routes has to
+ * cope without it rather than force a provider up the tree.
+ */
+export function useGameOptional(): Ctx | null {
+  return useContext(GameContext);
+}
+
 export function useGame(): Ctx {
   const ctx = useContext(GameContext);
   if (!ctx) throw new Error("useGame must be used inside GameProvider.");

@@ -15,9 +15,19 @@ export function Screen({
   children: ReactNode;
 }) {
   return (
-    <main className="mx-auto w-full max-w-4xl px-6 pb-24 pt-14 sm:px-10">
-      <h1 className="display text-4xl sm:text-5xl">{title}</h1>
-      {lead && <p className="mt-3 max-w-2xl text-[13px] leading-relaxed text-faint">{lead}</p>}
+    /*
+      animate-rise on the shell, so every screen has an entrance without a line
+      of JavaScript. The keyframe already existed and was used in one place.
+    */
+    <main className="animate-rise mx-auto w-full max-w-4xl px-6 pb-24 pt-14 sm:px-10">
+      {/*
+        Plex Sans, not Fraunces. §8 gives the display face one job — "Fraunces
+        sets the earned title and nothing else, so the name reads as a name" —
+        and this h1 alone put it on all ten game screens. A face that appears on
+        every heading cannot mark the one thing that was earned.
+      */}
+      <h1 className="text-title font-medium tracking-tight sm:text-hero">{title}</h1>
+      {lead && <p className="mt-3 max-w-2xl text-body leading-relaxed text-dim">{lead}</p>}
       {children}
     </main>
   );
@@ -122,8 +132,13 @@ export function Rail({ progress }: { progress: number }) {
   return (
     <div className="mt-1 h-[2px] w-full bg-rule">
       <div
-        className="h-full"
-        style={{ width: `${Math.min(100, Math.max(0, progress * 100))}%`, backgroundColor: "var(--tier)" }}
+        // Matching XpRail, which was the only one of the app's four rails that
+        // moved. The others arrived already filled and looked like rules.
+        className="h-full transition-[width] duration-700 ease-out"
+        style={{
+          width: `${Math.min(100, Math.max(0, progress * 100))}%`,
+          backgroundColor: "var(--tier)",
+        }}
       />
     </div>
   );

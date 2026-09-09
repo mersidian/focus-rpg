@@ -21,7 +21,7 @@ export default function WikiAchievementsPage() {
 
   return (
     <main className="mx-auto w-full max-w-4xl px-6 pb-24 pt-14 sm:px-10">
-      <h1 className="display text-4xl sm:text-5xl">Achievements</h1>
+      <h1 className="text-title font-medium tracking-tight sm:text-hero">Achievements</h1>
       <p className="mt-3 max-w-2xl text-[13px] leading-relaxed text-faint">
         {ACHIEVEMENTS.length} definitions in {FAMILIES.length} families, worth{" "}
         <span className="tnum text-dim">{groupNumber(totalXp)}</span> XP in total, granting{" "}

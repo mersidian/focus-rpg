@@ -5,6 +5,8 @@ import { correctSession } from "@/lib/actions";
 import { deviceId } from "@/lib/client/device";
 import { SLACKED_XP_MULTIPLIER } from "@/lib/constants";
 import { groupNumber } from "@/lib/format";
+import type { Snapshot } from "@/lib/game-types";
+import { UnlockToast } from "./UnlockToast";
 
 type Project = { id: string; name: string };
 
@@ -36,17 +38,21 @@ export function SessionCorrection({
   const [note, setNote] = useState(currentNote ?? "");
   const [honest, setHonest] = useState(currentHonest !== false);
   const [error, setError] = useState<string | null>(null);
+  const [unlocked, setUnlocked] = useState<Snapshot["unlocked"]>([]);
   const [pending, startTransition] = useTransition();
 
   if (!open) {
     return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="py-1 text-[12px] text-faint underline underline-offset-4 hover:text-dim"
-      >
-        Edit
-      </button>
+      <>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="py-1 text-note text-faint underline underline-offset-4 hover:text-dim"
+        >
+          Edit
+        </button>
+        {unlocked.length > 0 && <UnlockToast unlocked={unlocked} />}
+      </>
     );
   }
 
@@ -56,7 +62,13 @@ export function SessionCorrection({
   const save = () =>
     startTransition(async () => {
       try {
-        await correctSession({
+        /*
+         * The return value used to be dropped. correctSession deliberately
+         * computes newly-unlocked achievements — calling a session honest after
+         * the fact can earn one — so a correction could unlock something and
+         * the app would say nothing at all about it.
+         */
+        const snap = await correctSession({
           sessionId,
           projectId: creating ? null : projectId,
           newProjectName: creating ? newName.trim() : null,
@@ -66,6 +78,7 @@ export function SessionCorrection({
         });
         setError(null);
         setOpen(false);
+        if (snap.unlocked.length > 0) setUnlocked(snap.unlocked);
       } catch (e) {
         setError(e instanceof Error ? e.message : "That did not save.");
       }

@@ -99,7 +99,7 @@ export default function WikiGamePage() {
 
   return (
     <main className="mx-auto w-full max-w-4xl px-6 pb-24 pt-14 sm:px-10">
-      <h1 className="display text-4xl sm:text-5xl">The game</h1>
+      <h1 className="text-title font-medium tracking-tight sm:text-hero">The game</h1>
       <p className="mt-3 max-w-2xl text-[13px] leading-relaxed text-faint">
         V2's rules and content, generated from{" "}
         <code className="rounded bg-lift px-1">src/lib/game</code> and read here rather than

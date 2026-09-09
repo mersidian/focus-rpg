@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { Nav } from "@/components/Nav";
+import { UnlockToast } from "@/components/UnlockToast";
 import { loadAchievementBoard } from "@/lib/achievements/service";
 import { evaluateAchievements } from "@/lib/achievements/service";
 import {
@@ -46,8 +47,13 @@ export default async function AchievementsPage({
   if (!session?.user?.id) redirect("/signin");
   const userId = session.user.id;
 
-  // Judged on arrival, so the page can never show a stale board.
-  await evaluateAchievements(userId);
+  /*
+   * Judged on arrival, so the page can never show a stale board — and the list
+   * it returns is now used. It was discarded, so the one route that unlocks
+   * achievements as a side effect of being visited was also the one route that
+   * could not say it had.
+   */
+  const unlocked = await evaluateAchievements(userId);
 
   const board = await loadAchievementBoard(userId);
   const { fam } = await searchParams;
@@ -74,7 +80,7 @@ export default async function AchievementsPage({
     <>
       <Nav current="/achievements" />
       <main className="mx-auto w-full max-w-4xl px-6 pb-24 pt-14 sm:px-10">
-        <h1 className="display text-title sm:text-hero">Achievements</h1>
+        <h1 className="text-title font-medium tracking-tight sm:text-hero">Achievements</h1>
         <p className="mt-3 text-body text-faint">
           <span className="tnum text-dim">{board.progress.unlockedCount}</span> of{" "}
           <span className="tnum">{board.progress.total}</span> earned, worth{" "}
@@ -172,6 +178,7 @@ export default async function AchievementsPage({
           );
         })}
       </main>
+      <UnlockToast unlocked={unlocked} />
     </>
   );
 }

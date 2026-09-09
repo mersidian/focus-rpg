@@ -73,7 +73,7 @@ export default async function DashboardPage() {
       <main className="mx-auto w-full max-w-4xl px-6 pb-24 pt-14 sm:px-10">
         {empty ? (
           <>
-            <h1 className="display text-4xl sm:text-5xl">Dashboard</h1>
+            <h1 className="text-title font-medium tracking-tight sm:text-hero">Dashboard</h1>
             <p className="mt-4 max-w-prose text-[15px] leading-relaxed text-dim">
               Nothing to chart yet. Finish a few sessions and this fills with your daily and
               weekly hours, where your time goes, when you work best, and how close the next
@@ -83,7 +83,7 @@ export default async function DashboardPage() {
         ) : (
           <>
             {/* The headline is a sentence, not a chart: one number, in context. */}
-            <h1 className="display text-4xl leading-tight sm:text-5xl">
+            <h1 className="text-title font-medium tracking-tight sm:text-hero leading-tight">
               {projection.known ? (
                 <>
                   <span className="tnum" style={{ color: "var(--tier)", fontFamily: "var(--font-mono)" }}>

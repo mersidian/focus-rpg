@@ -111,7 +111,7 @@ export default async function StreakPage() {
         <section className="mt-10">
           <div className="h-[2px] w-full bg-rule">
             <div
-              className="h-full"
+              className="h-full transition-[width] duration-700 ease-out"
               style={{ width: `${meter * 100}%`, backgroundColor: "var(--color-ice)" }}
             />
           </div>
