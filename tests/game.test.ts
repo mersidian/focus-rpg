@@ -67,6 +67,7 @@ import { requirementFor } from "../src/lib/game/requirements.ts";
 import { AMMO_PER_KILL, WHEEL_DISADVANTAGE } from "../src/lib/game/combat.ts";
 import { ammoUnitPrice, salvageStoneYield, salvageStones } from "../src/lib/game/economy.ts";
 import { CROP_LINES } from "../src/lib/game/items.ts";
+import { shopStock, shopGroups, SHOP_CLASS_ORDER } from "../src/lib/shop-service.ts";
 
 /**
  * A zeroed V1 Stats, so a V2 predicate can be exercised without a session
@@ -1623,5 +1624,48 @@ test("a fresh account is still shut out of anything deep", () => {
         `${area.name} is open to a character with nothing`,
       );
     }
+  }
+});
+
+test("the shop stocks every class it claims to, at every tier", () => {
+  // The shop sorted by class name and the page took the first eighty rows, so
+  // `tool` — last alphabetically — fell off the end: from tier 5 up it showed
+  // zero tools, permanently, while three other screens told the player a tool
+  // was the prerequisite for everything.
+  //
+  // Written from the shop's own sentence, "tools, ammunition, rations, upgrade
+  // stones and seeds", which is a promise about what you can buy.
+  for (let maxTier = 1; maxTier <= 24; maxTier++) {
+    const all = shopStock(maxTier);
+    const groups = shopGroups(maxTier, 24);
+    for (const cls of SHOP_CLASS_ORDER) {
+      const exists = all.some((i) => i.cls === cls);
+      const group = groups.find((g) => g.cls === cls);
+      if (!exists) continue;
+      assert.ok(group, `tier ${maxTier} stocks ${cls} and the shop does not show it`);
+      assert.ok(group.items.length > 0, `tier ${maxTier} shows an empty ${cls} group`);
+      assert.equal(
+        group.total,
+        all.filter((i) => i.cls === cls).length,
+        `${cls} at tier ${maxTier} misreports how much it has`,
+      );
+    }
+  }
+});
+
+test("tools come first, because nothing else can be used without one", () => {
+  // The order is a decision, not `localeCompare`'s idea of one.
+  assert.equal(SHOP_CLASS_ORDER[0], "tool");
+  const groups = shopGroups(10, 24);
+  assert.equal(groups[0]?.cls, "tool", "the shop opens on something other than tools");
+});
+
+test("a group never claims more rows than it shows", () => {
+  for (const group of shopGroups(20, 12)) {
+    assert.ok(
+      group.items.length <= group.total,
+      `${group.cls} shows more than it has`,
+    );
+    assert.ok(group.items.length <= 12, `${group.cls} ignored its own cap`);
   }
 });

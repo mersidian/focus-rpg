@@ -16,7 +16,7 @@ import {
 } from "@/lib/game/economy";
 import { TIERS } from "@/lib/game/tiers";
 import { groupNumber } from "@/lib/format";
-import { shopStock } from "@/lib/shop-service";
+import { shopGroups } from "@/lib/shop-service";
 import { tierForHours } from "@/lib/game/tiers";
 import { loadState } from "@/lib/game-state";
 import {
@@ -30,6 +30,15 @@ import { balances } from "@/lib/inventory-service";
 
 export const dynamic = "force-dynamic";
 
+/** Player-facing names for the stocked classes, in the order they are stocked. */
+const CLASS_TITLE: Record<string, string> = {
+  tool: "Tools",
+  ammo: "Ammunition",
+  consumable: "Rations and tonics",
+  stone: "Upgrade stones",
+  seed: "Seeds",
+};
+
 export default async function ShopPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/signin");
@@ -41,7 +50,7 @@ export default async function ShopPage() {
   // The shop stocks a tier above what your hours have opened, so there is always
   // something to save for.
   const openTier = Math.min(24, tierForHours(state.lifetimeFocusedMs / 3_600_000) + 1);
-  const stock = shopStock(openTier);
+  const stock = shopGroups(openTier, 24);
 
   // Which stone tiers are actually held, so the exchange only offers real trades.
   const held = await balances(session.user.id);
@@ -119,19 +128,22 @@ export default async function ShopPage() {
           Tools, ammunition, rations, upgrade stones and seeds. Everything else has to be made or
           found — the shop will not sell you a weapon you could smith.
         </p>
-        <Rows
-          head={["Item", "Class", "Tier", "Price", ""]}
-          rows={stock.slice(0, 80).map((i) => [
-            i.name,
-            <span key="c" className="text-faint">
-              {i.cls}
-            </span>,
-            String(i.tier),
-            groupNumber(i.price),
-            <BuyButton key="b" itemId={i.id} />,
-          ])}
-        />
       </Block>
+
+      {stock.map((group) => (
+        <Block key={group.cls} title={CLASS_TITLE[group.cls]} aside={`${group.total} in stock`}>
+          <Rows
+            head={["Item", "Tier", "Price", ""]}
+            rows={group.items.map((i) => [
+              i.name,
+              String(i.tier),
+              groupNumber(i.price),
+              <BuyButton key="b" itemId={i.id} />,
+            ])}
+            total={group.total}
+          />
+        </Block>
+      ))}
 
       <Block title="Prices" aside="V(T) = 10 × 1.20^(T−1)">
         <Rows

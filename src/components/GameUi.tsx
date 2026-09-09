@@ -43,7 +43,24 @@ export function Block({
   );
 }
 
-export function Rows({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
+/**
+ * A table, and the truth about how much of it you are seeing.
+ *
+ * `total` exists because six screens sliced their rows and then printed the
+ * unsliced count in the header beside them, so the heading contradicted the
+ * body. A caller that truncates passes what it had; the footer says so. A
+ * caller showing everything passes nothing and no footer appears.
+ */
+export function Rows({
+  head,
+  rows,
+  total,
+}: {
+  head: string[];
+  rows: ReactNode[][];
+  total?: number;
+}) {
+  const hidden = total !== undefined && total > rows.length;
   return (
     <div className="mt-4 overflow-x-auto">
       <table className="w-full border-collapse text-[13px]">
@@ -78,6 +95,11 @@ export function Rows({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
           ))}
         </tbody>
       </table>
+      {hidden && (
+        <p className="mt-2 text-[12px] text-faint">
+          showing {rows.length} of {total}
+        </p>
+      )}
     </div>
   );
 }

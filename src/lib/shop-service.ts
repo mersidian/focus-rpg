@@ -172,6 +172,37 @@ export function shopStock(maxTier: number) {
     .sort((a, b) => a.cls.localeCompare(b.cls) || a.tier - b.tier);
 }
 
+/**
+ * The order the shop is stocked in, deliberately, and tools come first.
+ *
+ * `shopStock` sorts by class name, so `tool` sorted last and the page's
+ * `slice(0, 80)` always landed on it: from tier 5 upward the shop showed zero
+ * tools, permanently, while the activity picker, the hub and the areas page all
+ * told the player a tool was the prerequisite for everything. At tier 20 it hid
+ * 780 of 860 rows and said nothing.
+ *
+ * Alphabetical was never a decision — it was `localeCompare` standing in for
+ * one. This is the decision: what you cannot play without, first. Grouping also
+ * means a truncation can only ever hide the tail of one class rather than every
+ * item of the last one, and each group carries its own total so the row count on
+ * screen can be honest about it.
+ */
+export const SHOP_CLASS_ORDER = ["tool", "ammo", "consumable", "stone", "seed"] as const;
+
+export type ShopGroup = {
+  cls: (typeof SHOP_CLASS_ORDER)[number];
+  items: ReturnType<typeof shopStock>;
+  total: number;
+};
+
+export function shopGroups(maxTier: number, perClass = Infinity): ShopGroup[] {
+  const stock = shopStock(maxTier);
+  return SHOP_CLASS_ORDER.map((cls) => {
+    const items = stock.filter((i) => i.cls === cls).sort((a, b) => a.tier - b.tier);
+    return { cls, items: items.slice(0, perClass), total: items.length };
+  }).filter((g) => g.total > 0);
+}
+
 /* ------------------------------ stone exchange ----------------------------- */
 
 /**
