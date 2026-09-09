@@ -1,6 +1,6 @@
 # Focus RPG
 
-[SPEC.md](SPEC.md), built in full. Sessions of focused work bank
+[SPEC-V1.md](SPEC-V1.md), built in full. Sessions of focused work bank
 XP against the 100-level named ladder, and keep a streak that freezes rather than breaks.
 At level 50 you choose between beginning again with a star and pressing on to names no
 prestige player ever sees.
@@ -33,6 +33,31 @@ prestige player ever sees.
 | Project ladder, Seedling to Monument | `src/lib/projects.ts` |
 | Dashboard: bars, per-project series, time of day, completion trend | `src/app/dashboard/` |
 | Projection for the next rank | `src/lib/projection.ts` |
+
+### V2 — the game (SPEC-V2.md)
+
+| Spec item | Where |
+|---|---|
+| 24-tier material spine, four naming families | `src/lib/game/tiers.ts` |
+| 24 weapon archetypes, the four-style wheel | `src/lib/game/archetypes.ts` |
+| 90 species, 270 parts keyed to the species | `src/lib/game/species.ts` |
+| 20 biomes, 200 areas, 60 biome materials | `src/lib/game/biomes.ts` |
+| 709 monster variants, `wheelStep` per variant | `src/lib/game/variants.ts` |
+| Three item axes: band, quality window, refinement | `src/lib/game/power.ts`, `quality.ts` |
+| Combat: rarity spawns, conversion curve, upkeep | `src/lib/game/combat.ts` |
+| Drop tables, auto-salvage | `src/lib/game/drops.ts` |
+| Gathering yield | `src/lib/game/yield.ts` |
+| 1,710 generated recipes | `src/lib/game/recipes.ts` |
+| The binary requirement gate | `src/lib/game/gate.ts` |
+| 8,568-item catalogue, generated | `src/lib/game/items.ts` |
+| Seeded, reproducible rolls | `src/lib/game/rng.ts` |
+| 22 skills, curves, tier gates | `src/lib/game/skills.ts` |
+| One price curve and every sink | `src/lib/game/economy.ts` |
+| The append-only inventory ledger | `src/lib/inventory-service.ts` |
+| Activity choice, gate check, session resolution | `src/lib/activity-service.ts` |
+| Ten game screens under one nav entry | `src/app/game/` |
+| The balance audit | `scripts/game-audit.mjs` |
+| The generated wiki | `src/app/wiki/`, `src/lib/wiki/` |
 
 Sessions are validated against the **server** clock. A device with a wrong clock cannot
 fabricate XP: the browser only ever asks the server what time it is.
@@ -129,7 +154,7 @@ which grant freezes. All three are set in `src/lib/achievements/definitions.ts`:
 
 ## The session chain
 
-Not in SPEC.md. It answers the risk the spec records against itself in §10 — that every
+Not in SPEC-V1.md. It answers the risk the spec records against itself in §10 — that every
 mechanic rewards and none asks the user to choose, with prestige the only genuine either/or
 and a thousand hours away. The spec names the cut mechanic that used to create the
 decision: descend-or-extract. This is that shape without the combat §1 threw out.
@@ -229,7 +254,7 @@ days would flatter the number and make the date wrong.
 
 ## Decisions the spec left open
 
-Four things were not settled in SPEC.md and had to be chosen to build. Each is one
+Four things were not settled in SPEC-V1.md and had to be chosen to build. Each is one
 constant or one commented block, easy to change.
 
 - **Where ranks II–IV sit inside a tier.** The spec's table pins rank I and rank V of
