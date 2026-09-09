@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import type { CSSProperties } from "react";
 import { auth } from "@/lib/auth";
 import { Nav } from "@/components/Nav";
 import { loadState } from "@/lib/game-state";
@@ -26,13 +25,12 @@ export default async function CharacterPage() {
   const info = describeLevel(state.level);
   const progress = rankProgress(state.xp, state.level);
   const ratio = completionRatio(state.sessionsCompleted, state.sessionsAbandoned);
-  const accent = tierAccent(info.hue, info.intensity);
 
   return (
-    <div style={{ "--tier": accent } as CSSProperties}>
+    <>
       <Nav current="/character" />
       <main className="mx-auto w-full max-w-3xl px-6 pb-24 pt-14 sm:px-10">
-        <h1 className="display text-5xl leading-[0.95] sm:text-7xl" style={{ color: accent }}>
+        <h1 className="display text-5xl leading-[0.95] sm:text-7xl" style={{ color: "var(--tier)" }}>
           {prestige.stars > 0 && (
             <span className="tnum mr-3 align-middle text-[0.5em]" title={`${prestige.stars} prestige`}>
               ★{prestige.stars}
@@ -69,13 +67,13 @@ export default async function CharacterPage() {
           )}
         </p>
         {hasEternalRecurrence(prestige.stars) && (
-          <p className="mt-2 text-[13px]" style={{ color: accent }}>
+          <p className="mt-2 text-[13px]" style={{ color: "var(--tier)" }}>
             {ETERNAL_RECURRENCE} — {MAX_STARS} stars, the end of that road.
           </p>
         )}
 
         <div className="mt-10 h-[2px] w-full bg-rule">
-          <div className="h-full" style={{ width: `${progress * 100}%`, backgroundColor: accent }} />
+          <div className="h-full" style={{ width: `${progress * 100}%`, backgroundColor: "var(--tier)" }} />
         </div>
         <p className="mt-2 text-[13px] text-faint">
           <span className="tnum text-dim">{groupNumber(state.xp)}</span> XP
@@ -181,6 +179,6 @@ export default async function CharacterPage() {
           </ol>
         </section>
       </main>
-    </div>
+    </>
   );
 }

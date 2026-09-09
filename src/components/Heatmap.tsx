@@ -80,8 +80,8 @@ function Cell({
     style.opacity = intensity;
     label = `${sessions} session${sessions === 1 ? "" : "s"}, ${hours(entry?.focusedMs ?? 0)}`;
   } else if (state === "frozen") {
-    style.backgroundColor = "oklch(0.86 0.04 232)";
-    style.boxShadow = "inset 0 0 0 2px oklch(0.32 0.03 232)";
+    style.backgroundColor = "var(--color-ice)";
+    style.boxShadow = "inset 0 0 0 2px var(--color-ice-deep)";
     label = "Freeze used — streak intact";
   } else if (state === "rest") {
     style.boxShadow = "inset 0 0 0 1px var(--color-rule)";
@@ -114,8 +114,8 @@ export function HeatmapKey() {
     {
       label: "freeze used",
       style: {
-        backgroundColor: "oklch(0.86 0.04 232)",
-        boxShadow: "inset 0 0 0 2px oklch(0.32 0.03 232)",
+        backgroundColor: "var(--color-ice)",
+        boxShadow: "inset 0 0 0 2px var(--color-ice-deep)",
       },
     },
     { label: "rest day", style: { boxShadow: "inset 0 0 0 1px var(--color-rule)" } },

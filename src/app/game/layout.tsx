@@ -25,10 +25,10 @@ export default async function GameLayout({ children }: { children: React.ReactNo
   }
 
   return (
-    <div style={{ "--tier": accent } as CSSProperties}>
+    <>
       <Nav current="/game" />
       <GameNav />
       {children}
-    </div>
+    </>
   );
 }

@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import type { CSSProperties } from "react";
 import { auth } from "@/lib/auth";
 import { Nav } from "@/components/Nav";
 import { BarChart, Legend, LineChart, StackedBars, seriesColor } from "@/components/Charts";
@@ -9,7 +8,7 @@ import { loadPrestigeView } from "@/lib/prestige-service";
 import { describeLevel, xpToNextRank } from "@/lib/levels";
 import { MIN_ACTIVE_DAYS, measurePace, projectNextRank } from "@/lib/projection";
 import { xpMultiplier } from "@/lib/prestige";
-import { completionRatio, groupNumber, hours, tierAccent } from "@/lib/format";
+import { completionRatio, groupNumber, hours } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -37,8 +36,6 @@ export default async function DashboardPage() {
     listProjectDetails(userId),
   ]);
 
-  const info = describeLevel(state.level);
-  const accent = tierAccent(info.hue, info.intensity);
 
   const pace = measurePace(data.daily, 28);
   const projection = projectNextRank(
@@ -71,7 +68,7 @@ export default async function DashboardPage() {
   const empty = totalCompleted === 0;
 
   return (
-    <div style={{ "--tier": accent } as CSSProperties}>
+    <>
       <Nav current="/dashboard" />
       <main className="mx-auto w-full max-w-4xl px-6 pb-24 pt-14 sm:px-10">
         {empty ? (
@@ -89,7 +86,7 @@ export default async function DashboardPage() {
             <h1 className="display text-4xl leading-tight sm:text-5xl">
               {projection.known ? (
                 <>
-                  <span className="tnum" style={{ color: accent, fontFamily: "var(--font-mono)" }}>
+                  <span className="tnum" style={{ color: "var(--tier)", fontFamily: "var(--font-mono)" }}>
                     {projection.days}
                   </span>{" "}
                   {projection.days === 1 ? "day" : "days"} to{" "}
@@ -99,7 +96,7 @@ export default async function DashboardPage() {
                 <>Mythic V. There is nothing above this.</>
               ) : projection.reason === "too_early" ? (
                 <>
-                  <span className="tnum" style={{ color: accent, fontFamily: "var(--font-mono)" }}>
+                  <span className="tnum" style={{ color: "var(--tier)", fontFamily: "var(--font-mono)" }}>
                     {pace.activeDays}
                   </span>{" "}
                   {pace.activeDays === 1 ? "day" : "days"} in
@@ -257,6 +254,6 @@ export default async function DashboardPage() {
           </>
         )}
       </main>
-    </div>
+    </>
   );
 }

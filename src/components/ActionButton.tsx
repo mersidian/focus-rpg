@@ -60,14 +60,14 @@ export function ActionButton({
             ? "text-[12px] text-faint underline underline-offset-2 transition-colors hover:text-dim disabled:opacity-40"
             : "rounded-sm px-3 py-1.5 text-[13px] font-medium text-ground transition-opacity disabled:opacity-50"
         }
-        style={quiet ? undefined : { backgroundColor: "var(--tier)" }}
+        style={quiet ? undefined : { backgroundColor: "var(--action)" }}
       >
         {pending ? busyLabel : label}
       </button>
       {said && (
         <span
           className="text-[12px]"
-          style={outcome?.ok ? { color: "var(--tier)" } : { color: "var(--color-warn)" }}
+          style={outcome?.ok ? { color: "var(--action)" } : { color: "var(--color-warn)" }}
         >
           {said}
         </span>

@@ -8,7 +8,12 @@ export function PrestigeFrame({ stars }: { stars: number }) {
   if (stars <= 0) return null;
 
   const intensity = Math.min(stars, 10) / 10;
-  const line = `oklch(${0.72 + intensity * 0.1} ${0.09 + intensity * 0.06} 84)`;
+  /*
+   * Capped at 0.125 chroma. Prestige needs level 50, where the earned accent is
+   * already past 0.15, so the frame can never out-colour the character wearing
+   * it — which the old 0.09-to-0.15 ramp could at one star.
+   */
+  const line = `oklch(${0.72 + intensity * 0.1} ${(0.075 + intensity * 0.05).toFixed(3)} 84)`;
 
   return (
     <div

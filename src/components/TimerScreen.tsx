@@ -182,7 +182,7 @@ function Idle({
       {snapshot.streak.frozeDays.length > 0 && (
         <p
           className="mt-6 border-l-2 pl-4 text-[13px] leading-relaxed text-dim"
-          style={{ borderColor: "oklch(0.86 0.04 232)" }}
+          style={{ borderColor: "var(--color-ice)" }}
         >
           {snapshot.streak.frozeDays.length === 1
             ? "Freeze used — streak intact, "
@@ -219,7 +219,7 @@ function Idle({
               >
                 <span
                   className="tnum block text-4xl leading-none transition-colors"
-                  style={{ color: selected ? "var(--tier)" : undefined }}
+                  style={{ color: selected ? "var(--action)" : undefined }}
                 >
                   {minutes}
                 </span>
@@ -258,7 +258,7 @@ function Idle({
           onClick={() => begin(choice, activity ?? undefined, tonic ?? undefined)}
           disabled={pending}
           className="mt-6 w-full rounded-sm px-6 py-4 text-[15px] font-medium text-ground transition-opacity disabled:opacity-50"
-          style={{ backgroundColor: "var(--tier)" }}
+          style={{ backgroundColor: "var(--action)" }}
         >
           {/* `pending` covers any in-flight action, including a background
               refresh, so it disables the button without claiming a session is

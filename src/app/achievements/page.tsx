@@ -1,13 +1,10 @@
 import { redirect } from "next/navigation";
-import type { CSSProperties } from "react";
 import { auth } from "@/lib/auth";
 import { Nav } from "@/components/Nav";
-import { loadState } from "@/lib/game-state";
 import { loadAchievementBoard } from "@/lib/achievements/service";
 import { evaluateAchievements } from "@/lib/achievements/service";
 import { ALL_FAMILIES as FAMILIES, ALL_FAMILY_LABEL as FAMILY_LABEL, RARITY_LABEL } from "@/lib/achievements/definitions";
-import { describeLevel } from "@/lib/levels";
-import { groupNumber, tierAccent } from "@/lib/format";
+import { groupNumber } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -27,16 +24,14 @@ export default async function AchievementsPage() {
   // Judged on arrival, so the page can never show a stale board.
   await evaluateAchievements(userId);
 
-  const [board, state] = await Promise.all([loadAchievementBoard(userId), loadState(userId)]);
-  const info = describeLevel(state.level);
-  const accent = tierAccent(info.hue, info.intensity);
+  const board = await loadAchievementBoard(userId);
 
   const earnedXp = board.items
     .filter((i) => i.unlocked)
     .reduce((n, i) => n + i.xp, 0);
 
   return (
-    <div style={{ "--tier": accent } as CSSProperties}>
+    <>
       <Nav current="/achievements" />
       <main className="mx-auto w-full max-w-4xl px-6 pb-24 pt-14 sm:px-10">
         <h1 className="display text-4xl sm:text-5xl">Achievements</h1>
@@ -51,7 +46,7 @@ export default async function AchievementsPage() {
             className="h-full"
             style={{
               width: `${(board.progress.unlockedCount / board.progress.total) * 100}%`,
-              backgroundColor: accent,
+              backgroundColor: "var(--tier)",
             }}
           />
         </div>
@@ -64,7 +59,7 @@ export default async function AchievementsPage() {
               <div className="flex items-baseline justify-between border-b border-rule pb-2">
                 <h2 className="text-[15px] text-text">{FAMILY_LABEL[family]}</h2>
                 <p className="text-[13px] text-faint">
-                  <span className="tnum" style={done === items.length ? { color: accent } : undefined}>
+                  <span className="tnum" style={done === items.length ? { color: "var(--tier)" } : undefined}>
                     {done}
                   </span>
                   <span className="tnum"> / {items.length}</span>
@@ -83,7 +78,7 @@ export default async function AchievementsPage() {
                         aria-hidden
                         className="mt-1 h-3 w-[3px] shrink-0 self-start"
                         style={{
-                          backgroundColor: item.unlocked ? accent : "var(--color-rule)",
+                          backgroundColor: item.unlocked ? "var(--action)" : "var(--color-rule)",
                           opacity: item.unlocked ? RARITY_ALPHA[item.rarity] : 1,
                         }}
                       />
@@ -124,6 +119,6 @@ export default async function AchievementsPage() {
           );
         })}
       </main>
-    </div>
+    </>
   );
 }

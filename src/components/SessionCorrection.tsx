@@ -88,8 +88,8 @@ export function SessionCorrection({
               }}
               className="rounded-sm border px-3 py-2 text-[13px] transition-colors"
               style={{
-                borderColor: selected ? "var(--tier)" : "var(--color-rule)",
-                color: selected ? "var(--tier)" : undefined,
+                borderColor: selected ? "var(--action)" : "var(--color-rule)",
+                color: selected ? "var(--action)" : undefined,
               }}
             >
               {p.name}

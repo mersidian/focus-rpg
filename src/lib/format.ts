@@ -26,8 +26,46 @@ export function completionRatio(completed: number, abandoned: number): number | 
 /**
  * The tier hue as an OKLCH accent. Early tiers are almost colourless and the
  * top of the ladder burns; the interface accent is the thing being earned (§8).
+ *
+ * The chroma floor moved from 0.02 to 0.045 because the old curve took §8's
+ * "a Drifter's app is nearly colourless" past nearly. At intensity 0.10 it
+ * returned chroma 0.036, against --color-dim's 0.021 — indistinguishable. So
+ * the sentence beside it, "hierarchy is carried by tier colour", had no colour
+ * to carry anything with for the first several hours of use.
  */
+export const ACCENT_FLOOR = 0.045;
+export const ACCENT_RANGE = 0.13;
+
 export function tierAccent(hue: number, intensity: number, lightness = 0.74): string {
-  const chroma = (0.02 + 0.155 * intensity).toFixed(3);
+  const chroma = accentChroma(intensity).toFixed(3);
+  return `oklch(${lightness} ${chroma} ${hue})`;
+}
+
+export function accentChroma(intensity: number): number {
+  return ACCENT_FLOOR + ACCENT_RANGE * intensity;
+}
+
+/**
+ * The same hue, at the minimum chroma a control needs to read as a control.
+ *
+ * Decoration and function want different things from the same colour. A rail,
+ * a rank title and a chart mark are describing what you have earned, so at the
+ * bottom of the ladder they should be pale — that is the point. But the Start
+ * button, the focus ring, the selection highlight and a chosen chip are doing a
+ * job, and at chroma 0.036 the primary action on the home screen read as a
+ * disabled grey slab. The accessibility floor was worst exactly when the user
+ * was newest.
+ *
+ * So the floor applies only where colour carries meaning the user has to act
+ * on. Three properties keep it honest: it bites only for the first five tiers
+ * and converges with the decorative curve at Artisan, so the accent still
+ * visibly grows across the whole ladder; it never exceeds tierAccent, so it
+ * cannot become a second, louder palette; and the hue is still entirely earned
+ * — only the minimum ink is guaranteed.
+ */
+export const ACTION_FLOOR = 0.11;
+
+export function tierAction(hue: number, intensity: number, lightness = 0.74): string {
+  const chroma = Math.max(ACTION_FLOOR, accentChroma(intensity)).toFixed(3);
   return `oklch(${lightness} ${chroma} ${hue})`;
 }

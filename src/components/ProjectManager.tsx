@@ -8,6 +8,7 @@ import {
 } from "@/lib/actions";
 import { hours as formatHours, groupNumber } from "@/lib/format";
 import { PROJECT_TIERS } from "@/lib/projects";
+import { seriesColor } from "@/components/Charts";
 
 export type ProjectItem = {
   id: string;
@@ -79,10 +80,18 @@ export function ProjectManager({ projects }: { projects: ProjectItem[] }) {
 
       <ul>
         {projects.map((project) => {
+          /*
+           * A project's rank is a step on the earned accent, not a hue of its
+           * own. It used to be `oklch(0.74 0.12 hue)` — a fixed chroma above
+           * every tier accent below Artisan, so three ranked projects sat in
+           * saturated colour next to a character accent that was nearly grey.
+           * The ramp is the same one the dashboard's series uses, so a project
+           * looks the same on both screens.
+           */
           const accent =
             project.rank.hue === null
               ? "var(--color-faint)"
-              : `oklch(0.74 0.12 ${project.rank.hue})`;
+              : seriesColor(Math.max(0, project.rank.index - 1));
 
           return (
             <li key={project.id} className="border-b border-rule py-6 last:border-0">
@@ -273,12 +282,12 @@ export function ProjectManager({ projects }: { projects: ProjectItem[] }) {
       <section className="mt-14 border-t border-rule pt-8">
         <h2 className="text-[15px] text-text">The project ladder</h2>
         <ul className="mt-4 flex flex-wrap gap-x-8 gap-y-2 text-[13px] text-faint">
-          {PROJECT_TIERS.map((tier) => (
+          {PROJECT_TIERS.map((tier, i) => (
             <li key={tier.title} className="flex items-center gap-2">
               <span
                 aria-hidden
                 className="h-3 w-[3px]"
-                style={{ backgroundColor: `oklch(0.74 0.12 ${tier.hue})` }}
+                style={{ backgroundColor: seriesColor(i) }}
               />
               {tier.title}
               <span className="tnum text-dim">{tier.hours} h</span>

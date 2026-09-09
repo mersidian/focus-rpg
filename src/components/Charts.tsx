@@ -6,25 +6,33 @@
  *
  * Single-series charts are drawn in the tier the character has earned, which is
  * the app's one accent (§8) and needs no legend, because the heading names it.
- * Only the per-project series carries identity, and that uses the fixed
- * categorical order below — validated for contrast, adjacent separation and
- * colour-vision deficiency against this app's surface.
+ *
+ * The per-project series used to be six fixed hex values, chosen for contrast
+ * and colour-vision deficiency. They were defensible on their own and wrong
+ * beside the rest of the app: at chroma ~0.12 they out-saturated the earned
+ * accent for the first twelve tiers, so a Drifter's dashboard was a grey
+ * heading over a chart in six loud colours — the illustration shouting over the
+ * hierarchy §8 says carries the page.
+ *
+ * Six distinguishable hues cannot all be quieter than a Drifter's 0.058, so the
+ * encoding changed rather than the saturation. This is a lightness ramp on the
+ * hue the character has earned: it reads as one system, a ramp is inherently
+ * safe for colour-vision deficiency, and it says the right thing — a project
+ * with more hours in it is *more* of what you have earned. The ramp needs its
+ * legend, which the dashboard already draws, and the 2px gaps between segments
+ * do the separation the old adjacent-pair check was for.
  */
 
-export const SERIES = [
-  "#3987e5",
-  "#d95926",
-  "#199e70",
-  "#c98500",
-  "#d55181",
-  "#008300",
-] as const;
+/** How much of the earned accent each rank keeps, mixed toward the surface. */
+export const SERIES_MIX = [100, 82, 64, 48, 34, 22] as const;
 
-/** Anything past the sixth project folds in here rather than inventing a hue. */
+/** Anything past the sixth project folds in here rather than inventing a step. */
 export const OTHER_COLOR = "var(--color-rule)";
 
 export function seriesColor(index: number): string {
-  return index < SERIES.length ? SERIES[index] : OTHER_COLOR;
+  const mix = SERIES_MIX[index];
+  if (mix === undefined) return OTHER_COLOR;
+  return `color-mix(in oklch, var(--tier) ${mix}%, var(--color-lift))`;
 }
 
 const AXIS = "var(--color-rule)";

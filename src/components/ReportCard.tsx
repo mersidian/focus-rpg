@@ -101,8 +101,8 @@ export function ReportCard() {
                   }}
                   className="rounded-sm border px-3 py-2 text-[13px] transition-colors"
                   style={{
-                    borderColor: selected ? "var(--tier)" : "var(--color-rule)",
-                    color: selected ? "var(--tier)" : undefined,
+                    borderColor: selected ? "var(--action)" : "var(--color-rule)",
+                    color: selected ? "var(--action)" : undefined,
                   }}
                 >
                   {p.name}
@@ -114,7 +114,7 @@ export function ReportCard() {
               type="button"
               onClick={() => setCreating(true)}
               className="rounded-sm border border-dashed border-rule px-3 py-2 text-[13px] text-faint transition-colors hover:text-dim"
-              style={creating ? { borderColor: "var(--tier)", color: "var(--tier)" } : undefined}
+              style={creating ? { borderColor: "var(--action)", color: "var(--action)" } : undefined}
             >
               New project
             </button>
@@ -177,7 +177,7 @@ export function ReportCard() {
             onClick={() => send(true)}
             disabled={!chosen || pending}
             className="flex-1 rounded-sm px-6 py-4 text-[15px] font-medium text-ground transition-opacity disabled:opacity-40"
-            style={{ backgroundColor: "var(--tier)" }}
+            style={{ backgroundColor: "var(--action)" }}
           >
             I focused — log {groupNumber(session.xpAwarded)} XP
           </button>

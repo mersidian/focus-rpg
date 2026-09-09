@@ -1,12 +1,9 @@
 import { redirect } from "next/navigation";
-import type { CSSProperties } from "react";
 import { auth } from "@/lib/auth";
 import { Nav } from "@/components/Nav";
 import { ProjectManager } from "@/components/ProjectManager";
 import { listProjectDetails } from "@/lib/project-service";
-import { loadState } from "@/lib/game-state";
-import { describeLevel } from "@/lib/levels";
-import { groupNumber, hours, tierAccent } from "@/lib/format";
+import { groupNumber, hours } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -14,24 +11,19 @@ export default async function ProjectsPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/signin");
 
-  const [projects, state] = await Promise.all([
-    listProjectDetails(session.user.id, true),
-    loadState(session.user.id),
-  ]);
-  const info = describeLevel(state.level);
-  const accent = tierAccent(info.hue, info.intensity);
+  const projects = await listProjectDetails(session.user.id, true);
 
   const live = projects.filter((p) => !p.archived);
   const totalMs = live.reduce((n, p) => n + p.focusedMs, 0);
   const biggest = live[0];
 
   return (
-    <div style={{ "--tier": accent } as CSSProperties}>
+    <>
       <Nav current="/projects" />
       <main className="mx-auto w-full max-w-3xl px-6 pb-24 pt-14 sm:px-10">
         {biggest && biggest.focusedMs > 0 ? (
           <>
-            <h1 className="display text-5xl leading-[0.95] sm:text-6xl" style={{ color: accent }}>
+            <h1 className="display text-5xl leading-[0.95] sm:text-6xl" style={{ color: "var(--tier)" }}>
               <span className="tnum" style={{ fontFamily: "var(--font-mono)" }}>
                 {hours(biggest.focusedMs)}
               </span>{" "}
@@ -75,6 +67,6 @@ export default async function ProjectsPage() {
           }))}
         />
       </main>
-    </div>
+    </>
   );
 }

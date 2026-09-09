@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import type { CSSProperties } from "react";
 import { auth } from "@/lib/auth";
 import { Nav } from "@/components/Nav";
 import { Heatmap, HeatmapKey } from "@/components/Heatmap";
@@ -16,8 +15,7 @@ import {
   FREEZE_METER_TARGET,
   meterProgress,
 } from "@/lib/streak-engine";
-import { describeLevel } from "@/lib/levels";
-import { groupNumber, tierAccent } from "@/lib/format";
+import { groupNumber } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -33,8 +31,6 @@ export default async function StreakPage() {
     listVacations(userId),
   ]);
 
-  const info = describeLevel(state.level);
-  const accent = tierAccent(info.hue, info.intensity);
   const s = advance.state;
   const meter = meterProgress({
     streak: s.streak,
@@ -49,10 +45,10 @@ export default async function StreakPage() {
   const workedToday = s.lastCountedDay === advance.today;
 
   return (
-    <div style={{ "--tier": accent } as CSSProperties}>
+    <>
       <Nav current="/streak" />
       <main className="mx-auto w-full max-w-4xl px-6 pb-24 pt-14 sm:px-10">
-        <h1 className="display text-5xl leading-[0.95] sm:text-6xl" style={{ color: accent }}>
+        <h1 className="display text-5xl leading-[0.95] sm:text-6xl" style={{ color: "var(--tier)" }}>
           <span className="tnum" style={{ fontFamily: "var(--font-mono)" }}>
             {s.streak}
           </span>{" "}
@@ -71,7 +67,7 @@ export default async function StreakPage() {
         {advance.frozeDays.length > 0 && (
           <p
             className="mt-6 border-l-2 pl-4 text-[13px] leading-relaxed text-dim"
-            style={{ borderColor: "oklch(0.86 0.04 232)" }}
+            style={{ borderColor: "var(--color-ice)" }}
           >
             {advance.frozeDays.length === 1
               ? "Freeze used — streak intact, "
@@ -116,7 +112,7 @@ export default async function StreakPage() {
           <div className="h-[2px] w-full bg-rule">
             <div
               className="h-full"
-              style={{ width: `${meter * 100}%`, backgroundColor: "oklch(0.86 0.04 232)" }}
+              style={{ width: `${meter * 100}%`, backgroundColor: "var(--color-ice)" }}
             />
           </div>
           <p className="mt-2 text-[13px] text-faint">
@@ -148,6 +144,6 @@ export default async function StreakPage() {
           birthday={advance.settings.birthday}
         />
       </main>
-    </div>
+    </>
   );
 }

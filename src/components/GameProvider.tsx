@@ -21,7 +21,7 @@ import {
 } from "@/lib/actions";
 import { HEARTBEAT_INTERVAL_MS } from "@/lib/constants";
 import { describeLevel } from "@/lib/levels";
-import { tierAccent } from "@/lib/format";
+import { tierAccent, tierAction } from "@/lib/format";
 import { deviceId as readDeviceId, detectRuleset } from "@/lib/client/device";
 import { playChime } from "@/lib/client/chime";
 import { notifySessionEnd } from "@/lib/client/notify";
@@ -166,11 +166,23 @@ export function GameProvider({
 
   /* ------------------------------------------- the accent the user earned */
 
+  /*
+   * The root layout already paints the earned accent server-side, so the first
+   * frame is correct and this no longer has anything to fix on load. What it
+   * still does is move the colour the moment a session grants a rank, without
+   * a reload.
+   *
+   * It writes to the body and not to documentElement because that is where the
+   * layout sets them: a custom property inherits, so an inline style on the
+   * body would shadow anything written to :root and the accent would stop
+   * following the character.
+   */
   useEffect(() => {
     const tier = describeLevel(snapshot.state.level);
-    const root = document.documentElement;
-    root.style.setProperty("--tier", tierAccent(tier.hue, tier.intensity));
-    root.style.setProperty("--tier-deep", tierAccent(tier.hue, tier.intensity, 0.42));
+    const { style } = document.body;
+    style.setProperty("--tier", tierAccent(tier.hue, tier.intensity));
+    style.setProperty("--tier-deep", tierAccent(tier.hue, tier.intensity, 0.42));
+    style.setProperty("--action", tierAction(tier.hue, tier.intensity));
   }, [snapshot.state.level]);
 
   /* -------------------------------------------------------- desktop pings */

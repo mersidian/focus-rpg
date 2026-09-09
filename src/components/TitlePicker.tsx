@@ -38,8 +38,8 @@ export function TitlePicker({
         disabled={pending}
         className="rounded-sm border px-3 py-2 text-[13px] transition-colors disabled:opacity-50"
         style={{
-          borderColor: current === null ? "var(--tier)" : "var(--color-rule)",
-          color: current === null ? "var(--tier)" : undefined,
+          borderColor: current === null ? "var(--action)" : "var(--color-rule)",
+          color: current === null ? "var(--action)" : undefined,
         }}
       >
         {levelTitle}
@@ -52,8 +52,8 @@ export function TitlePicker({
           disabled={pending}
           className="rounded-sm border px-3 py-2 text-[13px] transition-colors disabled:opacity-50"
           style={{
-            borderColor: current === t.id ? "var(--tier)" : "var(--color-rule)",
-            color: current === t.id ? "var(--tier)" : undefined,
+            borderColor: current === t.id ? "var(--action)" : "var(--color-rule)",
+            color: current === t.id ? "var(--action)" : undefined,
           }}
         >
           {t.title}

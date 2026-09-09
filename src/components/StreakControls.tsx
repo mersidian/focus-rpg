@@ -95,8 +95,8 @@ export function StreakControls({
                 aria-pressed={on}
                 className="rounded-sm border px-3 py-2 text-[13px] transition-colors disabled:opacity-50"
                 style={{
-                  borderColor: on ? "var(--tier)" : "var(--color-rule)",
-                  color: on ? "var(--tier)" : undefined,
+                  borderColor: on ? "var(--action)" : "var(--color-rule)",
+                  color: on ? "var(--action)" : undefined,
                 }}
               >
                 {name.slice(0, 3)}

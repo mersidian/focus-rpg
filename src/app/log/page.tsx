@@ -1,13 +1,10 @@
 import { redirect } from "next/navigation";
-import type { CSSProperties } from "react";
 import { auth } from "@/lib/auth";
 import { Nav } from "@/components/Nav";
 import { listLog } from "@/lib/session-service";
 import { listProjectDetails } from "@/lib/project-service";
 import { SessionCorrection } from "@/components/SessionCorrection";
-import { loadState } from "@/lib/game-state";
-import { describeLevel } from "@/lib/levels";
-import { groupNumber, tierAccent } from "@/lib/format";
+import { groupNumber } from "@/lib/format";
 import { ABANDON_REASON_LABEL } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
@@ -23,14 +20,11 @@ export default async function LogPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/signin");
 
-  const [entries, state, projects] = await Promise.all([
+  const [entries, projects] = await Promise.all([
     listLog(session.user.id, 200),
-    loadState(session.user.id),
     listProjectDetails(session.user.id),
   ]);
   const projectOptions = projects.map((p) => ({ id: p.id, name: p.name }));
-  const info = describeLevel(state.level);
-  const accent = tierAccent(info.hue, info.intensity);
 
   const days = new Map<string, typeof entries>();
   for (const entry of entries) {
@@ -41,7 +35,7 @@ export default async function LogPage() {
   }
 
   return (
-    <div style={{ "--tier": accent } as CSSProperties}>
+    <>
       <Nav current="/log" />
       <main className="mx-auto w-full max-w-3xl px-6 pb-24 pt-14 sm:px-10">
         <h1 className="display text-4xl sm:text-5xl">Session log</h1>
@@ -67,7 +61,7 @@ export default async function LogPage() {
                         className="mt-[6px] h-2 w-[2px] shrink-0"
                         style={{
                           backgroundColor:
-                            entry.status === "completed" ? accent : "var(--color-warn)",
+                            entry.status === "completed" ? "var(--tier)" : "var(--color-warn)",
                         }}
                       />
                       <span className="tnum w-12 shrink-0 text-faint">
@@ -153,6 +147,6 @@ export default async function LogPage() {
           </div>
         )}
       </main>
-    </div>
+    </>
   );
 }

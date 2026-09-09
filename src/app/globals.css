@@ -15,18 +15,83 @@
   --color-rule: oklch(0.315 0.028 268);
   --color-text: oklch(0.93 0.012 85);
   --color-dim: oklch(0.66 0.021 268);
-  --color-faint: oklch(0.5 0.022 268);
-  --color-warn: oklch(0.66 0.14 38);
+
+  /*
+    Raised from 0.5. This is the most-used text colour in the app by a wide
+    margin, at 12 and 13px, and it was sitting on the AA line. It is for
+    metadata — a count, a timestamp, a unit — and body copy belongs on
+    --color-dim. That distinction is the app's whole hierarchy: three
+    lightness steps and almost no weight variation, so spending the quietest
+    step on ordinary prose left nothing to rank with.
+  */
+  --color-faint: oklch(0.545 0.022 268);
+
+  /*
+    Lowered from chroma 0.14. An error may be as loud as the primary action,
+    never louder — and at 0.14 it beat every tier accent below Artisan, so a
+    warning out-shouted the character wearing it.
+  */
+  --color-warn: oklch(0.7 0.105 38);
+
+  /*
+    Frost, for a freeze spent and a frozen day on the heatmap. A sanctioned
+    exception to "nothing else may be saturated": a freeze is the one thing
+    that has to read as *not* the accent, since it means a day you did not
+    work was kept anyway. Chroma 0.04 keeps it under the functional floor in
+    format.ts, so it can never out-colour what the user earned. It was a magic
+    string in five files before it was a token.
+  */
+  --color-ice: oklch(0.86 0.04 232);
+  --color-ice-deep: oklch(0.32 0.03 232);
+
+  /*
+    Nine roles, replacing fifteen ad-hoc sizes. The old set mixed arbitrary
+    pixels at the small end with Tailwind's named scale at the large end and
+    the two never met, so there was no scale — just a list. Named by role
+    rather than size because that is how the app already thinks, and because
+    `text-sm` invites drift straight back.
+  */
+  --text-note: 0.75rem;
+  --text-note--line-height: 1.5;
+  --text-body: 0.8125rem;
+  --text-body--line-height: 1.55;
+  --text-lead: 0.9375rem;
+  --text-lead--line-height: 1.6;
+  /* 16px on every input: anything smaller makes iOS Safari zoom on focus. */
+  --text-field: 1rem;
+  --text-field--line-height: 1.4;
+  --text-stat: 1.25rem;
+  /* The Start button, and nothing else. */
+  --text-commit: 1.0625rem;
+  --text-head: 1.75rem;
+  --text-title: 2.25rem;
+  --text-hero: 3rem;
 
   --font-display: var(--font-fraunces), Georgia, serif;
   --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, monospace;
 }
 
+/*
+  The earned accent, as utilities. `inline` is load-bearing: without it
+  Tailwind resolves --color-tier once at :root and bakes the Drifter default
+  into every class, so the runtime override would stop propagating and a
+  Mythic's app would render blue.
+
+  --tier is the decorative accent and --action the functional one; format.ts
+  explains why they are two things.
+*/
+@theme inline {
+  --color-tier: var(--tier);
+  --color-tier-deep: var(--tier-deep);
+  --color-action: var(--action);
+}
+
 :root {
   /* Overwritten per-render with the current tier's hue. */
-  --tier: oklch(0.74 0.035 250);
-  --tier-deep: oklch(0.42 0.03 250);
+  --tier: oklch(0.74 0.058 250);
+  --tier-deep: oklch(0.42 0.05 250);
+  --action: oklch(0.74 0.11 250);
   color-scheme: dark;
 
   /*
@@ -82,12 +147,17 @@ body {
 }
 
 ::selection {
-  background: var(--tier);
+  background: var(--action);
   color: var(--color-ground);
 }
 
+/*
+  The focus ring is doing a job, so it draws in --action rather than --tier: at
+  the bottom of the ladder the decorative accent is deliberately near-grey, and
+  a focus ring nobody can see is not a focus ring.
+*/
 :focus-visible {
-  outline: 2px solid var(--tier);
+  outline: 2px solid var(--action);
   outline-offset: 3px;
   border-radius: 2px;
 }
