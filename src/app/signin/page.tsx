@@ -33,8 +33,8 @@ export default async function SignInPage({
           nothing else": this is the wordmark, on the only screen where there is
           no character yet, so it cannot be mistaken for a rank.
         */}
-        <h1 className="display text-hero leading-[0.95]">Focus RPG</h1>
-        <p className="mt-5 max-w-prose text-[15px] leading-relaxed text-dim">
+        <h1 className="earned text-hero leading-[0.95]">Focus RPG</h1>
+        <p className="mt-5 max-w-prose text-lead leading-relaxed text-dim">
           Focused minutes, banked. One XP a minute, a hundred ranks, and ten thousand hours
           at the top of the ladder.
         </p>
@@ -48,7 +48,7 @@ export default async function SignInPage({
         >
           <button
             type="submit"
-            className="w-full rounded-sm border border-rule px-6 py-4 text-[15px] text-text transition-colors hover:border-dim"
+            className="w-full rounded-sm border border-rule px-6 py-4 text-lead text-text transition-colors hover:border-dim"
           >
             Continue with GitHub
           </button>
@@ -56,14 +56,14 @@ export default async function SignInPage({
 
         {message && (
           <p
-            className="mt-6 border-l-2 pl-4 text-[13px] leading-relaxed text-dim"
+            className="mt-6 border-l-2 pl-4 text-body leading-relaxed text-dim"
             style={{ borderColor: "var(--color-warn)" }}
           >
             {message}
           </p>
         )}
 
-        <p className="mt-6 text-[13px] leading-relaxed text-faint">
+        <p className="mt-6 text-body leading-relaxed text-faint">
           GitHub keeps your character on the server, so it survives a cleared browser and
           follows you to your phone.
         </p>

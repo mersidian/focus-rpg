@@ -124,7 +124,7 @@ export function HeatmapKey() {
     { label: "missed", style: { backgroundColor: "var(--color-lift)" } },
   ];
   return (
-    <ul className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[12px] text-faint">
+    <ul className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-note text-faint">
       {items.map((item) => (
         <li key={item.label} className="flex items-center gap-2">
           <span style={{ width: 11, height: 11, borderRadius: 2, ...item.style }} />

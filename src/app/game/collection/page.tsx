@@ -41,7 +41,7 @@ export default async function CollectionPage() {
         </>
       }
     >
-      <p className="mt-6 text-[13px] text-faint">
+      <p className="mt-6 text-body text-faint">
         <span className="tnum text-dim">{groupNumber(got)}</span> of{" "}
         <span className="tnum">{groupNumber(total)}</span> found
       </p>

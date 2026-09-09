@@ -23,13 +23,13 @@ export default async function ProjectsPage() {
       <main className="mx-auto w-full max-w-3xl px-6 pb-24 pt-14 sm:px-10">
         {biggest && biggest.focusedMs > 0 ? (
           <>
-            <h1 className="display text-5xl leading-[0.95] sm:text-6xl" style={{ color: "var(--tier)" }}>
+            <h1 className="earned text-hero leading-[0.95] sm:text-[4.5rem]" style={{ color: "var(--tier)" }}>
               <span className="tnum" style={{ fontFamily: "var(--font-mono)" }}>
                 {hours(biggest.focusedMs)}
               </span>{" "}
               on {biggest.name}
             </h1>
-            <p className="mt-3 text-[13px] text-faint">
+            <p className="mt-3 text-body text-faint">
               Your largest of <span className="tnum text-dim">{live.length}</span>{" "}
               {live.length === 1 ? "project" : "projects"}, out of{" "}
               <span className="tnum text-dim">{hours(totalMs)}</span> across all of them.
@@ -38,7 +38,7 @@ export default async function ProjectsPage() {
         ) : (
           <>
             <h1 className="text-title font-medium tracking-tight sm:text-hero">Projects</h1>
-            <p className="mt-3 max-w-prose text-[13px] leading-relaxed text-faint">
+            <p className="mt-3 max-w-prose text-body leading-relaxed text-faint">
               Every session attaches to exactly one. Their hours are the number this app is
               really for.
             </p>

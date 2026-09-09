@@ -59,7 +59,7 @@ export function ProjectManager({ projects }: { projects: ProjectItem[] }) {
 
   if (projects.length === 0) {
     return (
-      <p className="mt-8 max-w-prose text-[15px] leading-relaxed text-dim">
+      <p className="mt-8 max-w-prose text-lead leading-relaxed text-dim">
         No projects yet. Every session is tagged to one when you log it, and the first tag
         you write creates it.
       </p>
@@ -68,10 +68,10 @@ export function ProjectManager({ projects }: { projects: ProjectItem[] }) {
 
   return (
     <div className="mt-10">
-      {notice && <p className="mb-6 text-[13px] text-dim">{notice}</p>}
+      {notice && <p className="mb-6 text-body text-dim">{notice}</p>}
       {error && (
         <p
-          className="mb-6 border-l-2 pl-4 text-[13px] leading-relaxed text-dim"
+          className="mb-6 border-l-2 pl-4 text-body leading-relaxed text-dim"
           style={{ borderColor: "var(--color-warn)" }}
         >
           {error}
@@ -118,7 +118,7 @@ export function ProjectManager({ projects }: { projects: ProjectItem[] }) {
                         onClick={() =>
                           run(() => renameProjectAction(project.id, draft), () => setEditing(null))
                         }
-                        className="rounded-sm px-4 py-2 text-[13px] text-ground disabled:opacity-50"
+                        className="rounded-sm px-4 py-2 text-body text-ground disabled:opacity-50"
                         style={{ backgroundColor: "var(--tier)" }}
                       >
                         Save name
@@ -126,21 +126,21 @@ export function ProjectManager({ projects }: { projects: ProjectItem[] }) {
                       <button
                         type="button"
                         onClick={() => setEditing(null)}
-                        className="px-2 py-2 text-[13px] text-faint hover:text-dim"
+                        className="px-2 py-2 text-body text-faint hover:text-dim"
                       >
                         Cancel
                       </button>
                     </div>
                   ) : (
-                    <p className="text-[17px] text-text">
+                    <p className="text-lead text-text">
                       {project.name}
                       {project.rank.title && (
-                        <span className="ml-3 text-[13px]" style={{ color: accent }}>
+                        <span className="ml-3 text-body" style={{ color: accent }}>
                           {project.rank.title}
                         </span>
                       )}
                       {project.archived && (
-                        <span className="ml-3 text-[13px] text-faint">
+                        <span className="ml-3 text-body text-faint">
                           {project.mergedIntoName
                             ? `merged into ${project.mergedIntoName}`
                             : "retired"}
@@ -149,7 +149,7 @@ export function ProjectManager({ projects }: { projects: ProjectItem[] }) {
                     </p>
                   )}
 
-                  <p className="mt-2 text-[13px] text-faint">
+                  <p className="mt-2 text-body text-faint">
                     <span className="tnum text-dim">{formatHours(project.focusedMs)}</span>
                     {"  over  "}
                     <span className="tnum text-dim">{groupNumber(project.sessions)}</span>{" "}
@@ -175,7 +175,7 @@ export function ProjectManager({ projects }: { projects: ProjectItem[] }) {
                           }}
                         />
                       </div>
-                      <p className="mt-2 text-[12px] text-faint">
+                      <p className="mt-2 text-note text-faint">
                         <span className="tnum">
                           {formatHours(
                             Math.max(
@@ -190,7 +190,7 @@ export function ProjectManager({ projects }: { projects: ProjectItem[] }) {
                   )}
 
                   {!project.archived && (
-                    <div className="mt-2 flex flex-wrap items-center gap-x-5 text-[13px]">
+                    <div className="mt-2 flex flex-wrap items-center gap-x-5 text-body">
                       <button
                         type="button"
                         onClick={() => {
@@ -230,7 +230,7 @@ export function ProjectManager({ projects }: { projects: ProjectItem[] }) {
                       type="button"
                       disabled={pending}
                       onClick={() => run(() => setProjectArchived(project.id, false))}
-                      className="mt-4 text-[13px] text-faint underline underline-offset-4 hover:text-dim disabled:opacity-40"
+                      className="mt-4 text-body text-faint underline underline-offset-4 hover:text-dim disabled:opacity-40"
                     >
                       Bring back
                     </button>
@@ -238,7 +238,7 @@ export function ProjectManager({ projects }: { projects: ProjectItem[] }) {
 
                   {merging === project.id && (
                     <div className="mt-4 rounded-sm border border-rule p-4">
-                      <p className="text-[13px] leading-relaxed text-dim">
+                      <p className="text-body leading-relaxed text-dim">
                         Move all{" "}
                         <span className="tnum">{groupNumber(project.sessions)}</span> sessions
                         and{" "}
@@ -264,7 +264,7 @@ export function ProjectManager({ projects }: { projects: ProjectItem[] }) {
                                   () => setMerging(null),
                                 )
                               }
-                              className="rounded-sm border border-rule px-3 py-2 text-[13px] text-dim transition-colors hover:text-text disabled:opacity-40"
+                              className="rounded-sm border border-rule px-3 py-2 text-body text-dim transition-colors hover:text-text disabled:opacity-40"
                             >
                               {target.name}
                             </button>
@@ -280,8 +280,8 @@ export function ProjectManager({ projects }: { projects: ProjectItem[] }) {
       </ul>
 
       <section className="mt-14 border-t border-rule pt-8">
-        <h2 className="text-[15px] text-text">The project ladder</h2>
-        <ul className="mt-4 flex flex-wrap gap-x-8 gap-y-2 text-[13px] text-faint">
+        <h2 className="text-lead text-text">The project ladder</h2>
+        <ul className="mt-4 flex flex-wrap gap-x-8 gap-y-2 text-body text-faint">
           {PROJECT_TIERS.map((tier, i) => (
             <li key={tier.title} className="flex items-center gap-2">
               <span

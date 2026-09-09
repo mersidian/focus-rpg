@@ -45,7 +45,7 @@ export default async function SlayingPage() {
             </div>
           </>
         ) : (
-          <div className="mt-4 text-[13px]">
+          <div className="mt-4 text-body">
             <div className="flex items-baseline justify-between gap-4">
               <p className="text-dim">{o.contract.variantName}</p>
               <p className="tnum shrink-0 text-faint">
@@ -53,7 +53,7 @@ export default async function SlayingPage() {
               </p>
             </div>
             <Rail progress={o.contract.killed / Math.max(1, o.contract.required)} />
-            <p className="mt-3 text-[12px] text-faint">
+            <p className="mt-3 text-note text-faint">
               It never expires. <DropContractButton /> costs nothing — nothing here punishes
               changing your mind.
             </p>
@@ -70,7 +70,7 @@ export default async function SlayingPage() {
             groupNumber(variantsIn(b).length),
           ])}
         />
-        <p className="mt-4 text-[13px] leading-relaxed text-faint">
+        <p className="mt-4 text-body leading-relaxed text-faint">
           Higher Slaying levels name deeper biomes and rarer variants, so the ladder doubles as the
           guided route through content that otherwise has no suggested order.
         </p>

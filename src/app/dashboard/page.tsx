@@ -82,7 +82,7 @@ export default async function DashboardPage() {
         {empty ? (
           <>
             <h1 className="text-title font-medium tracking-tight sm:text-hero">Dashboard</h1>
-            <p className="mt-4 max-w-prose text-[15px] leading-relaxed text-dim">
+            <p className="mt-4 max-w-prose text-lead leading-relaxed text-dim">
               Nothing to chart yet. Finish a few sessions and this fills with your daily and
               weekly hours, where your time goes, when you work best, and how close the next
               rank is.
@@ -113,7 +113,7 @@ export default async function DashboardPage() {
                 <>No pace to project from yet</>
               )}
             </h1>
-            <p className="mt-3 max-w-prose text-[13px] leading-relaxed text-faint">
+            <p className="mt-3 max-w-prose text-body leading-relaxed text-faint">
               {projection.known ? (
                 <>
                   At <span className="tnum text-dim">{minutes(pace.minutesPerDay)}</span> a day
@@ -176,7 +176,7 @@ export default async function DashboardPage() {
             </section>
 
             <section className="mt-14">
-              <h2 className="text-[15px] text-text">By week</h2>
+              <h2 className="text-lead text-text">By week</h2>
               <div className="mt-5">
                 <BarChart
                   gap={3}
@@ -193,7 +193,7 @@ export default async function DashboardPage() {
             </section>
 
             <section className="mt-14">
-              <h2 className="text-[15px] text-text">Where the hours went</h2>
+              <h2 className="text-lead text-text">Where the hours went</h2>
               <div className="mt-5">
                 <StackedBars
                   columns={columns}
@@ -218,7 +218,7 @@ export default async function DashboardPage() {
             </section>
 
             <section className="mt-14">
-              <h2 className="text-[15px] text-text">When you work</h2>
+              <h2 className="text-lead text-text">When you work</h2>
               <div className="mt-5">
                 <BarChart
                   gap={3}
@@ -232,7 +232,7 @@ export default async function DashboardPage() {
                   }))}
                 />
               </div>
-              <p className="mt-2 flex justify-between text-[12px] text-faint">
+              <p className="mt-2 flex justify-between text-note text-faint">
                 <span className="tnum">00:00</span>
                 <span className="tnum">12:00</span>
                 <span className="tnum">23:00</span>
@@ -241,8 +241,8 @@ export default async function DashboardPage() {
 
             <section className="mt-14">
               <div className="flex items-baseline justify-between">
-                <h2 className="text-[15px] text-text">Sessions you finished</h2>
-                <p className="text-[13px] text-faint">
+                <h2 className="text-lead text-text">Sessions you finished</h2>
+                <p className="text-body text-faint">
                   <span className="tnum text-dim">
                     {overallRatio === null ? "—" : `${Math.round(overallRatio * 100)}%`}
                   </span>{" "}
@@ -260,7 +260,7 @@ export default async function DashboardPage() {
                   }))}
                 />
               </div>
-              <p className="mt-2 text-[12px] text-faint">
+              <p className="mt-2 text-note text-faint">
                 The upper rule is every session finished; the lower one is half of them.{" "}
                 <span className="tnum">{groupNumber(totalAbandoned)}</span> abandoned in all.
               </p>

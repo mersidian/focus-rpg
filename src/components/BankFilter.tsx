@@ -32,10 +32,10 @@ export function BankFilter({ rows }: { rows: BankRow[] }) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search the bank"
-          className="min-w-0 flex-1 border-b border-rule bg-transparent py-2 text-[13px] text-text placeholder:text-faint focus:border-current"
+          className="min-w-0 flex-1 border-b border-rule bg-transparent py-2 text-body text-text placeholder:text-faint focus:border-current"
           style={{ caretColor: "var(--tier)" }}
         />
-        <div className="flex flex-wrap gap-x-3 text-[12px]">
+        <div className="flex flex-wrap gap-x-3 text-note">
           {classes.map((c) => (
             <button
               key={c}
@@ -50,19 +50,19 @@ export function BankFilter({ rows }: { rows: BankRow[] }) {
         </div>
       </div>
 
-      <p className="mt-3 text-[12px] text-faint">
+      <p className="mt-3 text-note text-faint">
         <span className="tnum">{shown.length}</span> of <span className="tnum">{rows.length}</span>{" "}
         stacks
       </p>
 
       {shown.length === 0 ? (
-        <p className="mt-6 text-[13px] text-faint">Nothing matches.</p>
+        <p className="mt-6 text-body text-faint">Nothing matches.</p>
       ) : (
         <ul className="mt-2">
           {shown.map((row) => (
             <li
               key={row.itemId}
-              className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-rule py-2 text-[13px] last:border-0"
+              className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-rule py-2 text-body last:border-0"
             >
               <span className="min-w-0 text-dim">
                 {row.name}

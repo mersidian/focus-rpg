@@ -68,7 +68,7 @@ export function ActivityPicker({
   return (
     <section className="mt-6 border-t border-rule pt-4">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <p className="text-[13px] text-faint">
+        <p className="text-body text-faint">
           Your character{" "}
           {chosen ? (
             <span className="text-dim">{chosen.label}</span>
@@ -79,14 +79,14 @@ export function ActivityPicker({
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="text-[12px] text-faint transition-colors hover:text-dim"
+          className="text-note text-faint transition-colors hover:text-dim"
         >
           {open ? "Close" : "Change"}
         </button>
       </div>
 
       {chosen && !open && (
-        <p className="mt-1 text-[12px] text-faint">{chosen.detail}</p>
+        <p className="mt-1 text-note text-faint">{chosen.detail}</p>
       )}
 
       {open && (
@@ -97,34 +97,34 @@ export function ActivityPicker({
               onChange(null);
               setOpen(false);
             }}
-            className="flex w-full items-baseline justify-between gap-4 border-b border-rule py-2 text-left text-[13px]"
+            className="flex w-full items-baseline justify-between gap-4 border-b border-rule py-2 text-left text-body"
           >
             <span className={value === null ? "" : "text-dim"} style={value === null ? { color: "var(--tier)" } : undefined}>
               Just focus
             </span>
-            <span className="shrink-0 text-[12px] text-faint">no activity</span>
+            <span className="shrink-0 text-note text-faint">no activity</span>
           </button>
 
           {failed && (
-            <p className="mt-3 text-[12px] text-faint">
+            <p className="mt-3 text-note text-faint">
               Could not load activities. The session will still start.
             </p>
           )}
           {!failed && offers === null && (
-            <p className="mt-3 text-[12px] text-faint">Checking what is open…</p>
+            <p className="mt-3 text-note text-faint">Checking what is open…</p>
           )}
 
           {offers !== null && <OfferList offers={offers} value={value} onPick={(a) => { onChange(a); setOpen(false); }} />}
 
           {tonics !== null && tonics.length > 0 && (
             <div className="mt-6">
-              <p className="text-[12px] text-faint">
+              <p className="text-note text-faint">
                 Drink one with it? Spent when the session starts, whatever happens to it.
               </p>
               <button
                 type="button"
                 onClick={() => onTonic(null)}
-                className="flex w-full items-baseline justify-between gap-4 border-b border-rule py-2 text-left text-[13px]"
+                className="flex w-full items-baseline justify-between gap-4 border-b border-rule py-2 text-left text-body"
               >
                 <span className={tonic === null ? "" : "text-dim"} style={tonic === null ? { color: "var(--tier)" } : undefined}>
                   Nothing
@@ -135,7 +135,7 @@ export function ActivityPicker({
                   key={t.itemId}
                   type="button"
                   onClick={() => onTonic(t.itemId)}
-                  className="flex w-full items-baseline justify-between gap-4 border-b border-rule py-2 text-left text-[13px]"
+                  className="flex w-full items-baseline justify-between gap-4 border-b border-rule py-2 text-left text-body"
                 >
                   <span
                     className={tonic === t.itemId ? "" : "text-dim"}
@@ -143,7 +143,7 @@ export function ActivityPicker({
                   >
                     {t.name} <span className="text-faint">×{t.qty}</span>
                   </span>
-                  <span className="shrink-0 text-[12px] text-faint">{t.does}</span>
+                  <span className="shrink-0 text-note text-faint">{t.does}</span>
                 </button>
               ))}
             </div>
@@ -181,7 +181,7 @@ function OfferList({
   return (
     <>
       {openOnes.length === 0 && (
-        <p className="mt-3 text-[13px] leading-relaxed text-faint">
+        <p className="mt-3 text-body leading-relaxed text-faint">
           Nothing is open yet. Gathering needs a tool, and every area needs a full set one tier
           below it — an empty slot counts as tier zero.
         </p>
@@ -189,7 +189,7 @@ function OfferList({
 
       {[...groups.entries()].map(([group, rows]) => (
         <div key={group} className="mt-5">
-          <p className="text-[12px] text-faint">{group}</p>
+          <p className="text-note text-faint">{group}</p>
           {rows.slice(0, 12).map((offer) => {
             const selected = value !== null && activityKey(offer.activity) === activityKey(value);
             return (
@@ -197,7 +197,7 @@ function OfferList({
                 key={activityKey(offer.activity)}
                 type="button"
                 onClick={() => onPick(offer.activity)}
-                className="flex w-full items-baseline justify-between gap-4 border-b border-rule py-2 text-left text-[13px]"
+                className="flex w-full items-baseline justify-between gap-4 border-b border-rule py-2 text-left text-body"
               >
                 <span
                   className={selected ? "" : "text-dim"}
@@ -205,7 +205,7 @@ function OfferList({
                 >
                   {offer.label}
                 </span>
-                <span className="shrink-0 text-[12px] text-faint">{offer.detail}</span>
+                <span className="shrink-0 text-note text-faint">{offer.detail}</span>
               </button>
             );
           })}
@@ -214,14 +214,14 @@ function OfferList({
 
       {nextClosed.length > 0 && (
         <div className="mt-6">
-          <p className="text-[12px] text-faint">Not yet</p>
+          <p className="text-note text-faint">Not yet</p>
           {nextClosed.map((offer) => (
             <p
               key={activityKey(offer.activity)}
-              className="flex items-baseline justify-between gap-4 border-b border-rule py-2 text-[13px] text-faint last:border-0"
+              className="flex items-baseline justify-between gap-4 border-b border-rule py-2 text-body text-faint last:border-0"
             >
               <span>{offer.label}</span>
-              <span className="shrink-0 text-[12px]">needs {offer.missing[0]}</span>
+              <span className="shrink-0 text-note">needs {offer.missing[0]}</span>
             </p>
           ))}
         </div>

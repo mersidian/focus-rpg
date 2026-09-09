@@ -158,7 +158,7 @@ function Idle({
         session should keep the record of sessions already finished.
       */}
       <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h1 className="display text-head leading-[0.95] sm:text-hero" style={{ color: "var(--tier)" }}>
+        <h1 className="earned text-head leading-[0.95] sm:text-hero" style={{ color: "var(--tier)" }}>
           {snapshot.prestige.stars > 0 && (
             <span className="tnum mr-3 align-middle text-[0.5em]">
               ★{snapshot.prestige.stars}
@@ -205,8 +205,8 @@ function Idle({
                 >
                   {minutes}
                 </span>
-                <span className="mt-2 block text-[13px] text-faint">minutes</span>
-                <span className="mt-1 block text-[13px] text-faint">
+                <span className="mt-2 block text-body text-faint">minutes</span>
+                <span className="mt-1 block text-body text-faint">
                   <span className="tnum text-dim">
                     +
                     {Math.round(
@@ -282,7 +282,7 @@ function Idle({
 
       {snapshot.streak.frozeDays.length > 0 && (
         <p
-          className="mt-6 border-l-2 pl-4 text-[13px] leading-relaxed text-dim"
+          className="mt-6 border-l-2 pl-4 text-body leading-relaxed text-dim"
           style={{ borderColor: "var(--color-ice)" }}
         >
           {snapshot.streak.frozeDays.length === 1
@@ -294,7 +294,7 @@ function Idle({
 
       {lastSettled?.kind === "abandoned" && (
         <p
-          className="mt-6 border-l-2 pl-4 text-[13px] leading-relaxed text-dim"
+          className="mt-6 border-l-2 pl-4 text-body leading-relaxed text-dim"
           style={{ borderColor: "var(--color-warn)" }}
         >
           Last session was abandoned —{" "}
@@ -340,7 +340,7 @@ function ChainOffer() {
 
   return (
     <section className="mt-12 border-l-2 pl-4" style={{ borderColor: "var(--tier)" }}>
-      <p className="text-[15px]">
+      <p className="text-lead">
         <span className="tnum" style={{ color: "var(--tier)" }}>
           ×{(chain.multiplierByLength[50] ?? chain.multiplier).toFixed(2)}
         </span>{" "}
@@ -349,7 +349,7 @@ function ChainOffer() {
           {chain.atCap && ", as long as the chain goes"}
         </span>
       </p>
-      <p className="mt-2 text-[13px] text-faint">
+      <p className="mt-2 text-body text-faint">
         Start within <span className="tnum text-dim">{clock(left)}</span> to keep it. Give up
         or run out of time and it is back to the plain rate.
       </p>
@@ -366,7 +366,7 @@ function ChainOffer() {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dd className="tnum text-xl text-text">{value}</dd>
+      <dd className="tnum text-stat text-text">{value}</dd>
       <dt className="mt-1 text-faint">{label}</dt>
     </div>
   );
@@ -410,7 +410,7 @@ function Running({
         {clock(remainingMs)}
       </p>
 
-      <p className="mt-6 text-[13px] text-faint">
+      <p className="mt-6 text-body text-faint">
         {paused ? (
           <>
             Paused. <span className="tnum text-dim">{clock(pauseLeft)}</span> of pause time
@@ -439,7 +439,7 @@ function Running({
             type="button"
             onClick={resume}
             disabled={pending}
-            className="rounded-sm px-6 py-3 text-[15px] font-medium text-ground disabled:opacity-50"
+            className="rounded-sm px-6 py-3 text-lead font-medium text-ground disabled:opacity-50"
             style={{ backgroundColor: "var(--tier)" }}
           >
             Resume
@@ -449,7 +449,7 @@ function Running({
             type="button"
             onClick={pause}
             disabled={pending || pausesLeft <= 0 || pauseLeft <= 0}
-            className="rounded-sm border border-rule px-6 py-3 text-[15px] text-dim transition-colors hover:text-text disabled:opacity-40"
+            className="rounded-sm border border-rule px-6 py-3 text-lead text-dim transition-colors hover:text-text disabled:opacity-40"
           >
             Pause
           </button>
@@ -460,7 +460,7 @@ function Running({
             if (confirm("Give up? That costs 30 XP and goes in the log.")) abandon();
           }}
           disabled={pending}
-          className="rounded-sm px-6 py-3 text-[15px] text-faint transition-colors hover:text-warn disabled:opacity-40"
+          className="rounded-sm px-6 py-3 text-lead text-faint transition-colors hover:text-warn disabled:opacity-40"
         >
           Give up
         </button>
@@ -485,7 +485,7 @@ function RulesetNote({
 }) {
   return (
     <p
-      className={`mt-6 text-[12px] leading-relaxed text-faint ${
+      className={`mt-6 text-note leading-relaxed text-faint ${
         align === "left" ? "text-left" : "text-center"
       }`}
     >
@@ -522,7 +522,7 @@ function NotificationPrompt() {
    */
   if (installFirst) {
     return (
-      <p className="mt-10 border-t border-rule pt-6 text-[13px] leading-relaxed text-faint">
+      <p className="mt-10 border-t border-rule pt-6 text-body leading-relaxed text-faint">
         To be told when a session ends, add this to your home screen — Share, then Add to
         Home Screen. iPhone only allows notifications to an installed app.
       </p>
@@ -532,7 +532,7 @@ function NotificationPrompt() {
   if (state !== "default") return null;
 
   return (
-    <p className="mt-10 border-t border-rule pt-6 text-[13px] text-faint">
+    <p className="mt-10 border-t border-rule pt-6 text-body text-faint">
       Sessions end quietly unless you allow notifications.{" "}
       <button
         type="button"

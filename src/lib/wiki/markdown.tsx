@@ -11,12 +11,12 @@ import { DOC_BY_FILE } from "./docs";
 import { parseBlocks, type Block, type Inline } from "./parse";
 
 const HEADING_CLASS: Record<number, string> = {
-  1: "display mt-0 text-3xl sm:text-4xl",
-  2: "mt-14 border-b border-rule pb-2 text-[17px] text-text",
-  3: "mt-10 text-[15px] text-text",
-  4: "mt-8 text-[14px] text-dim",
-  5: "mt-6 text-[13px] text-dim",
-  6: "mt-6 text-[13px] text-faint",
+  1: "mt-0 text-head font-medium tracking-tight sm:text-title",
+  2: "mt-14 border-b border-rule pb-2 text-lead text-text",
+  3: "mt-10 text-lead text-text",
+  4: "mt-8 text-field text-dim",
+  5: "mt-6 text-body text-dim",
+  6: "mt-6 text-body text-faint",
 };
 
 const LINK_CLASS = "underline decoration-rule underline-offset-2 hover:decoration-current";
@@ -99,7 +99,7 @@ function block(b: Block, key: number): ReactNode {
     }
     case "paragraph":
       return (
-        <p key={key} className="mt-4 text-[13px] leading-relaxed text-faint">
+        <p key={key} className="mt-4 text-body leading-relaxed text-faint">
           {spans(b.spans, `p${key}`)}
         </p>
       );
@@ -107,7 +107,7 @@ function block(b: Block, key: number): ReactNode {
       return (
         <blockquote
           key={key}
-          className="mt-6 border-l-2 pl-4 text-[13px] leading-relaxed text-dim"
+          className="mt-6 border-l-2 pl-4 text-body leading-relaxed text-dim"
           style={{ borderColor: "var(--tier)" }}
         >
           {spans(b.spans, `q${key}`)}
@@ -119,7 +119,7 @@ function block(b: Block, key: number): ReactNode {
       return (
         <pre
           key={key}
-          className="mt-6 overflow-x-auto rounded border border-rule bg-lift p-4 text-[12px] leading-relaxed text-dim"
+          className="mt-6 overflow-x-auto rounded border border-rule bg-lift p-4 text-note leading-relaxed text-dim"
         >
           <code>{b.text}</code>
         </pre>
@@ -127,7 +127,7 @@ function block(b: Block, key: number): ReactNode {
     case "list": {
       const List = b.ordered ? "ol" : "ul";
       return (
-        <List key={key} className="mt-4 space-y-2 text-[13px] leading-relaxed text-faint">
+        <List key={key} className="mt-4 space-y-2 text-body leading-relaxed text-faint">
           {b.items.map((item, n) => (
             <li
               key={n}
@@ -146,7 +146,7 @@ function block(b: Block, key: number): ReactNode {
     case "table":
       return (
         <div key={key} className="mt-6 overflow-x-auto">
-          <table className="w-full border-collapse text-[13px]">
+          <table className="w-full border-collapse text-body">
             <thead>
               <tr>
                 {b.head.map((cell, n) => (

@@ -139,7 +139,16 @@ body {
   font-feature-settings: "tnum" 1, "zero" 1;
 }
 
-.display {
+/*
+  The earned title, and nothing else (§8).
+
+  Named for the rule rather than the font. It was `.display`, which named the
+  typeface — and a class named after a typeface gets used wherever a designer
+  wants that typeface, which is how it ended up on nineteen headings, thirteen
+  of them ordinary page titles. `.earned` cannot be reached for by accident:
+  the name is a claim about the thing wearing it.
+*/
+.earned {
   font-family: var(--font-display);
   font-variation-settings: "SOFT" 12, "WONK" 0, "opsz" 40;
   font-weight: 500;

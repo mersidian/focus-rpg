@@ -11,7 +11,7 @@ export default async function WikiDocPage({ params }: { params: Promise<{ slug: 
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 pb-24 pt-14 sm:px-10">
-      <p className="text-[12px] text-faint">
+      <p className="text-note text-faint">
         <span style={doc.standing === "designed" ? { color: "var(--tier)" } : undefined}>
           {STANDING_LABEL[doc.standing]}
         </span>

@@ -48,13 +48,13 @@ export default async function StreakPage() {
     <>
       <Nav current="/streak" />
       <main className="mx-auto w-full max-w-4xl px-6 pb-24 pt-14 sm:px-10">
-        <h1 className="display text-5xl leading-[0.95] sm:text-6xl" style={{ color: "var(--tier)" }}>
+        <h1 className="earned text-hero leading-[0.95] sm:text-[4.5rem]" style={{ color: "var(--tier)" }}>
           <span className="tnum" style={{ fontFamily: "var(--font-mono)" }}>
             {s.streak}
           </span>{" "}
           day{s.streak === 1 ? "" : "s"}
         </h1>
-        <p className="mt-3 text-[13px] leading-relaxed text-faint">
+        <p className="mt-3 text-body leading-relaxed text-faint">
           {workedToday
             ? "Today is banked."
             : s.streak > 0
@@ -66,7 +66,7 @@ export default async function StreakPage() {
 
         {advance.frozeDays.length > 0 && (
           <p
-            className="mt-6 border-l-2 pl-4 text-[13px] leading-relaxed text-dim"
+            className="mt-6 border-l-2 pl-4 text-body leading-relaxed text-dim"
             style={{ borderColor: "var(--color-ice)" }}
           >
             {advance.frozeDays.length === 1
@@ -77,20 +77,20 @@ export default async function StreakPage() {
         )}
         {advance.brokeOn && (
           <p
-            className="mt-6 border-l-2 pl-4 text-[13px] leading-relaxed text-dim"
+            className="mt-6 border-l-2 pl-4 text-body leading-relaxed text-dim"
             style={{ borderColor: "var(--color-warn)" }}
           >
             The streak broke on <span className="tnum">{advance.brokeOn}</span>.
           </p>
         )}
 
-        <dl className="mt-10 flex flex-wrap gap-x-12 gap-y-5 border-t border-rule pt-6 text-[13px]">
+        <dl className="mt-10 flex flex-wrap gap-x-12 gap-y-5 border-t border-rule pt-6 text-body">
           <div>
-            <dd className="tnum text-xl">{s.longestStreak}</dd>
+            <dd className="tnum text-stat">{s.longestStreak}</dd>
             <dt className="mt-1 text-faint">longest run</dt>
           </div>
           <div>
-            <dd className="tnum text-xl">
+            <dd className="tnum text-stat">
               {s.freezes}
               <span className="text-faint"> / {FREEZE_CAP}</span>
             </dd>
@@ -98,12 +98,12 @@ export default async function StreakPage() {
           </div>
           {s.pendingFreezes > 0 && (
             <div>
-              <dd className="tnum text-xl">{s.pendingFreezes}</dd>
+              <dd className="tnum text-stat">{s.pendingFreezes}</dd>
               <dt className="mt-1 text-faint">queued at cap</dt>
             </div>
           )}
           <div>
-            <dd className="tnum text-xl">{Math.round(meter * 100)}%</dd>
+            <dd className="tnum text-stat">{Math.round(meter * 100)}%</dd>
             <dt className="mt-1 text-faint">toward the next freeze</dt>
           </div>
         </dl>
@@ -115,7 +115,7 @@ export default async function StreakPage() {
               style={{ width: `${meter * 100}%`, backgroundColor: "var(--color-ice)" }}
             />
           </div>
-          <p className="mt-2 text-[13px] text-faint">
+          <p className="mt-2 text-body text-faint">
             The Freeze Meter takes a fifth of every XP you earn.{" "}
             <span className="tnum text-dim">{Math.round(s.meter / 100)}</span> of{" "}
             <span className="tnum text-dim">{FREEZE_METER_TARGET / 100}</span> points.
@@ -123,7 +123,7 @@ export default async function StreakPage() {
         </section>
 
         <section className="mt-16">
-          <h2 className="text-[15px] text-text">The year</h2>
+          <h2 className="text-lead text-text">The year</h2>
           <div className="mt-5">
             <Heatmap days={heat} today={advance.today} />
           </div>

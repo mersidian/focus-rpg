@@ -31,7 +31,7 @@ export default async function FarmPage() {
       <Block title="Plots" aside={`${o.plots.length} of ${MAX_PLOTS}`}>
         <ul className="mt-2">
           {o.plots.map((p) => (
-            <li key={p.slot} className="border-b border-rule py-3 last:border-0 text-[13px]">
+            <li key={p.slot} className="border-b border-rule py-3 last:border-0 text-body">
               <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
                 <p className="text-dim">
                   Plot #{p.slot}{" "}
@@ -45,7 +45,7 @@ export default async function FarmPage() {
                   ) : p.stagesLeft === 0 ? (
                     <HarvestButton slot={p.slot} />
                   ) : (
-                    <span className="tnum text-[12px] text-faint">
+                    <span className="tnum text-note text-faint">
                       {p.stagesLeft} more session{p.stagesLeft === 1 ? "" : "s"}
                     </span>
                   )}
@@ -69,7 +69,7 @@ export default async function FarmPage() {
         {o.plots.length < MAX_PLOTS && (
           <div className="mt-5">
             <BuyPlotButton />
-            <p className="mt-2 text-[12px] text-faint">
+            <p className="mt-2 text-note text-faint">
               The next plot costs{" "}
               <span className="tnum text-dim">{groupNumber(plotCost(o.plots.length))}</span> coins.
             </p>
@@ -87,7 +87,7 @@ export default async function FarmPage() {
             ["Stock", "Guaranteed-tier hides, where Hunting's roll"],
           ]}
         />
-        <p className="mt-4 text-[13px] text-faint">
+        <p className="mt-4 text-body text-faint">
           {CROP_LINES.length} lines across the spine. Nothing spoils — this app does not punish
           absence.
         </p>

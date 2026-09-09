@@ -56,7 +56,7 @@ export default async function GameOverview() {
                 ["Own-tier commons", `${Math.round(ownTier * 100)}%`],
               ]}
             />
-            <p className="mt-4 text-[13px] leading-relaxed text-faint">
+            <p className="mt-4 text-body leading-relaxed text-faint">
               Offence decides kill speed and whether a spawn converts; defence decides what a
               failure costs in rations. An empty slot counts as tier zero for the requirement
               gate, so a missing cape can close an area.
@@ -69,7 +69,7 @@ export default async function GameOverview() {
         {o.contract === null ? (
           <Empty>No contract taken. One at a time, and it never expires.</Empty>
         ) : (
-          <div className="mt-4 text-[13px]">
+          <div className="mt-4 text-body">
             <p className="text-dim">
               {o.contract.variantName}{" "}
               <span className="tnum text-faint">
@@ -98,7 +98,7 @@ export default async function GameOverview() {
               rows={o.milestones.slice(-12).map((m) => [m.label, `+${groupNumber(m.xp)}`])}
               total={o.milestones.length}
             />
-            <p className="mt-4 text-[13px] leading-relaxed text-faint">
+            <p className="mt-4 text-body leading-relaxed text-faint">
               <span className="tnum text-dim">
                 {groupNumber(o.milestones.reduce((n, m) => n + m.xp, 0))}
               </span>{" "}

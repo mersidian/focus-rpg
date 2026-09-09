@@ -29,7 +29,7 @@ export default async function BankPage() {
         </>
       }
     >
-      <p className="mt-6 text-[13px] text-faint">
+      <p className="mt-6 text-body text-faint">
         <span className="tnum text-dim">{groupNumber(usage.used)}</span> of{" "}
         <span className="tnum">{groupNumber(usage.slots)}</span> slots used · next ten cost{" "}
         <span className="tnum text-dim">{groupNumber(bankSlotCost(usage.slots))}</span> coins · you
@@ -46,7 +46,7 @@ export default async function BankPage() {
       )}
 
       <Block title="Auto-salvage" aside="set once">
-        <p className="mt-3 text-[13px] leading-relaxed text-faint">
+        <p className="mt-3 text-body leading-relaxed text-faint">
           Found gear is judged before it reaches the bank: anything below the{" "}
           <span className="tnum text-dim">{(wallet.salvageBelow / 10).toFixed(0)}%</span> band
           percentile is sold on the way in, anything above{" "}

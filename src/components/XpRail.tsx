@@ -21,7 +21,7 @@ export function XpRail({ xp, level }: { xp: number; level: number }) {
           style={{ width: `${progress * 100}%`, backgroundColor: "var(--tier)" }}
         />
       </div>
-      <div className="mt-2 flex items-baseline justify-between text-[13px] text-faint">
+      <div className="mt-2 flex items-baseline justify-between text-body text-faint">
         <span className="tnum text-dim">
           <CountUp value={xp} /> XP
         </span>

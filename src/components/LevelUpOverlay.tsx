@@ -51,12 +51,15 @@ export function LevelUpOverlay() {
         />
       )}
 
-      <p className="relative text-[13px] text-faint">
+      <p className="relative text-body text-faint">
         {big ? "You have a new name." : "New rank."}
       </p>
 
       <h1
-        className={`display relative mt-4 overflow-hidden leading-[0.9] ${
+        className={`earned relative mt-4 overflow-hidden leading-[0.9] ${
+          /* The only sizes in the app above the role scale, deliberately: this
+             is the one full-screen moment, and it should be bigger than the
+             largest thing on any ordinary page. */
           big ? "text-6xl sm:text-8xl" : "text-5xl sm:text-7xl"
         }`}
         style={{ color: accent }}
@@ -95,12 +98,12 @@ export function LevelUpOverlay() {
         style={{ backgroundColor: accent }}
       />
 
-      <p className="relative mt-5 text-[13px] text-faint">
+      <p className="relative mt-5 text-body text-faint">
         {previous.fullTitle} <span aria-hidden>→</span> {info.fullTitle}, level{" "}
         <span className="tnum text-dim">{info.level}</span>
       </p>
 
-      <p className="relative mt-12 text-[12px] text-faint">Click anywhere to carry on</p>
+      <p className="relative mt-12 text-note text-faint">Click anywhere to carry on</p>
     </div>
   );
 }

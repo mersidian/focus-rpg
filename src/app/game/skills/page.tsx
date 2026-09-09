@@ -31,7 +31,7 @@ export default async function SkillsPage() {
         </>
       }
     >
-      <p className="mt-6 text-[13px] text-faint">
+      <p className="mt-6 text-body text-faint">
         Total level <span className="tnum text-dim">{groupNumber(total)}</span> of{" "}
         <span className="tnum">{groupNumber(skills.length * MAX_SKILL_LEVEL)}</span>
       </p>
@@ -40,11 +40,11 @@ export default async function SkillsPage() {
         const here = skills.filter((s) => s.kind === kind.key);
         return (
           <Block key={kind.key} title={kind.label} aside={`${here.length}`}>
-            <p className="mt-3 text-[13px] text-faint">{kind.note}</p>
+            <p className="mt-3 text-body text-faint">{kind.note}</p>
             <ul>
               {here.map((s) => (
                 <li key={s.key} className="border-b border-rule py-3 last:border-0">
-                  <div className="flex items-baseline justify-between gap-4 text-[13px]">
+                  <div className="flex items-baseline justify-between gap-4 text-body">
                     <p className="text-dim">
                       {s.label} <span className="text-faint">— {s.note}</span>
                     </p>
@@ -53,7 +53,7 @@ export default async function SkillsPage() {
                     </p>
                   </div>
                   <Rail progress={s.progress} />
-                  <p className="mt-1 text-[12px] text-faint">
+                  <p className="mt-1 text-note text-faint">
                     <span className="tnum">{groupNumber(s.xp)}</span> xp
                     {s.next !== null && (
                       <>

@@ -75,13 +75,13 @@ export default async function EquipmentPage() {
             ];
           })}
         />
-        <p className="mt-4 text-[13px] leading-relaxed text-faint">
+        <p className="mt-4 text-body leading-relaxed text-faint">
           Offence <span className="tnum text-dim">{groupNumber(Math.round(power.offence))}</span> ·
           defence <span className="tnum text-dim">{groupNumber(Math.round(power.defence))}</span>.
           An empty slot counts as tier zero at the requirement gate, so a full set matters before
           a better one does. Worn gear is never destroyed — it is halved until repaired.
         </p>
-        <p className="mt-3 text-[13px] leading-relaxed text-faint">
+        <p className="mt-3 text-body leading-relaxed text-faint">
           Gear cannot be changed while a session is running: the loadout is read when the session
           resolves, so a swap would change a fight already underway — and would let you pass the
           gate in one set and fight in another.
@@ -118,7 +118,7 @@ export default async function EquipmentPage() {
       </Block>
 
       <Block title="Refinement" aside="never fails">
-        <p className="mt-3 text-[13px] leading-relaxed text-faint">
+        <p className="mt-3 text-body leading-relaxed text-faint">
           Failure costs the stones and the coins and nothing else — no downgrade, and nothing is
           ever destroyed. So every item reaches +{MAX_REFINE} eventually, and the cost curve is the
           only thing standing in the way.

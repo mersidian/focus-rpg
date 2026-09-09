@@ -75,7 +75,7 @@ export default async function ShopPage() {
         </>
       }
     >
-      <p className="mt-6 text-[13px] text-faint">
+      <p className="mt-6 text-body text-faint">
         <span className="tnum text-dim">{groupNumber(wallet.coins)}</span> coins
       </p>
 
@@ -86,7 +86,7 @@ export default async function ShopPage() {
         </div>
         <div className="mt-5 space-y-3 border-t border-rule pt-4">
           <SalvageOutputButtons current={wallet.salvageOutput} />
-          <p className="max-w-2xl text-[13px] leading-relaxed text-faint">
+          <p className="max-w-2xl text-body leading-relaxed text-faint">
             Upgrade stones had one faucet — this shop — which also sells bank slots, the largest
             coin sink in the game. So refinement, the deepest gear axis, was funded by money and
             competed with the sink the economy is built around. Set salvage to stones and the junk
@@ -94,7 +94,7 @@ export default async function ShopPage() {
           </p>
           <div>
             <ExchangeStonesButton tiers={stoneTiers} />
-            <p className="mt-2 text-[12px] text-faint">
+            <p className="mt-2 text-note text-faint">
               Downward only, and at a cut. Trading up would let a hoard of tier-1 junk refine a
               Mythic weapon, and the cost curve is the whole of refinement.
             </p>
@@ -117,14 +117,14 @@ export default async function ShopPage() {
             ],
           ]}
         />
-        <p className="mt-4 text-[13px] leading-relaxed text-faint">
+        <p className="mt-4 text-body leading-relaxed text-faint">
           Bank slots are the largest sink in the game, and the reason late-game coin income has
           somewhere to go.
         </p>
       </Block>
 
       <Block title="In stock" aside={`up to tier ${openTier}`}>
-        <p className="mt-3 max-w-2xl text-[13px] leading-relaxed text-faint">
+        <p className="mt-3 max-w-2xl text-body leading-relaxed text-faint">
           Tools, ammunition, rations, upgrade stones and seeds. Everything else has to be made or
           found — the shop will not sell you a weapon you could smith.
         </p>
@@ -159,7 +159,7 @@ export default async function ShopPage() {
             groupNumber(sellPrice(t.tier, "equipment")),
           ])}
         />
-        <p className="mt-4 text-[13px] leading-relaxed text-faint">
+        <p className="mt-4 text-body leading-relaxed text-faint">
           Selling always pays less than buying costs, and one curve prices everything so value and
           strength climb at the same rate. Auto-repair is{" "}
           <span style={{ color: "var(--tier)" }}>{wallet.autoRepair ? "on" : "off"}</span> — with it

@@ -86,7 +86,7 @@ export function SessionCorrection({
 
   return (
     <div className="mt-3 rounded-sm border border-rule p-4">
-      <p className="text-[13px] text-text">What was this session actually for?</p>
+      <p className="text-body text-text">What was this session actually for?</p>
 
       <div className="mt-3 flex flex-wrap gap-2">
         {projects.map((p) => {
@@ -99,7 +99,7 @@ export function SessionCorrection({
                 setCreating(false);
                 setProjectId(p.id);
               }}
-              className="rounded-sm border px-3 py-2 text-[13px] transition-colors"
+              className="rounded-sm border px-3 py-2 text-body transition-colors"
               style={{
                 borderColor: selected ? "var(--action)" : "var(--color-rule)",
                 color: selected ? "var(--action)" : undefined,
@@ -112,7 +112,7 @@ export function SessionCorrection({
         <button
           type="button"
           onClick={() => setCreating(true)}
-          className="rounded-sm border border-dashed border-rule px-3 py-2 text-[13px] text-faint hover:text-dim"
+          className="rounded-sm border border-dashed border-rule px-3 py-2 text-body text-faint hover:text-dim"
           style={creating ? { borderColor: "var(--tier)", color: "var(--tier)" } : undefined}
         >
           New project
@@ -143,7 +143,7 @@ export function SessionCorrection({
         <button
           type="button"
           onClick={() => setHonest(true)}
-          className="rounded-sm border px-3 py-2 text-[13px] transition-colors"
+          className="rounded-sm border px-3 py-2 text-body transition-colors"
           style={{
             borderColor: honest ? "var(--tier)" : "var(--color-rule)",
             color: honest ? "var(--tier)" : undefined,
@@ -154,7 +154,7 @@ export function SessionCorrection({
         <button
           type="button"
           onClick={() => setHonest(false)}
-          className="rounded-sm border px-3 py-2 text-[13px] transition-colors"
+          className="rounded-sm border px-3 py-2 text-body transition-colors"
           style={{
             borderColor: !honest ? "var(--tier)" : "var(--color-rule)",
             color: !honest ? "var(--tier)" : undefined,
@@ -169,7 +169,7 @@ export function SessionCorrection({
           type="button"
           onClick={save}
           disabled={pending || !chosen}
-          className="rounded-sm px-4 py-2 text-[13px] font-medium text-ground disabled:opacity-40"
+          className="rounded-sm px-4 py-2 text-body font-medium text-ground disabled:opacity-40"
           style={{ backgroundColor: "var(--tier)" }}
         >
           Save changes
@@ -177,14 +177,14 @@ export function SessionCorrection({
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className="px-2 py-2 text-[13px] text-faint hover:text-dim"
+          className="px-2 py-2 text-body text-faint hover:text-dim"
         >
           Cancel
         </button>
       </div>
 
       {error && (
-        <p className="mt-3 text-[13px]" style={{ color: "var(--color-warn)" }}>
+        <p className="mt-3 text-body" style={{ color: "var(--color-warn)" }}>
           {error}
         </p>
       )}

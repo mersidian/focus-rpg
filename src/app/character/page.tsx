@@ -30,7 +30,7 @@ export default async function CharacterPage() {
     <>
       <Nav current="/character" />
       <main className="mx-auto w-full max-w-3xl px-6 pb-24 pt-14 sm:px-10">
-        <h1 className="display text-5xl leading-[0.95] sm:text-7xl" style={{ color: "var(--tier)" }}>
+        <h1 className="earned text-hero leading-[0.95] sm:text-[4.5rem]" style={{ color: "var(--tier)" }}>
           {prestige.stars > 0 && (
             <span className="tnum mr-3 align-middle text-[0.5em]" title={`${prestige.stars} prestige`}>
               ★{prestige.stars}
@@ -47,7 +47,7 @@ export default async function CharacterPage() {
             </>
           )}
         </h1>
-        <p className="mt-3 text-[13px] leading-relaxed text-faint">
+        <p className="mt-3 text-body leading-relaxed text-faint">
           {worn && <>{info.fullTitle}, </>}
           Level <span className="tnum text-dim">{state.level}</span> of 100
           {prestige.stars > 0 && (
@@ -67,7 +67,7 @@ export default async function CharacterPage() {
           )}
         </p>
         {hasEternalRecurrence(prestige.stars) && (
-          <p className="mt-2 text-[13px]" style={{ color: "var(--tier)" }}>
+          <p className="mt-2 text-body" style={{ color: "var(--tier)" }}>
             {ETERNAL_RECURRENCE} — {MAX_STARS} stars, the end of that road.
           </p>
         )}
@@ -76,7 +76,7 @@ export default async function CharacterPage() {
           <div className="h-full transition-[width] duration-700 ease-out"
             style={{ width: `${progress * 100}%`, backgroundColor: "var(--tier)" }} />
         </div>
-        <p className="mt-2 text-[13px] text-faint">
+        <p className="mt-2 text-body text-faint">
           <span className="tnum text-dim">{groupNumber(state.xp)}</span> XP
           {info.nextXp !== null && (
             <>
@@ -87,21 +87,21 @@ export default async function CharacterPage() {
           )}
         </p>
 
-        <dl className="mt-8 flex flex-wrap gap-x-12 gap-y-5 border-t border-rule pt-6 text-[13px]">
+        <dl className="mt-8 flex flex-wrap gap-x-12 gap-y-5 border-t border-rule pt-6 text-body">
           <div>
-            <dd className="tnum text-xl">{hours(state.lifetimeFocusedMs)}</dd>
+            <dd className="tnum text-stat">{hours(state.lifetimeFocusedMs)}</dd>
             <dt className="mt-1 text-faint">focused, lifetime</dt>
           </div>
           <div>
-            <dd className="tnum text-xl">{groupNumber(state.sessionsCompleted)}</dd>
+            <dd className="tnum text-stat">{groupNumber(state.sessionsCompleted)}</dd>
             <dt className="mt-1 text-faint">sessions finished</dt>
           </div>
           <div>
-            <dd className="tnum text-xl">{groupNumber(state.sessionsAbandoned)}</dd>
+            <dd className="tnum text-stat">{groupNumber(state.sessionsAbandoned)}</dd>
             <dt className="mt-1 text-faint">abandoned</dt>
           </div>
           <div>
-            <dd className="tnum text-xl">
+            <dd className="tnum text-stat">
               {ratio === null ? "—" : `${Math.round(ratio * 100)}%`}
             </dd>
             <dt className="mt-1 text-faint">completion ratio</dt>
@@ -113,14 +113,14 @@ export default async function CharacterPage() {
         )}
 
         {prestige.declinedAt !== null && (
-          <p className="mt-10 border-l-2 border-rule pl-4 text-[13px] leading-relaxed text-faint">
+          <p className="mt-10 border-l-2 border-rule pl-4 text-body leading-relaxed text-faint">
             You chose to press on this cycle. The offer returns if you ever reset.
           </p>
         )}
 
         <section className="mt-16">
-          <h2 className="text-[15px] text-text">Title</h2>
-          <p className="mt-2 max-w-prose text-[13px] leading-relaxed text-faint">
+          <h2 className="text-lead text-text">Title</h2>
+          <p className="mt-2 max-w-prose text-body leading-relaxed text-faint">
             Wear an earned achievement title instead of your rank. It changes what this page
             calls you, not what you are.
           </p>
@@ -132,8 +132,8 @@ export default async function CharacterPage() {
         </section>
 
         <section className="mt-16">
-          <h2 className="text-[15px] text-text">The ladder</h2>
-          <p className="mt-2 max-w-prose text-[13px] leading-relaxed text-faint">
+          <h2 className="text-lead text-text">The ladder</h2>
+          <p className="mt-2 max-w-prose text-body leading-relaxed text-faint">
             Twenty names, five ranks each. Mythic V sits on exactly ten thousand focused
             hours — the cap is the number, not a ceiling.
           </p>
@@ -148,7 +148,7 @@ export default async function CharacterPage() {
               return (
                 <li
                   key={tier.title}
-                  className="flex items-baseline gap-3 border-b border-rule py-3 text-[13px] last:border-0 sm:gap-4"
+                  className="flex items-baseline gap-3 border-b border-rule py-3 text-body last:border-0 sm:gap-4"
                   style={current ? { backgroundColor: "var(--color-lift)" } : undefined}
                 >
                   <span

@@ -41,15 +41,15 @@ export function PrestigeChoice({
       <h2 className="text-stat font-medium tracking-tight" style={{ color: "var(--tier)" }}>
         The choice
       </h2>
-      <p className="mt-3 max-w-prose text-[15px] leading-relaxed text-dim">
+      <p className="mt-3 max-w-prose text-lead leading-relaxed text-dim">
         You are {levelTitle}. You can begin again as Drifter I and carry a star, or press on
         through Ascendant to Mythic — the names nobody who prestiges ever sees.
       </p>
 
       <div className="mt-8 grid gap-px overflow-hidden rounded-sm bg-rule sm:grid-cols-2">
         <div className="bg-ground p-6">
-          <h3 className="text-[15px] text-text">Begin again</h3>
-          <ul className="mt-4 space-y-2 text-[13px] leading-relaxed text-faint">
+          <h3 className="text-lead text-text">Begin again</h3>
+          <ul className="mt-4 space-y-2 text-body leading-relaxed text-faint">
             <li>
               Back to Drifter I. You give up{" "}
               <span className="tnum text-dim">{groupNumber(xp)}</span> XP.
@@ -67,7 +67,7 @@ export function PrestigeChoice({
 
           {confirming ? (
             <div className="mt-6">
-              <p className="text-[13px] leading-relaxed text-dim">
+              <p className="text-body leading-relaxed text-dim">
                 This cannot be undone. Reset to Drifter I?
               </p>
               <div className="mt-3 flex gap-3">
@@ -75,7 +75,7 @@ export function PrestigeChoice({
                   type="button"
                   disabled={pending}
                   onClick={() => run(() => prestige(deviceId()))}
-                  className="rounded-sm px-5 py-3 text-[15px] font-medium text-ground disabled:opacity-50"
+                  className="rounded-sm px-5 py-3 text-lead font-medium text-ground disabled:opacity-50"
                   style={{ backgroundColor: "var(--tier)" }}
                 >
                   Reset and take the star
@@ -84,7 +84,7 @@ export function PrestigeChoice({
                   type="button"
                   disabled={pending}
                   onClick={() => setConfirming(false)}
-                  className="rounded-sm px-5 py-3 text-[15px] text-faint hover:text-dim disabled:opacity-50"
+                  className="rounded-sm px-5 py-3 text-lead text-faint hover:text-dim disabled:opacity-50"
                 >
                   Not yet
                 </button>
@@ -95,7 +95,7 @@ export function PrestigeChoice({
               type="button"
               disabled={pending}
               onClick={() => setConfirming(true)}
-              className="mt-6 rounded-sm border px-5 py-3 text-[15px] transition-colors disabled:opacity-50"
+              className="mt-6 rounded-sm border px-5 py-3 text-lead transition-colors disabled:opacity-50"
               style={{ borderColor: "var(--tier)", color: "var(--tier)" }}
             >
               Prestige
@@ -104,8 +104,8 @@ export function PrestigeChoice({
         </div>
 
         <div className="bg-ground p-6">
-          <h3 className="text-[15px] text-text">Press on</h3>
-          <ul className="mt-4 space-y-2 text-[13px] leading-relaxed text-faint">
+          <h3 className="text-lead text-text">Press on</h3>
+          <ul className="mt-4 space-y-2 text-body leading-relaxed text-faint">
             <li>Keep your level and your XP. Nothing resets.</li>
             <li>
               Levels 51 to 100: Ascendant, Luminary, Paragon, Archon, Warden, Oracle,
@@ -117,7 +117,7 @@ export function PrestigeChoice({
             type="button"
             disabled={pending}
             onClick={() => run(() => pressOn(deviceId()))}
-            className="mt-6 rounded-sm border border-rule px-5 py-3 text-[15px] text-dim transition-colors hover:text-text disabled:opacity-50"
+            className="mt-6 rounded-sm border border-rule px-5 py-3 text-lead text-dim transition-colors hover:text-text disabled:opacity-50"
           >
             Press on
           </button>
@@ -126,7 +126,7 @@ export function PrestigeChoice({
 
       {error && (
         <p
-          className="mt-6 border-l-2 pl-4 text-[13px] text-dim"
+          className="mt-6 border-l-2 pl-4 text-body text-dim"
           style={{ borderColor: "var(--color-warn)" }}
         >
           {error}

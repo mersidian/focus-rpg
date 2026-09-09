@@ -43,10 +43,10 @@ function Section({
   return (
     <section className="mt-14">
       <div className="flex items-baseline justify-between gap-4 border-b border-rule pb-2">
-        <h2 className="text-[15px] text-text">{title}</h2>
-        <p className="shrink-0 text-[12px] text-faint">{source}</p>
+        <h2 className="text-lead text-text">{title}</h2>
+        <p className="shrink-0 text-note text-faint">{source}</p>
       </div>
-      {lead && <p className="mt-3 max-w-2xl text-[13px] leading-relaxed text-faint">{lead}</p>}
+      {lead && <p className="mt-3 max-w-2xl text-body leading-relaxed text-faint">{lead}</p>}
       {children}
     </section>
   );
@@ -55,7 +55,7 @@ function Section({
 function Table({ head, rows }: { head: string[]; rows: React.ReactNode[][] }) {
   return (
     <div className="mt-4 overflow-x-auto">
-      <table className="w-full border-collapse text-[13px]">
+      <table className="w-full border-collapse text-body">
         <thead>
           <tr>
             {head.map((h, i) => (
@@ -100,7 +100,7 @@ export default function WikiGamePage() {
   return (
     <main className="mx-auto w-full max-w-4xl px-6 pb-24 pt-14 sm:px-10">
       <h1 className="text-title font-medium tracking-tight sm:text-hero">The game</h1>
-      <p className="mt-3 max-w-2xl text-[13px] leading-relaxed text-faint">
+      <p className="mt-3 max-w-2xl text-body leading-relaxed text-faint">
         V2's rules and content, generated from{" "}
         <code className="rounded bg-lift px-1">src/lib/game</code> and read here rather than
         transcribed. The rules are built and tested; the database, the services and the screens
@@ -178,7 +178,7 @@ export default function WikiGamePage() {
             }),
           ])}
         />
-        <p className="mt-6 text-[13px] text-dim">Conversion at your own tier</p>
+        <p className="mt-6 text-body text-dim">Conversion at your own tier</p>
         <Table
           head={["Style", ...RARITIES.map((r) => r.label), "Rations per failure"]}
           rows={STYLES.map((s) => {
@@ -190,7 +190,7 @@ export default function WikiGamePage() {
             ];
           })}
         />
-        <p className="mt-6 text-[13px] text-dim">
+        <p className="mt-6 text-body text-dim">
           The wheel, against a tier-12 Rare with a tier-12 melee set
         </p>
         <Table
@@ -207,7 +207,7 @@ export default function WikiGamePage() {
             pct(successChance(referenceLoadout("melee", 12).power.offence * f, spawnPower(12, RARITIES[3]))),
           ])}
         />
-        <p className="mt-6 text-[13px] text-dim">Going deeper than your gear</p>
+        <p className="mt-6 text-body text-dim">Going deeper than your gear</p>
         <Table
           head={["Tier-12 gear against", "Conversion"]}
           rows={[12, 14, 16, 18, 20].map((t) => [
@@ -243,7 +243,7 @@ export default function WikiGamePage() {
           head={["Quality", "Window", "Drop weight"]}
           rows={QUALITIES.map((q) => [q.label, `×${q.window}`, `${q.weight}`])}
         />
-        <p className="mt-6 text-[13px] text-dim">
+        <p className="mt-6 text-body text-dim">
           Slot weights — body and weapon carry a loadout, boots and rings are the trim
         </p>
         <Table
@@ -330,7 +330,7 @@ export default function WikiGamePage() {
             return [String(t), groupNumber(r.stones), groupNumber(r.coins)];
           })}
         />
-        <p className="mt-4 text-[13px] leading-relaxed text-faint">
+        <p className="mt-4 text-body leading-relaxed text-faint">
           Bank slots are the largest sink in the game: 60 to 1,500 costs{" "}
           <span className="tnum text-dim">{groupNumber(bankSlotsTotalCost())}</span> coins. An
           earlier curve compounded at 11% a block and priced the same walk at twelve billion,

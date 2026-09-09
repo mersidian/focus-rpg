@@ -48,25 +48,25 @@ export default function WikiIndex() {
   return (
     <main className="mx-auto w-full max-w-4xl px-6 pb-24 pt-14 sm:px-10">
       <h1 className="text-title font-medium tracking-tight sm:text-hero">Wiki</h1>
-      <p className="mt-3 max-w-2xl text-[13px] leading-relaxed text-faint">
+      <p className="mt-3 max-w-2xl text-body leading-relaxed text-faint">
         Everything this project is, in one place. The reference pages are generated from the
         modules the game runs on, so they cannot drift from it; the documents are rendered
         straight out of the repository, so they cannot fall behind the files people edit.
       </p>
 
       <section className="mt-14">
-        <h2 className="border-b border-rule pb-2 text-[15px] text-text">Reference</h2>
+        <h2 className="border-b border-rule pb-2 text-lead text-text">Reference</h2>
         <ul>
           {REFERENCES.map((r) => (
             <li key={r.href} className="border-b border-rule last:border-0">
               <Link href={r.href} className="group block py-4">
                 <div className="flex items-baseline justify-between gap-4">
-                  <p className="text-[14px] text-dim transition-colors group-hover:text-text">
+                  <p className="text-field text-dim transition-colors group-hover:text-text">
                     {r.title}
                   </p>
-                  <p className="tnum shrink-0 text-[12px] text-faint">{r.count}</p>
+                  <p className="tnum shrink-0 text-note text-faint">{r.count}</p>
                 </div>
-                <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-faint">{r.blurb}</p>
+                <p className="mt-1 max-w-2xl text-body leading-relaxed text-faint">{r.blurb}</p>
               </Link>
             </li>
           ))}
@@ -74,23 +74,23 @@ export default function WikiIndex() {
       </section>
 
       <section className="mt-14">
-        <h2 className="border-b border-rule pb-2 text-[15px] text-text">Documents</h2>
+        <h2 className="border-b border-rule pb-2 text-lead text-text">Documents</h2>
         <ul>
           {WIKI_DOCS.map((d) => (
             <li key={d.slug} className="border-b border-rule last:border-0">
               <Link href={`/wiki/doc/${d.slug}`} className="group block py-4">
                 <div className="flex items-baseline justify-between gap-4">
-                  <p className="text-[14px] text-dim transition-colors group-hover:text-text">
+                  <p className="text-field text-dim transition-colors group-hover:text-text">
                     {d.title}
                   </p>
                   <p
-                    className="shrink-0 text-[12px] text-faint"
+                    className="shrink-0 text-note text-faint"
                     style={d.standing === "designed" ? { color: "var(--tier)" } : undefined}
                   >
                     {STANDING_LABEL[d.standing]}
                   </p>
                 </div>
-                <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-faint">{d.blurb}</p>
+                <p className="mt-1 max-w-2xl text-body leading-relaxed text-faint">{d.blurb}</p>
               </Link>
             </li>
           ))}
@@ -98,8 +98,8 @@ export default function WikiIndex() {
       </section>
 
       <section className="mt-14">
-        <h2 className="border-b border-rule pb-2 text-[15px] text-text">By the numbers</h2>
-        <dl className="mt-4 grid grid-cols-2 gap-x-8 gap-y-4 text-[13px] sm:grid-cols-3">
+        <h2 className="border-b border-rule pb-2 text-lead text-text">By the numbers</h2>
+        <dl className="mt-4 grid grid-cols-2 gap-x-8 gap-y-4 text-body sm:grid-cols-3">
           {[
             ["Levels", groupNumber(MAX_LEVEL)],
             ["Named tiers", String(TIERS.length)],
@@ -112,7 +112,7 @@ export default function WikiIndex() {
           ].map(([label, value]) => (
             <div key={label}>
               <dt className="text-faint">{label}</dt>
-              <dd className="tnum mt-1 text-[18px] text-dim">{value}</dd>
+              <dd className="tnum mt-1 text-stat text-dim">{value}</dd>
             </div>
           ))}
         </dl>
@@ -120,17 +120,17 @@ export default function WikiIndex() {
 
       <section className="mt-14">
         <div className="flex items-baseline justify-between gap-4 border-b border-rule pb-2">
-          <h2 className="text-[15px] text-text">The game</h2>
-          <p className="shrink-0 text-[12px]" style={{ color: "var(--tier)" }}>
+          <h2 className="text-lead text-text">The game</h2>
+          <p className="shrink-0 text-note" style={{ color: "var(--tier)" }}>
             V2
           </p>
         </div>
-        <p className="mt-4 max-w-2xl text-[13px] leading-relaxed text-faint">
+        <p className="mt-4 max-w-2xl text-body leading-relaxed text-faint">
           Built, tested and wired into the timer. Every count here is <em>computed from the
           modules</em> rather than typed — a catalogue this size is generated, so the page cannot
           disagree with the game.
         </p>
-        <dl className="mt-4 grid grid-cols-2 gap-x-8 gap-y-4 text-[13px] sm:grid-cols-3">
+        <dl className="mt-4 grid grid-cols-2 gap-x-8 gap-y-4 text-body sm:grid-cols-3">
           {[
             ["Skills", groupNumber(v2.skills)],
             ["Items generated", groupNumber(v2.items)],
@@ -151,7 +151,7 @@ export default function WikiIndex() {
           ].map(([label, value]) => (
             <div key={label}>
               <dt className="text-faint">{label}</dt>
-              <dd className="tnum mt-1 text-[18px] text-dim">{value}</dd>
+              <dd className="tnum mt-1 text-stat text-dim">{value}</dd>
             </div>
           ))}
         </dl>

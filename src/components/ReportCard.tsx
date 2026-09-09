@@ -74,7 +74,7 @@ export function ReportCard() {
 
   return (
     <main className="mx-auto w-full max-w-2xl animate-rise px-6 pb-24 pt-16 sm:px-10">
-      <p className="text-[13px] text-faint">
+      <p className="text-body text-faint">
         <span className="tnum">{session.plannedMinutes}</span> minutes done.
       </p>
       {/*
@@ -90,12 +90,12 @@ export function ReportCard() {
       >
         <span className="tnum animate-pop inline-block">+{session.xpAwarded}</span> XP banked
       </h1>
-      <p className="mt-3 max-w-prose text-[13px] leading-relaxed text-faint">
+      <p className="mt-3 max-w-prose text-body leading-relaxed text-faint">
         It stays banked once you log it. Nothing else in the app works until you do.
       </p>
 
       <section className="mt-10 border-t border-rule pt-8">
-        <h2 className="text-[15px] text-text">What were you working on?</h2>
+        <h2 className="text-lead text-text">What were you working on?</h2>
 
         {projects.length > 0 && (
           <div className="mt-4 flex flex-wrap gap-2">
@@ -109,7 +109,7 @@ export function ReportCard() {
                     setCreating(false);
                     setProjectId(p.id);
                   }}
-                  className="rounded-sm border px-3 py-2 text-[13px] transition-colors"
+                  className="rounded-sm border px-3 py-2 text-body transition-colors"
                   style={{
                     borderColor: selected ? "var(--action)" : "var(--color-rule)",
                     color: selected ? "var(--action)" : undefined,
@@ -123,7 +123,7 @@ export function ReportCard() {
             <button
               type="button"
               onClick={() => setCreating(true)}
-              className="rounded-sm border border-dashed border-rule px-3 py-2 text-[13px] text-faint transition-colors hover:text-dim"
+              className="rounded-sm border border-dashed border-rule px-3 py-2 text-body text-faint transition-colors hover:text-dim"
               style={creating ? { borderColor: "var(--action)", color: "var(--action)" } : undefined}
             >
               New project
@@ -144,7 +144,7 @@ export function ReportCard() {
       </section>
 
       <section className="mt-8">
-        <label htmlFor="note" className="text-[15px] text-text">
+        <label htmlFor="note" className="text-lead text-text">
           Anything worth remembering?
         </label>
         <textarea
@@ -160,7 +160,7 @@ export function ReportCard() {
 
       {snapshot.chain.windowMs !== null && snapshot.chain.links > 0 && (
         <p
-          className="mt-8 border-l-2 pl-4 text-[13px] leading-relaxed text-dim"
+          className="mt-8 border-l-2 pl-4 text-body leading-relaxed text-dim"
           style={{ borderColor: "var(--tier)" }}
         >
           Log this and another session inside{" "}
@@ -175,8 +175,8 @@ export function ReportCard() {
       )}
 
       <section className="mt-8 border-t border-rule pt-8">
-        <h2 className="text-[15px] text-text">Did you actually focus?</h2>
-        <p className="mt-2 text-[13px] text-faint">
+        <h2 className="text-lead text-text">Did you actually focus?</h2>
+        <p className="mt-2 text-body text-faint">
           Admitting you slacked costs this session{" "}
           <span className="tnum">{session.xpAwarded - slackedXp}</span> XP and nothing else. The
           honesty is the whole point.
@@ -186,7 +186,7 @@ export function ReportCard() {
             type="button"
             onClick={() => send(true)}
             disabled={!chosen || pending}
-            className="flex-1 rounded-sm px-6 py-4 text-[15px] font-medium text-ground transition-opacity disabled:opacity-40"
+            className="flex-1 rounded-sm px-6 py-4 text-lead font-medium text-ground transition-opacity disabled:opacity-40"
             style={{ backgroundColor: "var(--action)" }}
           >
             I focused — log {groupNumber(session.xpAwarded)} XP
@@ -195,16 +195,16 @@ export function ReportCard() {
             type="button"
             onClick={() => send(false)}
             disabled={!chosen || pending}
-            className="flex-1 rounded-sm border border-rule px-6 py-4 text-[15px] text-dim transition-colors hover:text-text disabled:opacity-40"
+            className="flex-1 rounded-sm border border-rule px-6 py-4 text-lead text-dim transition-colors hover:text-text disabled:opacity-40"
           >
             I slacked — log {groupNumber(slackedXp)} XP
           </button>
         </div>
         {!chosen && (
-          <p className="mt-4 text-[13px] text-faint">Pick a project first.</p>
+          <p className="mt-4 text-body text-faint">Pick a project first.</p>
         )}
         {error && (
-          <p className="mt-4 text-[13px]" style={{ color: "var(--color-warn)" }}>
+          <p className="mt-4 text-body" style={{ color: "var(--color-warn)" }}>
             {error}
           </p>
         )}

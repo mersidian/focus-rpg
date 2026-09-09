@@ -45,8 +45,8 @@ export function Block({
   return (
     <section className="mt-12">
       <div className="flex items-baseline justify-between gap-4 border-b border-rule pb-2">
-        <h2 className="text-[15px] text-text">{title}</h2>
-        {aside && <p className="shrink-0 text-[12px] text-faint">{aside}</p>}
+        <h2 className="text-lead text-text">{title}</h2>
+        {aside && <p className="shrink-0 text-note text-faint">{aside}</p>}
       </div>
       {children}
     </section>
@@ -84,7 +84,7 @@ export function Rows({
           scroll sideways for the rest →
         </p>
       )}
-      <table className="w-full border-collapse text-[13px]">
+      <table className="w-full border-collapse text-body">
         <thead>
           <tr>
             {head.map((h, i) => (
@@ -119,7 +119,7 @@ export function Rows({
         </tbody>
       </table>
       {hidden && (
-        <p className="mt-2 text-[12px] text-faint">
+        <p className="mt-2 text-note text-faint">
           showing {rows.length} of {total}
         </p>
       )}
@@ -145,7 +145,7 @@ export function Rail({ progress }: { progress: number }) {
 }
 
 export function Empty({ children }: { children: ReactNode }) {
-  return <p className="mt-6 text-[13px] leading-relaxed text-faint">{children}</p>;
+  return <p className="mt-6 text-body leading-relaxed text-faint">{children}</p>;
 }
 
 /** A gate's verdict, rendered as a shopping list rather than a refusal. */

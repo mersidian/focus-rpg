@@ -37,7 +37,7 @@ export default async function CraftingPage() {
         </>
       }
     >
-      <p className="mt-6 text-[13px] text-faint">
+      <p className="mt-6 text-body text-faint">
         Fuel <span className="tnum text-dim">{groupNumber(wallet.fuel)}</span> /{" "}
         <span className="tnum">{groupNumber(wallet.fuelCap)}</span>
       </p>
@@ -69,7 +69,7 @@ export default async function CraftingPage() {
                   check.ok ? (
                     <CraftButton key="c" recipeId={r.id} />
                   ) : (
-                    <span key="n" className="text-[12px] text-faint">
+                    <span key="n" className="text-note text-faint">
                       {check.missing[0]}
                     </span>
                   ),

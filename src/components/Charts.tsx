@@ -239,7 +239,7 @@ export function Legend({
   items: { label: string; color: string; value?: string }[];
 }) {
   return (
-    <ul className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-[12px]" style={{ color: INK }}>
+    <ul className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-note" style={{ color: INK }}>
       {items.map((item) => (
         <li key={item.label} className="flex items-center gap-2">
           <span

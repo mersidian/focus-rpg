@@ -47,7 +47,7 @@ function Rule({
   note?: string;
 }) {
   return (
-    <div className="flex items-baseline gap-4 border-b border-rule py-3 text-[13px] last:border-0">
+    <div className="flex items-baseline gap-4 border-b border-rule py-3 text-body last:border-0">
       <div className="min-w-0 flex-1">
         <p className="text-dim">{label}</p>
         {note && <p className="mt-1 leading-relaxed text-faint">{note}</p>}
@@ -61,8 +61,8 @@ function Section({ title, source, children }: { title: string; source: string; c
   return (
     <section className="mt-14">
       <div className="flex items-baseline justify-between gap-4 border-b border-rule pb-2">
-        <h2 className="text-[15px] text-text">{title}</h2>
-        <p className="shrink-0 text-[12px] text-faint">{source}</p>
+        <h2 className="text-lead text-text">{title}</h2>
+        <p className="shrink-0 text-note text-faint">{source}</p>
       </div>
       {children}
     </section>
@@ -75,7 +75,7 @@ export default function WikiRulesPage() {
   return (
     <main className="mx-auto w-full max-w-4xl px-6 pb-24 pt-14 sm:px-10">
       <h1 className="text-title font-medium tracking-tight sm:text-hero">Rules</h1>
-      <p className="mt-3 max-w-2xl text-[13px] leading-relaxed text-faint">
+      <p className="mt-3 max-w-2xl text-body leading-relaxed text-faint">
         The numbers the game runs on, read out of the modules that own them. The right-hand
         label on each block is where the value lives, so a rule you want to argue with is one
         file away.
@@ -139,11 +139,11 @@ export default function WikiRulesPage() {
           note="One slip does not cost the streak."
         />
         <div className="mt-4">
-          <p className="text-[13px] text-dim">The ways a session ends badly</p>
-          <ul className="mt-2 space-y-1 text-[13px] text-faint">
+          <p className="text-body text-dim">The ways a session ends badly</p>
+          <ul className="mt-2 space-y-1 text-body text-faint">
             {Object.entries(ABANDON_REASON_LABEL).map(([reason, label]) => (
               <li key={reason} className="flex gap-3">
-                <code className="shrink-0 rounded bg-lift px-1 text-[12px]">{reason}</code>
+                <code className="shrink-0 rounded bg-lift px-1 text-note">{reason}</code>
                 <span>{label}</span>
               </li>
             ))}
@@ -160,7 +160,7 @@ export default function WikiRulesPage() {
         <Rule label="Each link past the first adds" value={`+${Math.round(CHAIN_STEP * 100)}%`} />
         <Rule label="Links before it tops out" value={String(MAX_CHAIN_LINKS)} />
         <div className="mt-4 overflow-x-auto">
-          <table className="w-full border-collapse text-[13px]">
+          <table className="w-full border-collapse text-body">
             <thead>
               <tr>
                 <th className="border-b border-rule pb-2 pr-4 text-left font-medium text-dim">
@@ -244,7 +244,7 @@ export default function WikiRulesPage() {
         {PROJECT_TIERS.map((tier) => (
           <div
             key={tier.title}
-            className="flex items-baseline gap-4 border-b border-rule py-3 text-[13px] last:border-0"
+            className="flex items-baseline gap-4 border-b border-rule py-3 text-body last:border-0"
           >
             <span
               aria-hidden

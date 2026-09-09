@@ -43,11 +43,11 @@ export function UnlockToast({ unlocked }: { unlocked?: Snapshot["unlocked"] }) {
         <ul className="mt-3 space-y-3">
           {shown.map((x) => (
             <li key={x.id}>
-              <p className="text-[15px]" style={{ color: "var(--tier)" }}>
+              <p className="text-lead" style={{ color: "var(--tier)" }}>
                 {x.name}
               </p>
-              <p className="mt-1 text-[13px] leading-relaxed text-faint">{x.description}</p>
-              <p className="mt-1 text-[12px] text-faint">
+              <p className="mt-1 text-body leading-relaxed text-faint">{x.description}</p>
+              <p className="mt-1 text-note text-faint">
                 <span className="tnum text-dim">+{groupNumber(x.xp)}</span> XP
                 {x.freezes > 0 && (
                   <>
@@ -64,7 +64,7 @@ export function UnlockToast({ unlocked }: { unlocked?: Snapshot["unlocked"] }) {
         <button
           type="button"
           onClick={() => setShown([])}
-          className="mt-4 text-[13px] text-faint underline underline-offset-4 hover:text-dim"
+          className="mt-4 text-body text-faint underline underline-offset-4 hover:text-dim"
         >
           Dismiss
         </button>

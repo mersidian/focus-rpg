@@ -10,7 +10,7 @@ export default function WikiLevelsPage() {
   return (
     <main className="mx-auto w-full max-w-4xl px-6 pb-24 pt-14 sm:px-10">
       <h1 className="text-title font-medium tracking-tight sm:text-hero">Levels</h1>
-      <p className="mt-3 max-w-2xl text-[13px] leading-relaxed text-faint">
+      <p className="mt-3 max-w-2xl text-body leading-relaxed text-faint">
         {MAX_LEVEL} levels across {TIERS.length} named tiers of {RANKS.length} ranks. XP is one
         per focused minute, so the hours column is the real cost. Levels ratchet: XP can fall,
         the title cannot.
@@ -22,23 +22,23 @@ export default function WikiLevelsPage() {
         return (
           <section key={tier.title} className="mt-12">
             <div className="flex items-baseline justify-between gap-4 border-b border-rule pb-2">
-              <h2 className="flex items-baseline gap-3 text-[15px]">
+              <h2 className="flex items-baseline gap-3 text-lead">
                 <span
                   aria-hidden
                   className="h-3 w-[3px] shrink-0 self-center"
                   style={{ backgroundColor: accent }}
                 />
                 <span style={{ color: accent }}>{tier.title}</span>
-                <span className="tnum text-[12px] text-faint">
+                <span className="tnum text-note text-faint">
                   {levels[0].level}–{levels[levels.length - 1].level}
                 </span>
               </h2>
-              <p className="tnum shrink-0 text-[12px] text-faint">
+              <p className="tnum shrink-0 text-note text-faint">
                 {groupNumber(tier.enterHours)} h → {groupNumber(tier.doneHours)} h
               </p>
             </div>
 
-            <table className="w-full border-collapse text-[13px]">
+            <table className="w-full border-collapse text-body">
               <thead>
                 <tr>
                   <th className="border-b border-rule py-2 pr-4 text-left font-medium text-faint">

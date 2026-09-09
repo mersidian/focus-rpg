@@ -146,28 +146,39 @@ function walk(dir: string): string[] {
 }
 
 /**
- * Where the display face is allowed, and why, one entry per file.
+ * Where the earned face is allowed, and why, one entry per file.
  *
  * It had nineteen call sites and only six were the earned title: the rest were
  * ordinary page headings, and one of them — GameUi's Screen — put Fraunces on
  * all ten game screens at once. A face on every heading cannot mark the one
  * thing that was earned.
+ *
+ * The class is `.earned` and not `.display` for the same reason this test
+ * exists: a class named after a typeface gets reached for whenever someone
+ * wants that typeface, and a class named after the rule cannot be used without
+ * making the claim.
  */
-const DISPLAY_ALLOWED: Record<string, string> = {
+const EARNED_ALLOWED: Record<string, string> = {
   "components/TimerScreen.tsx": "the earned rank, on the timer",
-  "components/PrestigeFrame.tsx": "no display use; listed so the map stays honest",
+  "components/LevelUpOverlay.tsx": "the rank as it arrives — the earned title itself",
   "app/character/page.tsx": "the earned rank, on the character sheet",
   "app/streak/page.tsx": "the streak headline, in the earned colour",
   "app/projects/page.tsx": "the biggest project, in the earned colour",
   "app/signin/page.tsx": "the wordmark, on the one screen with no character",
 };
 
-test("the display face marks the earned title and nothing else", () => {
+test("the earned face marks the earned title and nothing else", () => {
   const offenders: string[] = [];
   for (const file of walk(SRC)) {
     const rel = path.relative(SRC, file).split(path.sep).join("/");
-    if (!/className="[^"]*\bdisplay\b/.test(readFileSync(file, "utf8"))) continue;
-    if (!(rel in DISPLAY_ALLOWED)) offenders.push(rel);
+    /*
+     * The class as the first token of a string, which is what every real use
+     * looks like and what no English sentence does. Matching the bare word
+     * anywhere caught prose ("the earned accent"); matching className= alone
+     * missed the wiki, whose heading classes live in a lookup table.
+     */
+    if (!/["'`]earned[\s"'`]/.test(readFileSync(file, "utf8"))) continue;
+    if (!(rel in EARNED_ALLOWED)) offenders.push(rel);
   }
   assert.deepEqual(
     offenders,

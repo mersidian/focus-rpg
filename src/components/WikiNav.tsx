@@ -25,7 +25,7 @@ export function WikiNav() {
   ];
 
   return (
-    <div className="flex flex-wrap items-center gap-x-4 border-b border-rule px-6 py-2 text-[12px] sm:gap-x-5 sm:px-10">
+    <div className="flex flex-wrap items-center gap-x-4 border-b border-rule px-6 py-2 text-note sm:gap-x-5 sm:px-10">
       {links.map((link) => {
         const current = path === link.href;
         return (

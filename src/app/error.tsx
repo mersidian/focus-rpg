@@ -22,14 +22,14 @@ export default function ErrorPage({
     <main className="flex min-h-dvh flex-col justify-center px-6 sm:px-10">
       <div className="mx-auto w-full max-w-md">
         <h1 className="text-title font-medium tracking-tight sm:text-hero">That did not load</h1>
-        <p className="mt-4 max-w-prose text-[15px] leading-relaxed text-dim">
+        <p className="mt-4 max-w-prose text-lead leading-relaxed text-dim">
           The database was not reachable just then. Nothing was lost — your sessions live on
           the server, not in this page.
         </p>
         <button
           type="button"
           onClick={reset}
-          className="mt-8 rounded-sm border border-rule px-6 py-3 text-[15px] text-text transition-colors hover:border-dim"
+          className="mt-8 rounded-sm border border-rule px-6 py-3 text-lead text-text transition-colors hover:border-dim"
         >
           Try again
         </button>

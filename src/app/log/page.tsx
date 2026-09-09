@@ -52,7 +52,7 @@ export default async function LogPage() {
         <h1 className="text-title font-medium tracking-tight sm:text-hero">Session log</h1>
 
         {entries.length === 0 ? (
-          <p className="mt-8 max-w-prose text-[15px] leading-relaxed text-dim">
+          <p className="mt-8 max-w-prose text-lead leading-relaxed text-dim">
             Nothing here yet. Finish a session and it lands at the top, with the project you
             tagged it to and whether you called it honest.
           </p>
@@ -60,7 +60,7 @@ export default async function LogPage() {
           <div className="mt-10">
             {[...days.entries()].map(([day, rows]) => (
               <section key={day} className="mb-10">
-                <h2 className="border-b border-rule pb-2 text-[13px] text-faint">{day}</h2>
+                <h2 className="border-b border-rule pb-2 text-body text-faint">{day}</h2>
                 <ul>
                   {rows.map((entry) => (
                     <li
