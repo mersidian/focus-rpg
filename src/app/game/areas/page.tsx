@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { Screen, Block, Rows, Gate } from "@/components/GameUi";
 import { loadGateState } from "@/lib/game-view-service";
-import { requirementFor } from "@/lib/activity-service";
+import { requirementFor } from "@/lib/game/requirements";
 import { checkGate } from "@/lib/game/gate";
 import { BIOMES } from "@/lib/game/biomes";
 import { areasIn } from "@/lib/game/variants";

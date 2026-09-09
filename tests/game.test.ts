@@ -63,6 +63,7 @@ import {
 } from "../src/lib/game/potions.ts";
 import { POTION_EFFECTS } from "../src/lib/game/items.ts";
 import { STYLE_AFFINITY } from "../src/lib/game/power.ts";
+import { requirementFor } from "../src/lib/game/requirements.ts";
 import { AMMO_PER_KILL, WHEEL_DISADVANTAGE } from "../src/lib/game/combat.ts";
 import { ammoUnitPrice, salvageStoneYield, salvageStones } from "../src/lib/game/economy.ts";
 import { CROP_LINES } from "../src/lib/game/items.ts";
@@ -1551,4 +1552,76 @@ test("a gun's rounds cost most, and its net still comes out on top", () => {
     STYLE_AFFINITY.gun.defence < STYLE_AFFINITY.melee.defence,
     "a coat protects as well as plate",
   );
+});
+
+/* ------------------------- a fresh account can start ----------------------- */
+
+/** Exactly what a brand-new character has before the starter kit: nothing. */
+function freshAccount() {
+  return {
+    skills: {},
+    equipmentTier: 0,
+    toolTier: {},
+    rations: 0,
+    potions: new Map<string, number>(),
+    keyItems: [] as never[],
+    characterLevel: 1,
+  };
+}
+
+test("a brand-new account has something it can actually do", () => {
+  // This is the regression guard for the worst bug this project has had. Every
+  // activity was closed on a fresh account: gathering wanted a bought tool,
+  // combat wanted all ten slots filled, tools cost coins, and coins came from
+  // selling what could not be gathered. Two hours of focus produced nothing.
+  const state = freshAccount();
+
+  const open: string[] = [];
+  for (const skill of SKILLS.filter((s) => s.kind === "gathering")) {
+    const req = requirementFor({ kind: "gathering", skill: skill.key, tier: 1 });
+    if (checkGate(req, state).open) open.push(`${skill.label} 1`);
+  }
+  for (const area of areasIn(BIOMES[0])) {
+    const req = requirementFor({ kind: "combat", biome: 1, area: area.index });
+    if (checkGate(req, state).open) open.push(area.name);
+  }
+
+  assert.ok(open.length > 0, "a fresh account has nothing open — the game is unreachable");
+  // And specifically: every tier-1 gathering skill, with bare hands.
+  assert.equal(
+    open.filter((o) => o.endsWith(" 1")).length,
+    6,
+    `only these were open with nothing: ${open.join(", ")}`,
+  );
+});
+
+test("tier 1 gathering needs no tool, and tier 2 does", () => {
+  assert.equal(requirementFor({ kind: "gathering", skill: "mining", tier: 1 }).toolTier, undefined);
+  assert.equal(requirementFor({ kind: "gathering", skill: "mining", tier: 2 }).toolTier, 2);
+});
+
+test("the tutorial biome asks for no equipment, and the third biome does", () => {
+  const meadow = requirementFor({ kind: "combat", biome: 1, area: 1 });
+  assert.equal(meadow.equipmentTier, undefined, "Sunlit Meadow wants gear nobody can have yet");
+  assert.equal(meadow.ward, undefined, "the tutorial biome wants a ward");
+
+  const deep = requirementFor({ kind: "combat", biome: 9, area: 5 });
+  assert.ok((deep.equipmentTier ?? 0) > 0, "the Deep Seam asks for nothing");
+  assert.ok(deep.ward, "the Deep Seam has a hazard and no ward");
+});
+
+test("a fresh account is still shut out of anything deep", () => {
+  // The floors are floors, not a skeleton key: the deadlock is broken at the
+  // bottom and nowhere else.
+  const state = freshAccount();
+  for (const biome of BIOMES.filter((b) => b.index >= 6)) {
+    for (const area of areasIn(biome)) {
+      const req = requirementFor({ kind: "combat", biome: biome.index, area: area.index });
+      assert.equal(
+        checkGate(req, state).open,
+        false,
+        `${area.name} is open to a character with nothing`,
+      );
+    }
+  }
 });

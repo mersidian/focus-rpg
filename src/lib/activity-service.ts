@@ -16,7 +16,8 @@ import { BIOME_BY_INDEX } from "./game/biomes";
 import { resolveCombat, RARITIES, rationsPerFailure, spawnPower } from "./game/combat";
 import { foldDrops, rollDrops, salvageDecision, salvageValue } from "./game/drops";
 import { FUEL_BY_LENGTH, salvageStoneYield } from "./game/economy";
-import { checkGate, type GateState, type Requirement } from "./game/gate";
+import { checkGate, type GateState } from "./game/gate";
+import { requirementFor } from "./game/requirements";
 import { acceptableWards, hazardOf, tonicEffect, wardTierFor, type Ward } from "./game/potions";
 import { band, loadoutPower, type Equipped, type ItemSpec, type Slot } from "./game/power";
 import { rng, sessionSeed } from "./game/rng";
@@ -35,7 +36,7 @@ import { BOSS_POWER_MULTIPLIER, bossKillSeconds, bossMarker, bossesIn } from "./
 import { resolveBoss } from "./game/combat";
 import { UNIQUE_BY_NAME, uniqueItemId, type Unique } from "./game/uniques";
 import { describeEffect, foldEffects, type Effect, type Modifiers } from "./game/effects";
-import { AMMO_LINES, STONE_KINDS } from "./game/items";
+import { AMMO_LINES, STONE_KINDS, TOOL_SKILLS } from "./game/items";
 import { resolveYield } from "./game/yield";
 import type { Activity } from "./game/activity";
 import { chainMultiplier, linksBefore, type ChainSession } from "./chain";
@@ -269,6 +270,38 @@ export async function tonicsHeld(
   return out.sort((a, b) => a.name.localeCompare(b.name));
 }
 
+/**
+ * What a new character starts with.
+ *
+ * Granted once, recorded by a marker like every other one-time event. Without it
+ * a fresh account had NO open activity: gathering wanted a tool, combat wanted a
+ * full set of ten, tools cost coins, and coins came from selling things that
+ * could not be gathered. Two hours of focus produced nothing.
+ *
+ * Deliberately small — six crude tools, ten rations, two wards and a purse. It
+ * exists to break a deadlock, not to skip the early game.
+ */
+export async function ensureStarterKit(userId: string): Promise<boolean> {
+  const created = await db
+    .insert(worldProgress)
+    .values({ userId, marker: "starter:kit" })
+    .onConflictDoNothing()
+    .returning({ marker: worldProgress.marker });
+  if (created.length === 0) return false;
+
+  await append(userId, [
+    ...TOOL_SKILLS.map(({ skill }) => ({
+      itemId: `tool:${skill}:1:crude`,
+      delta: 1,
+      reason: "bought" as const,
+    })),
+    { itemId: "ration:1", delta: 10, reason: "bought" },
+    { itemId: "potion:Warded:1", delta: 2, reason: "bought" },
+  ]);
+  await adjustWallet(userId, { coins: 250 });
+  return true;
+}
+
 /** Potions on hand, so a ward requirement can be checked against them. */
 async function potionsHeld(userId: string): Promise<Map<string, number>> {
   const rows = await db
@@ -325,46 +358,6 @@ export async function loadGateState(userId: string): Promise<GateState> {
 
 /* --------------------------------- the gate -------------------------------- */
 
-export function requirementFor(activity: Activity): Requirement {
-  if (activity.kind === "gathering") {
-    return {
-      skill: { key: activity.skill, level: tierSkillRequirement(activity.tier) },
-      toolTier: activity.tier,
-    };
-  }
-
-  const biome = BIOME_BY_INDEX.get(activity.biome);
-
-  const hazard = biome ? hazardOf(biome) : null;
-  const ward = hazard
-    ? { ward: hazard.ward, step: wardTierFor(biome!.tierLo), qty: hazard.qty }
-    : undefined;
-
-  if (activity.kind === "boss") {
-    const boss = bossesIn(activity.biome).find((b) => b.role === activity.role);
-    const t = boss?.tier ?? 1;
-    // A boss wants a full set AT its tier, not one below: it is the wall that
-    // says come back better, and it should read that way in the gate.
-    return {
-      equipmentTier: t,
-      rations: Math.max(2, Math.round(t / 3)),
-      // A boss stands deeper in its biome, so it wants more of the ward.
-      ward: ward ? { ...ward, qty: ward.qty + 1 } : undefined,
-      keyItem: biome?.keyItem ?? undefined,
-      characterLevel: Math.max(1, Math.round(t * 1.8)),
-    };
-  }
-
-  const area = biome ? areasIn(biome)[activity.area - 1] : undefined;
-  const t = area?.tier ?? 1;
-  return {
-    equipmentTier: Math.max(1, t - 1),
-    rations: Math.max(1, Math.round(t / 4)),
-    ward,
-    keyItem: biome?.keyItem ?? undefined,
-    characterLevel: Math.max(1, Math.round(t * 1.5)),
-  };
-}
 
 export type ActivityOffer = {
   activity: Activity;
@@ -385,6 +378,9 @@ export type ActivityOffer = {
  * tables into the browser to render a list of twenty strings.
  */
 export async function offers(userId: string): Promise<ActivityOffer[]> {
+  // Cheap and idempotent after the first call, and the one place every player
+  // passes through before they can do anything at all.
+  await ensureStarterKit(userId);
   const state = await loadGateState(userId);
   const out: ActivityOffer[] = [];
 
