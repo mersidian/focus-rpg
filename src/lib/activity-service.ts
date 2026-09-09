@@ -10,13 +10,14 @@ import {
   slayingContracts,
   worldProgress,
 } from "./db/schema";
-import { append, adjustWallet, loadWallet, logCollected, type Grant } from "./inventory-service";
+import { append, adjustWallet, have, loadWallet, logCollected, type Grant } from "./inventory-service";
 import { ARCHETYPE_BY_NAME, type Style } from "./game/archetypes";
 import { BIOME_BY_INDEX } from "./game/biomes";
 import { resolveCombat, RARITIES, rationsPerFailure, spawnPower } from "./game/combat";
 import { foldDrops, rollDrops, salvageDecision, salvageValue } from "./game/drops";
-import { FUEL_BY_LENGTH } from "./game/economy";
+import { FUEL_BY_LENGTH, salvageStoneYield } from "./game/economy";
 import { checkGate, type GateState, type Requirement } from "./game/gate";
+import { acceptableWards, hazardOf, tonicEffect, wardTierFor, type Ward } from "./game/potions";
 import { band, loadoutPower, type Equipped, type ItemSpec, type Slot } from "./game/power";
 import { rng, sessionSeed } from "./game/rng";
 import { SKILLS, processingXp, skillLevel, tierSkillRequirement } from "./game/skills";
@@ -33,8 +34,8 @@ import { areasIn } from "./game/variants";
 import { BOSS_POWER_MULTIPLIER, bossKillSeconds, bossMarker, bossesIn } from "./game/bosses";
 import { resolveBoss } from "./game/combat";
 import { UNIQUE_BY_NAME, uniqueItemId, type Unique } from "./game/uniques";
-import { foldEffects, type Effect, type Modifiers } from "./game/effects";
-import { AMMO_LINES } from "./game/items";
+import { describeEffect, foldEffects, type Effect, type Modifiers } from "./game/effects";
+import { AMMO_LINES, STONE_KINDS } from "./game/items";
 import { resolveYield } from "./game/yield";
 import type { Activity } from "./game/activity";
 import { chainMultiplier, linksBefore, type ChainSession } from "./chain";
@@ -148,7 +149,11 @@ async function grantUnique(userId: string, unique: Unique, sessionId: string): P
  * 250 uniques cosmetic — by exactly the standard that module sets against
  * modifiers written as prose. This is the reader.
  */
-export async function loadModifiers(userId: string, skill?: string): Promise<Modifiers> {
+export async function loadModifiers(
+  userId: string,
+  skill?: string,
+  extra: Effect[] = [],
+): Promise<Modifiers> {
   const rows = await db
     .select({ itemId: equipmentInstances.itemId })
     .from(equipmentInstances)
@@ -162,7 +167,15 @@ export async function loadModifiers(userId: string, skill?: string): Promise<Mod
     const unique = UNIQUE_BY_NAME.get(row.itemId.slice("unique:".length));
     if (unique) effects.push(unique.effect);
   }
-  return foldEffects(effects, skill);
+  return foldEffects([...effects, ...extra], skill);
+}
+
+/** The effect of a tonic drunk with a session, if one was. */
+export function tonicEffectOf(tonicItemId: string | null): Effect[] {
+  if (!tonicItemId) return [];
+  const [, effect, step] = tonicItemId.split(":");
+  const found = tonicEffect(effect, Number(step));
+  return found ? [found] : [];
 }
 
 /** Ammunition on hand for a style, at any tier. */
@@ -231,6 +244,40 @@ async function spendRations(userId: string, want: number): Promise<Grant[]> {
   return out;
 }
 
+/** Tonics on hand, for the picker's "drink one with this" line. */
+export async function tonicsHeld(
+  userId: string,
+): Promise<{ itemId: string; name: string; qty: number; does: string }[]> {
+  const rows = await db
+    .select({ itemId: sql<string>`item_id`, qty: sql<number>`qty` })
+    .from(sql`inventory_balance`)
+    .where(sql`user_id = ${userId} and item_id like 'potion:%' and qty > 0`);
+
+  const out: { itemId: string; name: string; qty: number; does: string }[] = [];
+  for (const row of rows) {
+    const id = String(row.itemId);
+    const [, effect, step] = id.split(":");
+    const found = tonicEffect(effect, Number(step));
+    if (!found) continue; // a ward is a toll, not something you drink for a buff
+    out.push({
+      itemId: id,
+      name: `${effect} ${["I", "II", "III", "IV", "V", "VI"][Number(step) - 1] ?? step}`,
+      qty: Number(row.qty),
+      does: describeEffect(found),
+    });
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Potions on hand, so a ward requirement can be checked against them. */
+async function potionsHeld(userId: string): Promise<Map<string, number>> {
+  const rows = await db
+    .select({ itemId: sql<string>`item_id`, qty: sql<number>`qty` })
+    .from(sql`inventory_balance`)
+    .where(sql`user_id = ${userId} and item_id like 'potion:%' and qty > 0`);
+  return new Map(rows.map((r) => [String(r.itemId), Number(r.qty)]));
+}
+
 /** Rations on hand, at any tier. A failed kill eats the cheapest first. */
 async function rationCount(userId: string): Promise<number> {
   const rows = await db
@@ -267,6 +314,7 @@ export async function loadGateState(userId: string): Promise<GateState> {
     equipmentTier: tiers.length === 10 ? Math.min(...tiers) : 0,
     toolTier,
     rations,
+    potions: await potionsHeld(userId),
     keyItems: markers
       .map((m) => m.marker)
       .filter((m) => m.startsWith("key:"))
@@ -287,6 +335,11 @@ export function requirementFor(activity: Activity): Requirement {
 
   const biome = BIOME_BY_INDEX.get(activity.biome);
 
+  const hazard = biome ? hazardOf(biome) : null;
+  const ward = hazard
+    ? { ward: hazard.ward, step: wardTierFor(biome!.tierLo), qty: hazard.qty }
+    : undefined;
+
   if (activity.kind === "boss") {
     const boss = bossesIn(activity.biome).find((b) => b.role === activity.role);
     const t = boss?.tier ?? 1;
@@ -295,6 +348,8 @@ export function requirementFor(activity: Activity): Requirement {
     return {
       equipmentTier: t,
       rations: Math.max(2, Math.round(t / 3)),
+      // A boss stands deeper in its biome, so it wants more of the ward.
+      ward: ward ? { ...ward, qty: ward.qty + 1 } : undefined,
       keyItem: biome?.keyItem ?? undefined,
       characterLevel: Math.max(1, Math.round(t * 1.8)),
     };
@@ -305,6 +360,7 @@ export function requirementFor(activity: Activity): Requirement {
   return {
     equipmentTier: Math.max(1, t - 1),
     rations: Math.max(1, Math.round(t / 4)),
+    ward,
     keyItem: biome?.keyItem ?? undefined,
     characterLevel: Math.max(1, Math.round(t * 1.5)),
   };
@@ -386,6 +442,7 @@ export async function chooseActivity(
   userId: string,
   sessionId: string,
   activity: Activity,
+  tonicItemId?: string,
 ): Promise<{ ok: true } | { ok: false; missing: string[] }> {
   const state = await loadGateState(userId);
   const requirement = requirementFor(activity);
@@ -398,6 +455,43 @@ export async function chooseActivity(
   const area = biome && combat ? areasIn(biome)[combat.area - 1] : undefined;
   const bossDef = boss ? bossesIn(boss.biome).find((b) => b.role === boss.role) : undefined;
   const equipped = await loadEquipped(userId);
+
+  /**
+   * Consumables are spent HERE, at entry, not at resolution.
+   *
+   * That is what "spent on entry" means, and it is also what makes the cost
+   * real: abandoning the session does not give the ward back. The gate was
+   * already checked against these holdings by `offers`, and it is checked again
+   * below, because a client may not be trusted to have told the truth about
+   * what it had.
+   */
+  const spend: Grant[] = [];
+  if (requirement.ward) {
+    const accepted = acceptableWards(requirement.ward.ward as Ward, requirement.ward.step);
+    const held = await have(userId, accepted);
+    let left = requirement.ward.qty;
+    for (const id of accepted) {
+      if (left <= 0) break;
+      const take = Math.min(left, Math.max(0, held.get(id) ?? 0));
+      if (take > 0) {
+        spend.push({ itemId: id, delta: -take, reason: "gate_entry", sessionId });
+        left -= take;
+      }
+    }
+    if (left > 0) {
+      // The gate above already passed, so reaching here means the holdings
+      // changed under us. Refuse rather than let the session start unpaid.
+      return { ok: false, missing: [`${requirement.ward.qty} × ${requirement.ward.ward}`] };
+    }
+  }
+  if (tonicItemId) {
+    const held = await have(userId, [tonicItemId]);
+    if ((held.get(tonicItemId) ?? 0) < 1) {
+      return { ok: false, missing: ["that tonic"] };
+    }
+    spend.push({ itemId: tonicItemId, delta: -1, reason: "gate_entry", sessionId });
+  }
+  if (spend.length > 0) await append(userId, spend);
 
   await db
     .insert(sessionActivities)
@@ -415,6 +509,7 @@ export async function chooseActivity(
       // mid-boss, 2 for the lord.
       area: combat?.area ?? (boss ? (boss.role === "mid" ? 1 : 2) : null),
       style: activity.kind === "gathering" ? null : (equipped.weapon?.spec.style ?? "melee"),
+      tonicItemId: tonicItemId ?? null,
     })
     .onConflictDoUpdate({
       target: sessionActivities.sessionId,
@@ -513,6 +608,8 @@ export type ResolutionSummary = {
   /** True when ammunition ran out and the session stopped fighting. */
   outOfAmmo?: boolean;
   ammoUsed?: number;
+  /** Upgrade stones from salvage, when the rule is set to stones. */
+  salvageStones?: number;
   /** Lumps paid into V1's ladder by this session (§11). */
   milestones: MilestonePaid[];
 };
@@ -570,7 +667,7 @@ export async function resolveActivity(
   // A unique can add links to the chain — the only place V2 reaches into a V1
   // mechanic, and it reaches by adding to the count rather than by storing a
   // multiplier, which would let it drift from the ledger.
-  const chainMods = await loadModifiers(userId);
+  const chainMods = await loadModifiers(userId, undefined, tonicEffectOf(row.tonicItemId));
   const chain = chainMultiplier(links + chainMods.chainLinks);
 
   const fuel = FUEL_BY_LENGTH[session.plannedMinutes] ?? 0;
@@ -659,7 +756,7 @@ export async function resolveActivity(
   } else if (row.kind === "gathering") {
     const skills = await loadSkills(userId);
     const gate = await loadGateState(userId);
-    const mods = await loadModifiers(userId, row.skill);
+    const mods = await loadModifiers(userId, row.skill, tonicEffectOf(row.tonicItemId));
     const result = resolveYield({
       focusedMs,
       tier: row.tier,
@@ -689,7 +786,7 @@ export async function resolveActivity(
     const style = (row.style ?? equipped.weapon?.spec.style ?? "melee") as Style;
     const rations = await rationCount(userId);
 
-    const mods = await loadModifiers(userId);
+    const mods = await loadModifiers(userId, undefined, tonicEffectOf(row.tonicItemId));
     const combat = resolveCombat({
       focusedMs,
       roster: area?.roster ?? [],
@@ -761,6 +858,7 @@ export async function resolveActivity(
     let kept = 0;
     let salvaged = 0;
     let salvageCoins = 0;
+    const salvageStones: Grant[] = [];
     for (const piece of folded.equipment) {
       const decision = salvageDecision(piece.percentile, {
         salvageBelow: wallet.salvageBelow,
@@ -768,7 +866,20 @@ export async function resolveActivity(
       });
       if (decision === "salvage") {
         salvaged += 1;
-        salvageCoins += salvageValue(piece.tier, piece.percentile);
+        if (wallet.salvageOutput === "stones") {
+          // Set once, and this is the whole of it: the junk the threshold was
+          // already eating becomes upgrade stones at the item's own tier rather
+          // than coins. Nothing here converts upward, so shallow junk can never
+          // fund deep refinement — the downward exchange is at the shop.
+          salvageStones.push({
+            itemId: `stone:${STONE_KINDS[piece.tier % STONE_KINDS.length]}:${piece.tier}`,
+            delta: salvageStoneYield(piece.tier, piece.percentile),
+            reason: "salvage",
+            sessionId,
+          });
+        } else {
+          salvageCoins += salvageValue(piece.tier, piece.percentile);
+        }
         continue;
       }
       const spec: ItemSpec = {
@@ -796,6 +907,7 @@ export async function resolveActivity(
       kept += 1;
     }
 
+    if (salvageStones.length > 0) await append(userId, salvageStones);
     await adjustWallet(userId, { coins: folded.coins + salvageCoins, fuel });
     summary.milestones.push(...(await addSkillXp(userId, style, Math.round(focusedMs / 60_000))));
     summary.milestones.push(...(await addSkillXp(userId, "slaying", Math.round(combat.kills / 4))));
@@ -809,6 +921,7 @@ export async function resolveActivity(
     summary.skillXp = Math.round(focusedMs / 60_000);
     summary.equipmentKept = kept;
     summary.equipmentSalvaged = salvaged;
+    summary.salvageStones = salvageStones.reduce((n, g) => n + g.delta, 0);
     summary.ranDry = combat.ranDry;
     summary.outOfAmmo = combat.outOfAmmo;
     summary.ammoUsed = combat.ammoUsed;

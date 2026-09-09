@@ -51,7 +51,20 @@ import {
   plotCost,
 } from "../src/lib/game/farm.ts";
 import { contractDepth, rollContract } from "../src/lib/game/contracts.ts";
+import {
+  TONICS,
+  WARDS,
+  acceptableWards,
+  hazardOf,
+  hazards,
+  tonicEffect,
+  wardItemId,
+  wardTierFor,
+} from "../src/lib/game/potions.ts";
+import { POTION_EFFECTS } from "../src/lib/game/items.ts";
+import { STYLE_AFFINITY } from "../src/lib/game/power.ts";
 import { AMMO_PER_KILL, WHEEL_DISADVANTAGE } from "../src/lib/game/combat.ts";
+import { ammoUnitPrice, salvageStoneYield, salvageStones } from "../src/lib/game/economy.ts";
 import { CROP_LINES } from "../src/lib/game/items.ts";
 
 /**
@@ -447,7 +460,8 @@ test("an empty roster resolves to nothing rather than looping", () => {
 test("the gate is binary and names everything that is missing", () => {
   const state = {
     skills: { mining: 10 }, equipmentTier: 4, toolTier: { mining: 3 },
-    rations: 1, keyItems: [], characterLevel: 5,
+    rations: 1, potions: new Map(),
+    keyItems: [], characterLevel: 5,
   };
   const open = checkGate({ skill: { key: "mining", level: 5 } }, state);
   assert.deepEqual(open, { open: true, missing: [] });
@@ -465,7 +479,8 @@ test("nothing but a tier number can move what a gate wants", () => {
   // SPEC-V2 §7: if handedness or an archetype could shift a requirement, the
   // greyed-out list would start lying about what is missing.
   const state = {
-    skills: {}, equipmentTier: 7, toolTier: {}, rations: 0, keyItems: [], characterLevel: 1,
+    skills: {}, equipmentTier: 7, toolTier: {}, rations: 0, potions: new Map(),
+    keyItems: [], characterLevel: 1,
   };
   assert.equal(checkGate({ equipmentTier: 7 }, state).open, true);
   assert.equal(checkGate({ equipmentTier: 8 }, state).open, false);
@@ -779,11 +794,14 @@ test("250 uniques, all named differently, and each on a real slot", () => {
   }
 });
 
-test("a unique's effect is either implemented or says it is not", () => {
-  // The whole point of the typed effect: an intended modifier may exist, but it
-  // is not allowed to look like it fires when it does not.
+test("every unique's effect is typed, and none is prose only", () => {
+  // `descriptive` stays a valid kind — a future unique may be named before its
+  // mechanism exists, and saying so beats pretending — but nothing uses it now.
+  // Eight did, and each needed a whole mechanism for one item; one of them
+  // ("ignores one key-item gate") could not be built at all, because a gate is a
+  // tier number and nothing may move what it asks for.
   const descriptive = UNIQUES.filter((u) => !isImplemented(u.effect));
-  assert.ok(descriptive.length < 20, `${descriptive.length} uniques are prose only`);
+  assert.deepEqual(descriptive.map((u) => u.name), [], "these uniques do nothing");
   for (const u of UNIQUES) {
     if (isImplemented(u.effect)) {
       assert.ok(IMPLEMENTED.includes(u.effect.kind), `${u.name} has kind ${u.effect.kind}`);
@@ -1336,7 +1354,19 @@ test("ammunition is spent, and running dry stops the fighting", () => {
 
 test("melee spends nothing, and a firearm spends most", () => {
   assert.equal(AMMO_PER_KILL.melee, 0);
-  assert.ok(AMMO_PER_KILL.gun > AMMO_PER_KILL.ranged, "a gun is no dearer to fire than a bow");
+  // A firearm fires ONE expensive round, not several cheap ones, so the claim
+  // is about price per round rather than rounds per kill. Two rounds a kill put
+  // gun a third behind every other style on net coin.
+  assert.ok(AMMO_PER_KILL.gun > 0);
+  assert.ok(
+    ammoUnitPrice(12, "gun") > ammoUnitPrice(12, "magic"),
+    "a cartridge is no dearer than a rune",
+  );
+  assert.ok(
+    ammoUnitPrice(12, "magic") > ammoUnitPrice(12, "ranged"),
+    "a rune is no dearer than an arrow",
+  );
+  assert.equal(ammoUnitPrice(12, "melee"), 1, "melee was charged for ammunition");
   const melee = resolveCombat(combatBase({ style: "melee", ammo: 0, rng: rng("m") }));
   assert.equal(melee.ammoUsed, 0);
   assert.equal(melee.outOfAmmo, false, "melee ran out of ammunition it does not use");
@@ -1385,4 +1415,140 @@ test("rollTwice keeps the better of two draws", () => {
     return n === 0 ? 0 : sum / n;
   };
   assert.ok(best(true) > best(false) + 0.05, "rolling twice was no better than rolling once");
+});
+
+/* ---------------------------- salvage to stones ---------------------------- */
+
+test("salvaging pays more stones for a better roll", () => {
+  assert.ok(salvageStoneYield(9, 0.9) > salvageStoneYield(9, 0.1));
+  assert.ok(salvageStoneYield(1, 0) >= 1, "a salvage paid nothing at all");
+});
+
+test("stones trade downward and never upward", () => {
+  // Upward would let a hoard of tier-1 junk refine a Mythic weapon, and the cost
+  // curve carries the whole refinement axis because refinement never fails.
+  assert.equal(salvageStones(4, 9), 0, "stones traded upward");
+  assert.equal(salvageStones(9, 9), 1, "a same-tier trade was not one-for-one");
+  assert.ok(salvageStones(20, 10) > 1, "a deep stone bought no shallow ones");
+  assert.ok(salvageStones(24, 1) > 20, "the deepest stone was worth almost nothing shallow");
+
+  // The rate must sit BELOW the fair ratio of tier powers, so trading down is
+  // always a small loss rather than a way to mint stones.
+  for (const [from, to] of [
+    [20, 10],
+    [24, 12],
+    [15, 5],
+  ]) {
+    const fair = tier(from).power / tier(to).power;
+    assert.ok(
+      salvageStones(from, to) <= Math.round(fair),
+      `tier ${from} -> ${to} pays ${salvageStones(from, to)}, above the fair ${fair.toFixed(1)}`,
+    );
+  }
+});
+
+/* ---------------------------- wards and tonics ----------------------------- */
+
+test("every potion line does something, and nothing needs a new effect kind", () => {
+  // 180 potions existed and did nothing at all; Alchemy was a processing skill
+  // with a fuel cost and no customer anywhere in the design.
+  for (const line of TONICS) {
+    const effect = tonicEffect(line, 3);
+    assert.ok(effect, `${line} tonic does nothing`);
+    assert.ok(IMPLEMENTED.includes(effect.kind), `${line} needs kind ${effect.kind}`);
+  }
+  for (const ward of WARDS) {
+    assert.equal(tonicEffect(ward, 3), null, `${ward} is a toll, not a tonic`);
+  }
+  assert.equal(TONICS.length + WARDS.length, POTION_EFFECTS.length, "a line is neither");
+});
+
+test("a tonic gets stronger with its tier", () => {
+  for (const line of TONICS) {
+    const low = tonicEffect(line, 1);
+    const high = tonicEffect(line, 6);
+    if (low && high && "pct" in low && "pct" in high) {
+      assert.ok(high.pct > low.pct, `${line} VI is no better than I`);
+    }
+  }
+});
+
+test("the first five biomes ask for no ward, and every later one does", () => {
+  // A gate that wants a potion before Alchemy exists is a wall, not a gate.
+  for (const biome of BIOMES) {
+    const hazard = hazardOf(biome);
+    if (biome.index <= 5) assert.equal(hazard, null, `${biome.name} wants a ward too early`);
+    else assert.ok(hazard, `${biome.name} has no hazard`);
+  }
+  assert.equal(hazards().length, 15);
+});
+
+test("a ward is accepted at its step or above, never below", () => {
+  const accepted = acceptableWards("Salt Ward", 3);
+  assert.ok(accepted.includes(wardItemId("Salt Ward", 3)));
+  assert.ok(accepted.includes(wardItemId("Salt Ward", 6)), "a better ward was refused");
+  assert.ok(!accepted.includes(wardItemId("Salt Ward", 2)), "a weaker ward was accepted");
+  assert.ok(!accepted.includes(wardItemId("Rot Ward", 5)), "the wrong ward was accepted");
+});
+
+test("a deeper biome wants a stronger ward", () => {
+  assert.ok(wardTierFor(21) > wardTierFor(9), "Voidscar takes the same ward as the Deep Seam");
+  assert.equal(wardTierFor(1), 1);
+});
+
+test("the gate refuses without a ward and says which one", () => {
+  const biome = BIOMES.find((b) => b.index === 13)!; // Fungal Hollow, Rot Ward
+  const hazard = hazardOf(biome)!;
+  const req = {
+    ward: { ward: hazard.ward, step: wardTierFor(biome.tierLo), qty: hazard.qty },
+  };
+  const base = {
+    skills: {},
+    equipmentTier: 24,
+    toolTier: {},
+    rations: 99,
+    potions: new Map(),
+    keyItems: [],
+    characterLevel: 99,
+  };
+  const shut = checkGate(req, base);
+  assert.equal(shut.open, false);
+  assert.ok(shut.missing[0].includes("Rot Ward"), `said "${shut.missing[0]}"`);
+
+  // A ward above the required step satisfies it.
+  const open = checkGate(req, {
+    ...base,
+    potions: new Map([[wardItemId("Rot Ward", 6), hazard.qty]]),
+  });
+  assert.equal(open.open, true, open.missing.join(", "));
+
+  // One short is still short.
+  const short = checkGate(req, {
+    ...base,
+    potions: new Map([[wardItemId("Rot Ward", 6), hazard.qty - 1]]),
+  });
+  assert.equal(short.open, hazard.qty - 1 >= hazard.qty);
+});
+
+test("every ward a biome asks for is a ward line that exists as an item", () => {
+  const ids = new Set(generateCatalogue().map((i) => i.id));
+  for (const { biome, hazard, step } of hazards()) {
+    for (const id of acceptableWards(hazard.ward, step)) {
+      assert.ok(ids.has(id), `${biome.name} wants ${id}, which the generator never makes`);
+    }
+  }
+});
+
+test("a gun's rounds cost most, and its net still comes out on top", () => {
+  // The whole justification for a fourth style: gunfire is the one you switch to
+  // when flush, so there has to be something on the other side of the bill.
+  assert.ok(ammoUnitPrice(12, "gun") > ammoUnitPrice(12, "magic"));
+  assert.ok(
+    STYLE_AFFINITY.gun.offence > STYLE_AFFINITY.magic.offence,
+    "a firearm hits no harder than a spell",
+  );
+  assert.ok(
+    STYLE_AFFINITY.gun.defence < STYLE_AFFINITY.melee.defence,
+    "a coat protects as well as plate",
+  );
 });

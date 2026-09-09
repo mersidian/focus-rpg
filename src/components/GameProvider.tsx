@@ -42,7 +42,7 @@ type Ctx = {
   lastSettled: SettleEvent | null;
   levelChange: LevelChange | null;
   dismissLevelChange: () => void;
-  begin: (minutes: number, activity?: Activity) => void;
+  begin: (minutes: number, activity?: Activity, tonicItemId?: string) => void;
   pause: () => void;
   resume: () => void;
   abandon: () => void;
@@ -267,7 +267,7 @@ export function GameProvider({
   /* ------------------------------------------------------------- commands */
 
   const begin = useCallback(
-    (minutes: number, activity?: Activity) => {
+    (minutes: number, activity?: Activity, tonicItemId?: string) => {
       const id = crypto.randomUUID();
       const at = serverNow();
       setLastSettled(null);
@@ -302,6 +302,7 @@ export function GameProvider({
             ruleset,
             deviceId: device.current,
             activity,
+            tonicItemId,
           }),
         () => {
           /**

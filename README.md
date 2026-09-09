@@ -65,6 +65,8 @@ prestige player ever sees.
 | Slaying contract targets | `src/lib/game/contracts.ts` |
 | One button per action | `src/components/GameActions.tsx`, `ActionButton.tsx` |
 | Reading equipped uniques' effects | `loadModifiers` in `src/lib/activity-service.ts` |
+| What potions do: wards and tonics | `src/lib/game/potions.ts` |
+| Salvage to stones, and trading down | `salvageStoneYield`, `exchangeStones` |
 | The balance audit | `scripts/game-audit.mjs` |
 | Does the live schema match the code | `scripts/schema-check.mjs` |
 | The generated wiki | `src/app/wiki/`, `src/lib/wiki/` |

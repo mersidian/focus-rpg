@@ -2,7 +2,15 @@ import "server-only";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { db } from "./db";
 import { equipmentInstances, slayingContracts, skillStates, wallets } from "./db/schema";
-import { append, adjustWallet, bankUsage, have, loadWallet, logCollected } from "./inventory-service";
+import {
+  append,
+  adjustWallet,
+  bankUsage,
+  have,
+  loadWallet,
+  logCollected,
+  type Grant,
+} from "./inventory-service";
 import {
   BANK_SLOTS_MAX,
   BANK_SLOT_BLOCK,
@@ -14,7 +22,8 @@ import {
   sellPrice,
   FUEL_CAP_BASE,
 } from "./game/economy";
-import { generateCatalogue } from "./game/items";
+import { generateCatalogue, STONE_KINDS } from "./game/items";
+import { salvageStones } from "./game/economy";
 import { percentile, band, type ItemSpec, type Slot } from "./game/power";
 import type { Style } from "./game/archetypes";
 import type { Quality } from "./game/quality";
@@ -161,6 +170,70 @@ export function shopStock(maxTier: number) {
     .filter((i) => STOCKED.has(i.cls) && i.tier <= maxTier)
     .map((i) => ({ ...i, price: buyPrice(i.tier, i.cls) }))
     .sort((a, b) => a.cls.localeCompare(b.cls) || a.tier - b.tier);
+}
+
+/* ------------------------------ stone exchange ----------------------------- */
+
+/**
+ * Trade upgrade stones down a tier, never up.
+ *
+ * Downward-only is the whole point. Stones matched to a tier are what gate
+ * refinement, so an upward exchange would let a hoard of tier-1 junk refine a
+ * Mythic weapon and the cost curve — which carries the entire refinement axis,
+ * since refinement never fails — would stop meaning anything.
+ */
+export async function exchangeStones(
+  userId: string,
+  fromTier: number,
+  toTier: number,
+  qty: number,
+): Promise<ShopResult> {
+  if (toTier >= fromTier) {
+    return { ok: false, reason: "Stones only trade downward." };
+  }
+  const n = Math.max(1, Math.trunc(qty));
+  const ids = STONE_KINDS.map((k) => `stone:${k}:${fromTier}`);
+  const held = await have(userId, ids);
+  const total = ids.reduce((sum, id) => sum + Math.max(0, held.get(id) ?? 0), 0);
+  if (total < n) return { ok: false, reason: `You have ${total} tier ${fromTier} stones.` };
+
+  const out = salvageStones(fromTier, toTier) * n;
+  const spend: Grant[] = [];
+  let left = n;
+  for (const id of ids) {
+    if (left <= 0) break;
+    const take = Math.min(left, Math.max(0, held.get(id) ?? 0));
+    if (take > 0) {
+      spend.push({ itemId: id, delta: -take, reason: "exchanged" });
+      left -= take;
+    }
+  }
+  spend.push({
+    itemId: `stone:${STONE_KINDS[toTier % STONE_KINDS.length]}:${toTier}`,
+    delta: out,
+    reason: "exchanged",
+  });
+  await append(userId, spend);
+  return { ok: true, note: `${n} tier ${fromTier} → ${out} tier ${toTier}.` };
+}
+
+/** Salvage pays coins or stones. Set once, and it applies to found gear only. */
+export async function setSalvageOutput(
+  userId: string,
+  output: "coins" | "stones",
+): Promise<ShopResult> {
+  const wallet = await loadWallet(userId);
+  await db
+    .update(wallets)
+    .set({ salvageOutput: output, version: wallet.version + 1 })
+    .where(eq(wallets.userId, userId));
+  return {
+    ok: true,
+    note:
+      output === "stones"
+        ? "Salvage now pays upgrade stones at the item's own tier."
+        : "Salvage now pays coins.",
+  };
 }
 
 /* -------------------------------- contracts -------------------------------- */

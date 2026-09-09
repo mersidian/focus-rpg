@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { listActivityOffers } from "@/lib/actions";
+import { listActivityOffers, listTonics } from "@/lib/actions";
 import type { Activity } from "@/lib/game/activity";
 import { activityKey } from "@/lib/game/activity";
 import type { ActivityOffer } from "@/lib/activity-service";
@@ -19,14 +19,21 @@ import type { ActivityOffer } from "@/lib/activity-service";
  * option and always valid. V1's timer worked without a game and has to keep
  * working; nothing here may stand between the user and pressing start.
  */
+type Tonic = { itemId: string; name: string; qty: number; does: string };
+
 export function ActivityPicker({
   value,
   onChange,
+  tonic,
+  onTonic,
 }: {
   value: Activity | null;
   onChange: (activity: Activity | null) => void;
+  tonic: string | null;
+  onTonic: (itemId: string | null) => void;
 }) {
   const [offers, setOffers] = useState<ActivityOffer[] | null>(null);
+  const [tonics, setTonics] = useState<Tonic[] | null>(null);
   const [open, setOpen] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -41,6 +48,13 @@ export function ActivityPicker({
         // The game is decoration on the timer. If the list cannot load, the
         // session must still be startable.
         if (live) setFailed(true);
+      });
+    listTonics()
+      .then((rows) => {
+        if (live) setTonics(rows);
+      })
+      .catch(() => {
+        if (live) setTonics([]);
       });
     return () => {
       live = false;
@@ -99,6 +113,39 @@ export function ActivityPicker({
           )}
 
           {offers !== null && <OfferList offers={offers} value={value} onPick={(a) => { onChange(a); setOpen(false); }} />}
+
+          {tonics !== null && tonics.length > 0 && (
+            <div className="mt-6">
+              <p className="text-[12px] text-faint">
+                Drink one with it? Spent when the session starts, whatever happens to it.
+              </p>
+              <button
+                type="button"
+                onClick={() => onTonic(null)}
+                className="flex w-full items-baseline justify-between gap-4 border-b border-rule py-2 text-left text-[13px]"
+              >
+                <span className={tonic === null ? "" : "text-dim"} style={tonic === null ? { color: "var(--tier)" } : undefined}>
+                  Nothing
+                </span>
+              </button>
+              {tonics.map((t) => (
+                <button
+                  key={t.itemId}
+                  type="button"
+                  onClick={() => onTonic(t.itemId)}
+                  className="flex w-full items-baseline justify-between gap-4 border-b border-rule py-2 text-left text-[13px]"
+                >
+                  <span
+                    className={tonic === t.itemId ? "" : "text-dim"}
+                    style={tonic === t.itemId ? { color: "var(--tier)" } : undefined}
+                  >
+                    {t.name} <span className="text-faint">×{t.qty}</span>
+                  </span>
+                  <span className="shrink-0 text-[12px] text-faint">{t.does}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </section>

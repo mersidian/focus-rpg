@@ -15,7 +15,7 @@ import { RARITIES, spawnPower, successChance, wheelFactor, resolveCombat, ration
 import { allVariants, allAreas, areasIn } from "../src/lib/game/variants.ts";
 import { BIOMES } from "../src/lib/game/biomes.ts";
 import { SKILL_XP, skillLevel, tierSkillRequirement } from "../src/lib/game/skills.ts";
-import { refineTotal, bankSlotsTotalCost, tierValue, ammoUnitPrice } from "../src/lib/game/economy.ts";
+import { refineTotal, bankSlotsTotalCost, tierValue, ammoUnitPrice, sellPrice, rationPrice } from "../src/lib/game/economy.ts";
 import { rng } from "../src/lib/game/rng.ts";
 import { resolveYield } from "../src/lib/game/yield.ts";
 
@@ -115,7 +115,9 @@ for (const [len, t] of [[25, 6], [25, 12], [50, 12], [25, 24]]) {
   line(`  ${len}min in ${area.name} (t${area.tier}), tier ${t} gear: ${r.kills} kills, ${r.failures} failures, loot ${r.lootWeight.toFixed(0)}, rations ${r.rationsUsed}`);
 }
 
-line("\n=== UPKEEP: what a session actually costs ===");
+line("\n=== UPKEEP AND NET, 25min at tier 12 ===");
+line("  Gunfire should sit at the TOP of net: it is the style you switch to when");
+line("  flush, so there has to be something on the other side of the bill.");
 for (const style of STYLES) {
   const t = 12;
   const area = areasIn(BIOMES.find((b) => b.tierLo <= t && b.tierHi >= t) ?? BIOMES[0])[4];
@@ -126,7 +128,13 @@ for (const style of STYLES) {
     rng: rng(`upkeep:${style}`),
   });
   const unit = ammoUnitPrice(t, style);
-  line(`  ${style.padEnd(7)} 25min: ${String(r.kills).padStart(3)} kills, ${String(r.ammoUsed).padStart(3)} ammo (${(r.ammoUsed * unit).toLocaleString()} coins), ${r.rationsUsed} rations`);
+  const ammoCoins = r.ammoUsed * unit;
+  // What a kill grosses: one part sold plus the coins it drops.
+  const grossPerKill = sellPrice(t, "part") + Math.round(tierValue(t) * 0.25 * 1.2);
+  const net = r.kills * grossPerKill - ammoCoins - r.rationsUsed * rationPrice(t);
+  line(
+    `  ${style.padEnd(7)} ${String(r.kills).padStart(3)} kills · ammo ${String(ammoCoins).padStart(5)} · rations ${String(r.rationsUsed).padStart(2)} · NET ${net.toLocaleString().padStart(6)}`,
+  );
 }
 
 line("\n=== GATHERING ===");

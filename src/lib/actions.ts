@@ -27,7 +27,13 @@ import {
   type Reconciliation,
 } from "./session-service";
 import { evaluateAchievements, setWornTitle } from "./achievements/service";
-import { chooseActivity, offers, resolveActivity, type Activity } from "./activity-service";
+import {
+  chooseActivity,
+  offers,
+  resolveActivity,
+  tonicsHeld,
+  type Activity,
+} from "./activity-service";
 import { refineItem } from "./refine-service";
 import { craftItem } from "./craft-service";
 import { equipItem, repairAll, unequipSlot } from "./equip-service";
@@ -38,6 +44,8 @@ import {
   buyStock,
   sellInstance,
   sellStack,
+  setSalvageOutput,
+  exchangeStones,
   takeContract,
 } from "./shop-service";
 import { buyPlot, harvestPlot, sowPlot } from "./farm-service";
@@ -102,6 +110,7 @@ export async function startSession(input: {
    * its roll was known.
    */
   activity?: Activity;
+  tonicItemId?: string;
 }): Promise<Snapshot> {
   const userId = await requireUserId();
 
@@ -163,6 +172,11 @@ export async function startSession(input: {
 /** Everything selectable right now, with the gate already evaluated. */
 export async function listActivityOffers() {
   return offers(await requireUserId());
+}
+
+/** Tonics on hand, so one can be drunk with the session that is about to start. */
+export async function listTonics() {
+  return tonicsHeld(await requireUserId());
 }
 
 /**
@@ -291,6 +305,21 @@ export async function harvestPlotAction(slot: number) {
     revalidatePath("/game/farm");
     revalidatePath("/game/bank");
   }
+  return result;
+}
+
+export async function setSalvageOutputAction(output: "coins" | "stones") {
+  const userId = await requireUserId();
+  const result = await setSalvageOutput(userId, output);
+  revalidatePath("/game/bank");
+  revalidatePath("/game/shop");
+  return result;
+}
+
+export async function exchangeStonesAction(fromTier: number, toTier: number, qty: number) {
+  const userId = await requireUserId();
+  const result = await exchangeStones(userId, fromTier, toTier, qty);
+  if (result.ok) revalidatePath("/game/shop");
   return result;
 }
 

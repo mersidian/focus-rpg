@@ -98,13 +98,19 @@ export const REFINE_ALWAYS_SUCCEEDS = true;
  * lands near 4% of gross for a bow, 11% for runes and 40% for a firearm, which
  * a gun pays for with the throughput and conversion it already has.
  *
+ * A firearm fires ONE expensive round rather than two cheap ones (see
+ * `AMMO_PER_KILL`). Two rounds a kill put gun a third behind every other style
+ * on net coin, which is not "expensive" so much as strictly worse; one dearer
+ * round keeps the per-shot cost more than double a rune while landing gun's net
+ * beside the rest.
+ *
  * Re-run the audit after touching these.
  */
 export const AMMO_COST: Record<Style, number> = {
   melee: 0,
   ranged: 0.12,
-  magic: 0.3,
-  gun: 0.55,
+  magic: 0.45,
+  gun: 0.7,
 };
 
 export function ammoUnitPrice(t: number, style: Style): number {
@@ -160,5 +166,29 @@ export function bankSlotsTotalCost(): number {
 export function salvageStones(t: number, targetTier: number): number {
   if (targetTier > t) return 0;
   const drop = t - targetTier;
-  return Math.max(1, Math.round((tier(t).power / tier(targetTier).power) * Math.pow(0.82, drop)));
+  // The fair rate is the ratio of tier powers — a tier-20 stone is worth six
+  // tier-10 ones — and the exchange keeps a cut of it, 4% per tier crossed.
+  //
+  // The first version of this penalised 18% per tier, which almost exactly
+  // cancelled the power curve's own 20% per tier: every trade at every distance
+  // came out at one stone, so trading down was never worth doing and the whole
+  // exchange was decoration. `game-audit.mjs` would not have caught that; a test
+  // asking "is a deep stone worth more than one shallow one" did.
+  return Math.max(1, Math.round((tier(t).power / tier(targetTier).power) * Math.pow(0.96, drop)));
+}
+
+/**
+ * Stones from salvaging one piece of equipment, at the item's own tier.
+ *
+ * This is the second faucet upgrade stones needed. Before it they came from
+ * Slaying — deliberately the slowest reward source in the design — and from the
+ * coin shop, which also sells bank slots, the largest coin sink. So the deepest
+ * gear axis was funded by money and competed directly with the sink the economy
+ * is built around; where you fought had nothing to do with it.
+ *
+ * A better roll salvages for more, which gives the auto-salvage threshold a
+ * second meaning: the junk you set it to eat is also what pays for refinement.
+ */
+export function salvageStoneYield(t: number, percentile: number): number {
+  return Math.max(1, Math.round(2 + Math.min(1, Math.max(0, percentile)) * 3));
 }

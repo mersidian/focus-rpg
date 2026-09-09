@@ -42,6 +42,7 @@ export function TimerScreen() {
    * thing, and the gate is re-checked server-side each time regardless.
    */
   const [activity, setActivity] = useState<Activity | null>(null);
+  const [tonic, setTonic] = useState<string | null>(null);
   const now = serverNow();
 
   const verdict = useMemo(() => {
@@ -89,6 +90,8 @@ export function TimerScreen() {
           onChoose={setChoice}
           activity={activity}
           onActivity={setActivity}
+          tonic={tonic}
+          onTonic={setTonic}
         />
       )}
       <LevelUpOverlay />
@@ -104,11 +107,15 @@ function Idle({
   onChoose,
   activity,
   onActivity,
+  tonic,
+  onTonic,
 }: {
   choice: number;
   onChoose: (n: number) => void;
   activity: Activity | null;
   onActivity: (a: Activity | null) => void;
+  tonic: string | null;
+  onTonic: (t: string | null) => void;
 }) {
   const { snapshot, ruleset, begin, pending, error, clearError, lastSettled } = useGame();
   const { state } = snapshot;
@@ -236,11 +243,11 @@ function Idle({
           })}
         </div>
 
-        <ActivityPicker value={activity} onChange={onActivity} />
+        <ActivityPicker value={activity} onChange={onActivity} tonic={tonic} onTonic={onTonic} />
 
         <button
           type="button"
-          onClick={() => begin(choice, activity ?? undefined)}
+          onClick={() => begin(choice, activity ?? undefined, tonic ?? undefined)}
           disabled={pending}
           className="mt-6 w-full rounded-sm px-6 py-4 text-[15px] font-medium text-ground transition-opacity disabled:opacity-50"
           style={{ backgroundColor: "var(--tier)" }}

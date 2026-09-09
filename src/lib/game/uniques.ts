@@ -34,7 +34,17 @@ const u = (
   source?: string,
 ): Unique => ({ name, slot, style, tier, effect, source });
 
-const d = (text: string): Effect => ({ kind: "descriptive", text });
+/**
+ * `descriptive` is still part of the type, deliberately: a future unique may be
+ * named before its mechanism exists, and saying so is better than pretending.
+ * Nothing uses it today.
+ *
+ * Eight did, and they were replaced rather than built. Each needed a whole
+ * mechanism for one item — hidden areas, spawn suppression, a reroll economy —
+ * and one of them, Gale Warden's Wings ("ignores one key-item gate"), could not
+ * be built at all: a gate is a tier number, and nothing may move what it asks
+ * for. The names were worth keeping and the effects were not.
+ */
 
 export const UNIQUES: Unique[] = [
   /* ------------------------------------------------ melee weapons — 30 */
@@ -76,10 +86,10 @@ export const UNIQUES: Unique[] = [
   u("Bramblewretch Sling", "weapon", "ranged", 5, { kind: "freeAmmoOnKill" }, "Bramblewretch"),
   u("Old Poacher's Kit", "weapon", "ranged", 7, { kind: "dropRate", pct: 14 }),
   u("Thornsovereign Bow", "weapon", "ranged", 11, { kind: "bankSlots", slots: 15 }, "Thornsovereign"),
-  u("Fenlantern", "weapon", "ranged", 7, d("reveals a hidden area in each biome"), "Fenlantern"),
+  u("Fenlantern", "weapon", "ranged", 7, { kind: "dropRate", pct: 14 }, "Fenlantern"),
   u("Wrackmaiden's Line", "weapon", "ranged", 9, { kind: "yield", pct: 25, skill: "fishing" }, "Wrackmaiden"),
   u("Mirrorstride", "weapon", "ranged", 13, { kind: "rollTwice" }, "Mirrorstride"),
-  u("Whisper-Nock", "weapon", "ranged", 19, d("elites never spawn while it is equipped"), undefined),
+  u("Whisper-Nock", "weapon", "ranged", 19, { kind: "throughput", pct: 18 }),
   u("Scarborn Recurve", "weapon", "ranged", 21, { kind: "offence", pct: 20 }, "Scarborn"),
   u("Gale Warden's Arc", "weapon", "ranged", 17, { kind: "throughput", pct: 20 }, "The Gale Warden"),
   u("Hare-Foot Sling", "weapon", "ranged", 2, { kind: "throughput", pct: 28 }, "The Gilded Hare"),
@@ -113,7 +123,7 @@ export const UNIQUES: Unique[] = [
   u("Void Sermon", "weapon", "magic", 22, { kind: "offence", pct: 28 }),
   u("Brinescuttle Focus", "weapon", "magic", 4, { kind: "skillXp", pct: 12 }, "Brinescuttle"),
   u("Rime Sigil", "weapon", "magic", 12, { kind: "defence", pct: 12 }, "Rimehowl"),
-  u("White Elk Antler", "weapon", "magic", 12, d("grants a Slaying contract reroll each day"), "The White Elk"),
+  u("White Elk Antler", "weapon", "magic", 12, { kind: "skillXp", pct: 18, skill: "slaying" }, "The White Elk"),
   u("Thistlemaw Wand", "weapon", "magic", 2, { kind: "yield", pct: 10 }, "Thistlemaw"),
   u("Pale Tide Orb", "weapon", "magic", 4, { kind: "yield", pct: 14, skill: "fishing" }, "The Pale Tide"),
   u("Rootbound Staff", "weapon", "magic", 5, { kind: "yield", pct: 14, skill: "woodcutting" }, "Old Rootfang"),
@@ -160,7 +170,7 @@ export const UNIQUES: Unique[] = [
   /* ------------------------------------------------------ armour — 52 */
   u("Thistlemaw Hide", "body", "ranged", 2, { kind: "yield", pct: 10 }, "Thistlemaw"),
   u("Cloak of the Wild Hunt", "cape", null, 11, { kind: "chainLink", links: 1 }, "The Wild Hunt"),
-  u("Hollow-Antler Helm", "head", "melee", 4, d("shows spawn rarity before the kill resolves"), "Hollow-Antler"),
+  u("Hollow-Antler Helm", "head", "melee", 4, { kind: "dropRate", pct: 10 }, "Hollow-Antler"),
   u("Third Shift Boots", "boots", "melee", 6, { kind: "throughput", pct: 12 }, "The Third Shift"),
   u("Drowned Choir Mantle", "cape", "magic", 9, { kind: "freeRations" }, "The Drowned Choir"),
   u("Rimehowl Pelt", "body", "ranged", 12, { kind: "defence", pct: 15 }, "Rimehowl"),
@@ -168,12 +178,12 @@ export const UNIQUES: Unique[] = [
   u("Kneeling Saint's Habit", "body", "magic", 15, { kind: "refineDiscount", pct: 100 }, "The Kneeling Saint"),
   u("Sporecrown Cowl", "head", "magic", 14, { kind: "yield", pct: 14, skill: "foraging" }, "Sporecrown"),
   u("Emberthrone Plate", "body", "melee", 8, { kind: "freeDurability" }, "Emberthrone"),
-  u("Gale Warden's Wings", "cape", null, 17, d("ignores one key-item gate"), "The Gale Warden"),
+  u("Gale Warden's Wings", "cape", null, 17, { kind: "throughput", pct: 16 }, "The Gale Warden"),
   u("Blackvein Gauntlets", "gloves", "melee", 10, { kind: "yield", pct: 18, skill: "mining" }, "Blackvein"),
-  u("Voidscar Shroud", "cape", null, 21, d("hides you from elites entirely"), "Scarborn"),
+  u("Voidscar Shroud", "cape", null, 21, { kind: "defence", pct: 20 }, "Scarborn"),
   u("Sand Sermon Wraps", "gloves", "magic", 13, { kind: "yield", pct: 20, skill: "excavation" }, "The Sand Sermon"),
   u("Last Light Crown", "head", null, 24, { kind: "skillXp", pct: 15 }, "The Last Light"),
-  u("Fenlantern Lamp-Harness", "body", "gun", 7, d("reveals area requirements before entry"), "Fenlantern"),
+  u("Fenlantern Lamp-Harness", "body", "gun", 7, { kind: "yield", pct: 12 }, "Fenlantern"),
   u("Mirrorstride Sabatons", "boots", "ranged", 13, { kind: "rollTwice" }, "Mirrorstride"),
   u("Rootfang Bracers", "gloves", "melee", 5, { kind: "yield", pct: 15, skill: "woodcutting" }, "Old Rootfang"),
   u("Pale Tide Scale", "body", "melee", 4, { kind: "defence", pct: 12 }, "The Pale Tide"),
@@ -226,7 +236,7 @@ export const UNIQUES: Unique[] = [
   u("Old Rootfang's Knot", "ring", null, 5, { kind: "yield", pct: 12, skill: "woodcutting" }, "Old Rootfang"),
   u("Sand Sermon Scarab", "ring", null, 13, { kind: "dropRate", pct: 16 }, "The Sand Sermon"),
   u("Blackvein Nugget", "ring", null, 10, { kind: "yield", pct: 20, skill: "mining" }, "Blackvein"),
-  u("White Elk Token", "amulet", null, 12, d("one free Slaying contract skip each week"), "The White Elk"),
+  u("White Elk Token", "amulet", null, 12, { kind: "skillXp", pct: 12, skill: "slaying" }, "The White Elk"),
   u("Pale Tide Shell", "ring", null, 4, { kind: "defence", pct: 10 }, "The Pale Tide"),
   u("Fenlantern Wick", "ring", null, 7, { kind: "dropRate", pct: 18 }, "Fenlantern"),
   u("Last Light Circlet", "amulet", null, 24, { kind: "dropRate", pct: 30 }, "The Last Light"),

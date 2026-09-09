@@ -19,7 +19,14 @@ import { groupNumber } from "@/lib/format";
 import { shopStock } from "@/lib/shop-service";
 import { tierForHours } from "@/lib/game/tiers";
 import { loadState } from "@/lib/game-state";
-import { BuyButton, BuyFuelCapButton, BuySlotsButton } from "@/components/GameActions";
+import {
+  BuyButton,
+  BuyFuelCapButton,
+  BuySlotsButton,
+  ExchangeStonesButton,
+  SalvageOutputButtons,
+} from "@/components/GameActions";
+import { balances } from "@/lib/inventory-service";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +42,16 @@ export default async function ShopPage() {
   // something to save for.
   const openTier = Math.min(24, tierForHours(state.lifetimeFocusedMs / 3_600_000) + 1);
   const stock = shopStock(openTier);
+
+  // Which stone tiers are actually held, so the exchange only offers real trades.
+  const held = await balances(session.user.id);
+  const stoneTiers = [
+    ...new Set(
+      [...held.entries()]
+        .filter(([id, qty]) => id.startsWith("stone:") && qty > 0)
+        .map(([id]) => Number(id.split(":")[2])),
+    ),
+  ].sort((a, b) => a - b);
   const capStep = Math.max(0, Math.round((wallet.fuelCap - FUEL_CAP_BASE) / FUEL_CAP_STEP));
 
   return (
@@ -57,6 +74,22 @@ export default async function ShopPage() {
         <div className="mt-4 flex flex-wrap gap-4">
           <BuySlotsButton />
           <BuyFuelCapButton />
+        </div>
+        <div className="mt-5 space-y-3 border-t border-rule pt-4">
+          <SalvageOutputButtons current={wallet.salvageOutput} />
+          <p className="max-w-2xl text-[13px] leading-relaxed text-faint">
+            Upgrade stones had one faucet — this shop — which also sells bank slots, the largest
+            coin sink in the game. So refinement, the deepest gear axis, was funded by money and
+            competed with the sink the economy is built around. Set salvage to stones and the junk
+            your threshold already ate pays for refinement instead.
+          </p>
+          <div>
+            <ExchangeStonesButton tiers={stoneTiers} />
+            <p className="mt-2 text-[12px] text-faint">
+              Downward only, and at a cut. Trading up would let a hoard of tier-1 junk refine a
+              Mythic weapon, and the cost curve is the whole of refinement.
+            </p>
+          </div>
         </div>
         <Rows
           head={["", "Now", "Next", "Cost"]}

@@ -33,7 +33,9 @@ export const AMMO_PER_KILL: Record<Style, number> = {
   melee: 0,
   ranged: 1,
   magic: 1,
-  gun: 2,
+  // One expensive round, not two cheap ones. See the note on AMMO_COST: two a
+  // kill left gun a third behind every other style on net coin.
+  gun: 1,
 };
 
 export type Rarity = "common" | "uncommon" | "elite" | "rare" | "legendary";

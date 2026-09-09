@@ -18,6 +18,8 @@ import {
   sowPlotAction,
   takeContractAction,
   unequipAction,
+  setSalvageOutputAction,
+  exchangeStonesAction,
 } from "@/lib/actions";
 
 /**
@@ -156,6 +158,69 @@ export function SowButton({
 
 export function HarvestButton({ slot }: { slot: number }) {
   return <ActionButton quiet label="Harvest" run={() => harvestPlotAction(slot)} />;
+}
+
+export function SalvageOutputButtons({ current }: { current: "coins" | "stones" }) {
+  return (
+    <span className="inline-flex flex-wrap items-baseline gap-4">
+      <span className="text-[12px] text-faint">
+        Salvage pays <span className="text-dim">{current}</span>
+      </span>
+      <ActionButton
+        quiet
+        label={current === "coins" ? "Pay stones instead" : "Pay coins instead"}
+        run={() => setSalvageOutputAction(current === "coins" ? "stones" : "coins")}
+      />
+    </span>
+  );
+}
+
+export function ExchangeStonesButton({ tiers }: { tiers: number[] }) {
+  const [from, setFrom] = useState(tiers[tiers.length - 1] ?? 2);
+  const [to, setTo] = useState(1);
+  const [qty, setQty] = useState(1);
+  if (tiers.length === 0) return <span className="text-[12px] text-faint">no stones</span>;
+  return (
+    <span className="inline-flex flex-wrap items-baseline gap-2">
+      <select
+        value={qty}
+        onChange={(e) => setQty(Number(e.target.value))}
+        aria-label="How many"
+        className="border-b border-rule bg-transparent py-0.5 text-[12px] text-dim outline-none"
+      >
+        {[1, 5, 20, 100].map((n) => (
+          <option key={n} value={n}>
+            ×{n}
+          </option>
+        ))}
+      </select>
+      <select
+        value={from}
+        onChange={(e) => setFrom(Number(e.target.value))}
+        aria-label="From tier"
+        className="border-b border-rule bg-transparent py-0.5 text-[12px] text-dim outline-none"
+      >
+        {tiers.map((t) => (
+          <option key={t} value={t}>
+            from t{t}
+          </option>
+        ))}
+      </select>
+      <select
+        value={to}
+        onChange={(e) => setTo(Number(e.target.value))}
+        aria-label="To tier"
+        className="border-b border-rule bg-transparent py-0.5 text-[12px] text-dim outline-none"
+      >
+        {Array.from({ length: Math.max(1, from - 1) }, (_, i) => i + 1).map((t) => (
+          <option key={t} value={t}>
+            to t{t}
+          </option>
+        ))}
+      </select>
+      <ActionButton quiet label="Trade down" run={() => exchangeStonesAction(from, to, qty)} />
+    </span>
+  );
 }
 
 export function TakeContractButton() {

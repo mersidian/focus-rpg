@@ -14,6 +14,9 @@
  * requires, or the greyed-out list starts lying about what you are missing.
  */
 import type { BiomeKey } from "./biomes";
+import { acceptableWards, type Ward } from "./potions";
+
+const ROMAN = ["I", "II", "III", "IV", "V", "VI"];
 
 export type Requirement = {
   /** Skill and the level of it. */
@@ -24,6 +27,14 @@ export type Requirement = {
   toolTier?: number;
   /** Rations that must be carried, and are spent on entry. */
   rations?: number;
+  /**
+   * A ward potion the biome's hazard demands, spent on entry (§15.4).
+   *
+   * This is what finally puts contents inside §7's already-decided but empty
+   * "consumables spent on entry" clause — and the only thing that gives Alchemy
+   * a customer.
+   */
+  ward?: { ward: string; step: number; qty: number };
   /** A key item, found elsewhere. */
   keyItem?: BiomeKey;
   /** V1 character level, the one seam into the shipped ladder. */
@@ -35,6 +46,8 @@ export type GateState = {
   equipmentTier: number;
   toolTier: Record<string, number>;
   rations: number;
+  /** Potion holdings by item id, so a ward requirement can be checked. */
+  potions: Map<string, number>;
   keyItems: BiomeKey[];
   characterLevel: number;
 };
@@ -72,6 +85,16 @@ export function checkGate(req: Requirement, state: GateState, skillLabel = (k: s
   }
   if (req.rations && state.rations < req.rations) {
     missing.push(`${req.rations} rations (you have ${state.rations})`);
+  }
+  if (req.ward) {
+    const accepted = acceptableWards(req.ward.ward as Ward, req.ward.step);
+    const held = accepted.reduce((n, id) => n + (state.potions.get(id) ?? 0), 0);
+    if (held < req.ward.qty) {
+      missing.push(
+        `${req.ward.qty} × ${req.ward.ward} ${ROMAN[req.ward.step - 1] ?? req.ward.step}` +
+          (held > 0 ? ` (you have ${held})` : ""),
+      );
+    }
   }
   if (req.keyItem && !state.keyItems.includes(req.keyItem)) {
     missing.push(KEY_LABEL[req.keyItem]);

@@ -425,6 +425,14 @@ export const sessionActivities = pgTable(
     area: integer("area"),
     /** The style fought as, so a recompute need not guess at the loadout. */
     style: text("style").$type<"melee" | "ranged" | "magic" | "gun">(),
+    /**
+     * A tonic drunk with the activity, spent at entry (§15.4).
+     *
+     * Stored rather than re-derived because it is a decision: the potion is gone
+     * the moment the session starts, and a resolution has to know what was paid
+     * for even if the bank no longer shows it.
+     */
+    tonicItemId: text("tonic_item_id"),
     /** Resolved once, on completion, and never again. */
     resolvedAt: timestamp("resolved_at", { mode: "date", withTimezone: true }),
     /**
@@ -479,6 +487,7 @@ export const inventoryEntries = pgTable(
         | "consumed"
         | "refine_cost"
         | "salvage"
+      | "exchanged"
         | "gate_entry"
         | "correction"
       >()

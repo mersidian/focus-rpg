@@ -500,6 +500,26 @@ reliably convert.
 **Luck belongs on trinkets** — explicit drop-rate modifiers you trade a slot for, never a
 passive consequence of tier.
 
+### Consumables: wards and tonics — **BUILT**
+
+§9 budgeted ~360 consumables and defined the effect of not one of them. Alchemy was a full
+processing skill with a fuel cost and **no customer anywhere in the design**, and rations were
+eaten only by failed kills — so a pure gatherer bought nothing, ever. Both halves of the fix
+live in `game/potions.ts`.
+
+**Wards — six of the thirty lines.** Fifteen biomes carry a hazard and will not admit you
+without the ward it demands, at a step matched to the biome's depth, spent on entry. Binary,
+named in the greyed-out gate, no RNG. The first five biomes ask for none: a gate that wants a
+potion before Alchemy exists is a wall, not a gate. A boss wants one more than its biome does.
+
+**Tonics — the other twenty-four.** One may be drunk with the activity, and its effect folds
+into the session exactly as an equipped unique's does. Every one maps to a kind `effects.ts`
+already reads, which is the point — a potion needing a seventeenth effect kind would be a
+potion that did nothing. Spent at entry, so abandoning does not give it back.
+
+Cut, as the proposal cut them: graded magnitudes on gear bands, a pace modifier, and any luck
+effect — luck belongs on trinkets (§7).
+
 ### Ammunition — **BUILT**
 
 Every style except melee consumes something, and the cost ladder is what makes the four
@@ -517,16 +537,20 @@ grosses roughly 63 coins in parts and coin:
 
 | Style | Kills | Ammunition | Net |
 |---|---|---|---|
-| Melee | 34 | none | ~2,140 |
-| Ranged | 39 | 123 coins | ~2,330 |
-| Magic | 52 | 371 coins | ~2,900 |
-| Gun | 53 | 1,344 coins | ~2,000 |
+| Melee | 34 | none | 1,957 |
+| Ranged | 39 | 123 | 2,260 |
+| Magic | 52 | 530 | 2,709 |
+| **Gun** | **63** | **1,024** | **2,871** |
 
-So gunfire is the **worst style for farming commons and the best for hunting rare things**: it
-kills most and nets least, and it pays for itself only on the spawns its conversion can reach
-that melee's cannot. That is the trade, and it is the shape the first set of numbers did not
-have — the audit priced a gun session at 5,488 coins against a thousand coins of kills, which
-is not an expensive style but an unusable one.
+**Gunfire sits at the top of net, and that is deliberate.** It is the style you switch to when
+you are flush, so there has to be something on the other side of the bill — a style that costs
+most and earns least is not expensive, it is strictly worse. It gets there on offence (1.55
+against melee's 1.00), which buys both kills and conversion on the rare spawns melee cannot
+touch, and it pays for that with the thinnest coat in the game and the dearest rounds.
+
+Two versions of these numbers were wrong before this one, and `game-audit.mjs` caught both: the
+first priced a gun session at 5,488 coins against a thousand coins of kills, and the second
+left gun fourth of four on net. The audit prints the net ladder for exactly this reason.
 
 - **Damage scales with upkeep.** Melee is the zero-cost style with the lowest ceiling; guns
   are the opposite. Choosing a style therefore becomes an *economic* decision as well as a
@@ -1103,14 +1127,16 @@ every V1 screen becomes half-game, and the screens that currently do one job wel
 
 ---
 
-## 13. Open questions
+## 13. Open questions — none
 
-1. **The four researched proposals in §15** — each fills a verified hole and costs almost no
-   items, but none is decided.
-2. **Eight uniques are named but not wired.** Of the 250, eight carry a `descriptive` effect —
-   named, intended, and doing nothing, because the engine has no way to express them yet
-   (revealing a hidden area, suppressing elite spawns, a contract reroll). They say so rather
-   than pretending; `effects.ts` types the other 242.
+Everything is decided and everything is built. The four researched proposals of
+§15 are in, the eight prose-only unique effects are typed, and the ~360
+consumables that had no purpose now have one.
+
+What is left is not a question but a horizon: the design has never been *played*
+for a month, and no amount of speccing tells you whether choosing an activity
+before a 25-minute session actually feels good. That is what use will say, and
+nothing else can.
 
 ---
 
@@ -1171,7 +1197,7 @@ throughput term at all** — gear-side throughput has no home.
 Both holes are real defects in the design as it stands, whether or not the proposals below are
 taken.
 
-### 15.2 Proposal A — handedness, kill-time and throughput on the archetype rows
+### 15.2 Proposal A — handedness, kill-time and throughput on the archetype rows — **BUILT**
 
 Add `hands: 1 | 2`, `killTime`, `powerPerKill` and one `role` field to the 24 weapon-archetype
 rows. Two-handed forgoes the offhand slot and buys throughput or conversion in return; the
@@ -1185,7 +1211,7 @@ offhand finally means something.
   presets mandatory — 25% wrong style versus 80% right, across ten slots and four styles — so this
   is not new debt.
 
-### 15.3 Proposal B — `wheelStep` on the biome variant
+### 15.3 Proposal B — `wheelStep` on the biome variant — **BUILT**
 
 One generated field, `wheelStep: -1 | 0 | +1`, on each of the ~1,800 variants, derived from
 (family × biome tier band × skill affinity). **Static, never rolled per spawn, visible before the
@@ -1198,7 +1224,7 @@ timer starts.** A Rime Wolf and an Ashen Wolf then genuinely differ in what they
   reason it did in commit `f5692bf`.
 - **Objection:** it is one more thing to read before a session, on a screen that must stay glanceable.
 
-### 15.4 Proposal C — the entry-consumable gate rows
+### 15.4 Proposal C — the entry-consumable gate rows — **BUILT**
 
 A 20-row *biome hazard → required consumable* mapping, which finally puts contents inside §7's
 already-decided but **empty** *"consumables (spent on entry)"* gate clause. The 40 boss gate rows
@@ -1214,7 +1240,7 @@ generate from it.
 - **Cut from the proposal:** graded magnitudes, a pace modifier, and any luck effect — luck belongs
   on trinkets (§7).
 
-### 15.5 Proposal D — salvage to stones
+### 15.5 Proposal D — salvage to stones — **BUILT**
 
 One set-once `output: coins | stones` field on the auto-salvage rules, defaulting to coins, plus a
 batched **downward-only** exchange at the shop and one `salvageYield` formula. Deferred to **E5**.

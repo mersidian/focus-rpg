@@ -11,7 +11,7 @@ checks below before pushing anything.
 ## Before pushing
 
 ```bash
-npm test                   # 306 unit tests, no database needed
+npm test                   # 316 unit tests, no database needed
 node --env-file=.env.local scripts/schema-check.mjs   # the live schema matches the code
 npm run test:integration   # 35 probes against the real database
 npx tsc --noEmit
@@ -87,6 +87,14 @@ before `git push`, and this says whether it took.
   economic did not exist. Same for durability: `resolveCombat` returned `durabilityUsed` and
   nothing applied it, so gear never wore and `repairAll` had nothing to mend. If a number
   describes a price, something has to charge it.
+- **Consumables are spent at ENTRY, not at resolution.** Wards and tonics leave the bank when
+  the session starts, so abandoning does not give them back — that is what "spent on entry"
+  means, and it is what makes the cost real. `chooseActivity` re-checks the gate before
+  spending, because `offers` ran against holdings a client cannot be trusted to still have.
+- **Gunfire must sit at the top of the net ladder.** It is the style you switch to when flush,
+  so there has to be something on the other side of the bill; a style that costs most and earns
+  least is not expensive, it is strictly worse. `game-audit.mjs` prints net per style and has
+  now caught two wrong versions of these numbers.
 - **Spend from what is held, never from an id you assume exists.** Rations were spent from
   `ration:{areaTier}` while the gate counted them at any tier, so fighting a tier-9 area with
   tier-3 rations passed the gate and then drove the balance negative. Rations, ammunition and

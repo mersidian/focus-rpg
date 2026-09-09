@@ -78,14 +78,19 @@ export const TOTAL_SLOT_BASE = SLOTS.reduce((n, s) => n + SLOT_BASE[s], 0);
 
 /**
  * Offence and defence per style. The spread is the cost ladder made numeric:
- * gun 1.35/0.70 against melee 1.00/1.15. A gun kills faster and folds sooner,
+ * gun 1.55/0.70 against melee 1.00/1.15. A gun kills faster and folds sooner,
  * and it pays for cartridges to do it.
+ *
+ * Gunfire is meant to come out AHEAD on net coin, not merely survive its own
+ * upkeep — it is the style you switch to when you are flush, and there has to be
+ * something on the other side of that. `game-audit.mjs` prints the net for each
+ * style; gun should sit at the top of it, and 1.35 left it fourth of four.
  */
 export const STYLE_AFFINITY: Record<Style, { offence: number; defence: number; modifier: number }> = {
   melee: { offence: 1.0, defence: 1.15, modifier: 1.0 },
   ranged: { offence: 1.1, defence: 0.95, modifier: 1.05 },
   magic: { offence: 1.2, defence: 0.8, modifier: 1.15 },
-  gun: { offence: 1.35, defence: 0.7, modifier: 1.0 },
+  gun: { offence: 1.55, defence: 0.7, modifier: 1.0 },
 };
 
 export function affinity(style: Style, slot: Slot): number {
