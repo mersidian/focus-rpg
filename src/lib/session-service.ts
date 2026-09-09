@@ -136,7 +136,7 @@ async function bankCompletion(
   const xp = Math.round(
     xpForLength(row.plannedMinutes) *
       xpMultiplier(prestige.stars) *
-      chainMultiplier(links),
+      chainMultiplier(links, row.plannedMinutes),
   );
   await db
     .update(focusSessions)
@@ -256,6 +256,18 @@ async function listProjects(userId: string): Promise<ProjectSummary[]> {
   }));
 }
 
+/**
+ * How much lookback the log needs to explain its own numbers.
+ *
+ * The chain is DERIVED, never stored (see CLAUDE.md), so the log works out each
+ * session's links from the sessions before it rather than reading a column. That
+ * means the oldest rows on a page need a few rows of context or their link count
+ * would be undercounted — and a wrong multiplier is worse than none. The chain
+ * caps at five links inside a ten-minute window, so twenty is far more than
+ * enough.
+ */
+const LOG_LOOKBACK = 20;
+
 export async function listLog(userId: string, limit = 60): Promise<LogEntry[]> {
   const rows = await db
     .select({
@@ -271,9 +283,17 @@ export async function listLog(userId: string, limit = 60): Promise<LogEntry[]> {
       ),
     )
     .orderBy(desc(focusSessions.startedAt))
-    .limit(limit);
+    .limit(limit + LOG_LOOKBACK);
 
-  return rows.map(({ s, projectName }) => ({
+  // Newest first from the query; `linksBefore` wants the same order, minus the
+  // session being asked about.
+  const history: ChainSession[] = rows.map(({ s }) => ({
+    status: s.status as ChainSession["status"],
+    startedAt: s.startedAt.getTime(),
+    endedAt: s.endedAt?.getTime() ?? null,
+  }));
+
+  return rows.slice(0, limit).map(({ s, projectName }, i) => ({
     id: s.id,
     plannedMinutes: s.plannedMinutes,
     ruleset: s.ruleset,
@@ -282,6 +302,11 @@ export async function listLog(userId: string, limit = 60): Promise<LogEntry[]> {
     endedAt: s.endedAt?.getTime() ?? null,
     xpAwarded: s.xpAwarded,
     baseXp: s.baseXp,
+    chainLinks: linksBefore(history.slice(i + 1), s.startedAt.getTime()),
+    chainMultiplier: chainMultiplier(
+      linksBefore(history.slice(i + 1), s.startedAt.getTime()),
+      s.plannedMinutes,
+    ),
     pauseCount: s.pauseCount,
     abandonReason: (s.abandonReason as AbandonReason | null) ?? null,
     projectName,

@@ -108,6 +108,19 @@ export default async function LogPage() {
                             {entry.pauseCount === 1 ? "pause" : "pauses"}
                           </p>
                         )}
+                        {/* Why this session paid what it did. The chain is
+                            derived rather than stored, so this is worked out
+                            from the sessions before it — and without it the XP
+                            figure was a number with no account of itself. */}
+                        {entry.status === "completed" && entry.chainLinks > 0 && (
+                          <p className="mt-1 text-faint">
+                            <span className="tnum" style={{ color: "var(--tier)" }}>
+                              ×{entry.chainMultiplier.toFixed(2)}
+                            </span>{" "}
+                            chained — {entry.chainLinks} before it, on{" "}
+                            <span className="tnum">{entry.plannedMinutes}</span> minutes
+                          </p>
+                        )}
                         {entry.status === "completed" && (
                           <div className="mt-1">
                             <SessionCorrection

@@ -166,13 +166,28 @@ which grant freezes. All three are set in `src/lib/achievements/definitions.ts`:
 
 ## The session chain
 
+**The step depends on the length you are starting.** A chained fifty pays +15% a
+link, a twenty-five +10%, a fifteen +6% — ×1.75 against ×1.30 at the five-link
+cap. A flat step paid the same for continuing into fifteen minutes as into
+fifty, which undervalues the harder commitment: the point of the chain is that
+the link you have not started is worth the most *and* is the one you are least
+able to begin, and beginning a fifty is much harder than beginning a fifteen.
+
+The log says so per session. The chain is derived and never stored, so the log
+works each entry's links out from the sessions before it — with twenty rows of
+lookback, because the oldest row on a page would otherwise undercount, and a
+wrong multiplier is worse than none.
+
 Not in SPEC-V1.md. It answers the risk the spec records against itself in §10 — that every
 mechanic rewards and none asks the user to choose, with prestige the only genuine either/or
 and a thousand hours away. The spec names the cut mechanic that used to create the
 decision: descend-or-extract. This is that shape without the combat §1 threw out.
 
 Finish a session and a ten-minute window opens. Start another inside it and the next one
-pays ×1.1, then ×1.2, up to ×1.5 at five links. Let the window close, or give up, and you
+pays a bonus that depends on the length you are starting: +6% a link on a fifteen, +10% on a
+twenty-five, +15% on a fifty, to a cap of five links — ×1.75 against ×1.30. A flat step paid
+the same for continuing into fifteen minutes as into fifty, which undervalues the harder
+commitment. Let the window close, or give up, and you
 are back to the plain rate. The link you have not started is always worth the most and is
 always the one you are least able to finish — which is the decision.
 

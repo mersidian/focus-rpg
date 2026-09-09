@@ -230,13 +230,21 @@ function Idle({
                     {Math.round(
                       XP_BY_LENGTH[minutes] *
                         xpMultiplier(snapshot.prestige.stars) *
-                        snapshot.chain.multiplier,
+                        (snapshot.chain.multiplierByLength[minutes] ?? snapshot.chain.multiplier),
                     )}
                   </span>{" "}
                   XP
                   {/* The bonus note wraps the slab onto a second line on a
                       phone, where the figure already tells the story. */}
                   {minutes === 50 && <span className="hidden sm:inline"> (+20%)</span>}
+                  {/* The chain is worth more spent on a longer session, so each
+                      slab says what the chain is worth on IT rather than
+                      quoting one figure for all three. */}
+                  {snapshot.chain.links > 0 && (
+                    <span className="tnum block" style={{ color: "var(--tier)" }}>
+                      ×{(snapshot.chain.multiplierByLength[minutes] ?? 1).toFixed(2)}
+                    </span>
+                  )}
                 </span>
               </button>
             );
@@ -297,10 +305,10 @@ function ChainOffer() {
     <section className="mt-12 border-l-2 pl-4" style={{ borderColor: "var(--tier)" }}>
       <p className="text-[15px]">
         <span className="tnum" style={{ color: "var(--tier)" }}>
-          ×{chain.multiplier.toFixed(1)}
+          ×{(chain.multiplierByLength[50] ?? chain.multiplier).toFixed(2)}
         </span>{" "}
         <span className="text-dim">
-          on your next session — {chain.links} in a row
+          on a fifty — {chain.links} in a row
           {chain.atCap && ", as long as the chain goes"}
         </span>
       </p>

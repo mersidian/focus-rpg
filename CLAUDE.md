@@ -11,7 +11,7 @@ checks below before pushing anything.
 ## Before pushing
 
 ```bash
-npm test                   # 316 unit tests, no database needed
+npm test                   # 325 unit tests, no database needed
 node --env-file=.env.local scripts/schema-check.mjs   # the live schema matches the code
 npm run test:integration   # 35 probes against the real database
 npx tsc --noEmit
@@ -60,7 +60,10 @@ before `git push`, and this says whether it took.
 - **Levels ratchet.** XP can fall; the level cannot. Prestige is the single sanctioned
   reset, and even then `peak_level` remembers.
 - **The chain is derived, never stored.** `chain.ts` reads the session table and works out
-  what the next session pays. Storing a multiplier would let it drift from the ledger.
+  what the next session pays. Storing a multiplier would let it drift from the ledger — which
+  is why the log derives each entry's links at read time, with a lookback so the oldest row on
+  a page cannot undercount. Its step depends on the session's LENGTH, so anything computing it
+  has to pass the minutes.
 - **Pure rules take `now` as an argument.** `session-engine`, `streak-engine`, `game-day`,
   `levels`, `projects`, `chain` and `prestige` have no database and no clock of their own. That is
   what makes them testable; keep new rules that shape.
@@ -120,6 +123,14 @@ before `git push`, and this says whether it took.
 - **Milestone XP stays a garnish.** The ladder is ~600,000 XP; V1's achievements are ~27,000 and
   the milestones are ~37,000, both under 8%, and a test holds the line. Anything that pays into
   the ladder competes with focused minutes for the meaning of a level.
+
+## Explaining a number to the user
+
+If a figure on screen is the product of a multiplier, the screen has to say so. The session
+log showed XP with no account of itself for weeks — the chain, prestige stars and the slack
+penalty all fold into one number, and none of them were visible. A number the user cannot
+take apart is a number they cannot trust, and they will assume the smallest of the possible
+explanations.
 
 ## Balancing the game
 

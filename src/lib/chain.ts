@@ -20,8 +20,31 @@
 
 /** How long after a session ends the next one still counts as linked. */
 export const CHAIN_WINDOW_MS = 10 * 60_000;
-/** Each link past the first adds this much. */
+/**
+ * Each link past the first adds this much — and how much depends on the length
+ * of the session you are starting.
+ *
+ * A flat step paid the same for continuing into fifteen minutes as into fifty,
+ * which undervalues the harder commitment: the whole point of the chain is that
+ * the link you have not started is worth the most and is the one you are least
+ * able to begin, and beginning a fifty is much harder than beginning a fifteen.
+ *
+ * So a chained fifty pays +15% a link where a fifteen pays +6%. At the five-link
+ * cap that is ×1.75 against ×1.30 — a real reason to spend the chain on the long
+ * one rather than farm short ones inside the window.
+ */
+export const CHAIN_STEP_BY_LENGTH: Record<number, number> = {
+  15: 0.06,
+  25: 0.1,
+  50: 0.15,
+};
+
+/** The step for a length not in the table, and the old flat value. */
 export const CHAIN_STEP = 0.1;
+
+export function chainStep(minutes: number): number {
+  return CHAIN_STEP_BY_LENGTH[minutes] ?? CHAIN_STEP;
+}
 /** Five steps, so the chain tops out at half again. */
 export const MAX_CHAIN_LINKS = 5;
 
@@ -57,8 +80,8 @@ export function linksBefore(history: ChainSession[], startedAt: number): number 
 }
 
 /** What a session with this many links behind it pays, as a multiplier. */
-export function chainMultiplier(links: number): number {
-  return 1 + CHAIN_STEP * Math.min(Math.max(links, 0), MAX_CHAIN_LINKS);
+export function chainMultiplier(links: number, minutes = 25): number {
+  return 1 + chainStep(minutes) * Math.min(Math.max(links, 0), MAX_CHAIN_LINKS);
 }
 
 /** Milliseconds left to start the next link, or null if no chain is open. */
@@ -76,7 +99,15 @@ export function windowRemaining(
 export type ChainState = {
   /** Links behind the next session you could start. */
   links: number;
-  /** What that next session would pay. */
+  /**
+   * What that next session would pay, per length.
+   *
+   * Per length because the step depends on it: the same chain is worth more
+   * spent on a fifty than on a fifteen, and the timer has to be able to say so
+   * on each button rather than quoting one number for all three.
+   */
+  multiplierByLength: Record<number, number>;
+  /** The 25-minute figure, for anything that wants one number. */
   multiplier: number;
   /** Time left to claim it, or null if there is nothing open. */
   windowMs: number | null;
@@ -95,7 +126,10 @@ export function chainState(
   const links = windowMs === null ? 0 : linksBefore(history, now);
   return {
     links,
-    multiplier: chainMultiplier(links),
+    multiplierByLength: Object.fromEntries(
+      Object.keys(CHAIN_STEP_BY_LENGTH).map((n) => [Number(n), chainMultiplier(links, Number(n))]),
+    ),
+    multiplier: chainMultiplier(links, 25),
     windowMs,
     atCap: links >= MAX_CHAIN_LINKS,
   };

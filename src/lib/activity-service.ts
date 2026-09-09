@@ -664,7 +664,7 @@ export async function resolveActivity(
   // mechanic, and it reaches by adding to the count rather than by storing a
   // multiplier, which would let it drift from the ledger.
   const chainMods = await loadModifiers(userId, undefined, tonicEffectOf(row.tonicItemId));
-  const chain = chainMultiplier(links + chainMods.chainLinks);
+  const chain = chainMultiplier(links + chainMods.chainLinks, session.plannedMinutes);
 
   const fuel = FUEL_BY_LENGTH[session.plannedMinutes] ?? 0;
   const summary: ResolutionSummary = {

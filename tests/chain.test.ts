@@ -109,3 +109,59 @@ test("the chain never pays for time that was not worked", () => {
   assert.equal(perMinute(25, MAX_CHAIN_LINKS), 1.5);
   assert.ok(chainMultiplier(MAX_CHAIN_LINKS) < 2, "a chain cannot double a session");
 });
+
+/* --------------------- the step depends on the length ---------------------- */
+
+test("a chained fifty is worth more than a chained fifteen", () => {
+  // A flat step paid the same for continuing into fifteen minutes as into
+  // fifty, which undervalues the harder commitment — and the whole point of the
+  // chain is that the link you have not started is the one you are least able
+  // to begin.
+  for (let links = 1; links <= MAX_CHAIN_LINKS; links++) {
+    assert.ok(
+      chainMultiplier(links, 50) > chainMultiplier(links, 25),
+      `at ${links} links a fifty is worth no more than a twenty-five`,
+    );
+    assert.ok(
+      chainMultiplier(links, 25) > chainMultiplier(links, 15),
+      `at ${links} links a twenty-five is worth no more than a fifteen`,
+    );
+  }
+});
+
+test("one link on a fifty clears the old flat rate", () => {
+  // The complaint that started this: a single link paid +10% whatever you did
+  // with it.
+  assert.ok(chainMultiplier(1, 50) > 1.1, `a chained fifty pays ${chainMultiplier(1, 50)}`);
+  assert.equal(chainMultiplier(1, 25), 1.1, "the middle length moved");
+});
+
+test("every length still starts at one and caps", () => {
+  for (const minutes of [15, 25, 50]) {
+    assert.equal(chainMultiplier(0, minutes), 1, `${minutes} pays a bonus with no chain`);
+    assert.equal(
+      chainMultiplier(MAX_CHAIN_LINKS + 5, minutes),
+      chainMultiplier(MAX_CHAIN_LINKS, minutes),
+      `${minutes} keeps climbing past the cap`,
+    );
+  }
+  // And the cap is a real spread, not a rounding difference.
+  assert.ok(chainMultiplier(MAX_CHAIN_LINKS, 50) >= 1.7);
+  assert.ok(chainMultiplier(MAX_CHAIN_LINKS, 15) <= 1.35);
+});
+
+test("an unknown length falls back to the middle rate rather than paying nothing", () => {
+  assert.equal(chainMultiplier(3, 40), chainMultiplier(3, 25));
+});
+
+test("the state quotes every length, so each slab can speak for itself", () => {
+  const state = chainState(
+    [{ status: "completed", startedAt: 1_000, endedAt: 2_000 }],
+    2_000 + 60_000,
+  );
+  assert.equal(state.links, 1);
+  for (const minutes of [15, 25, 50]) {
+    assert.equal(state.multiplierByLength[minutes], chainMultiplier(state.links, minutes));
+  }
+  assert.equal(state.multiplier, chainMultiplier(state.links, 25), "the single figure drifted");
+});

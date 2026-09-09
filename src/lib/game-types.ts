@@ -40,6 +40,15 @@ export type LogEntry = {
   xpAwarded: number;
   /** What it paid before any slack reduction, so a correction is exact. */
   baseXp: number;
+  /**
+   * Links behind this session, and what they multiplied it by.
+   *
+   * Derived at read time rather than stored — the chain is never stored, or it
+   * could drift from the ledger — so the log can explain why a session paid what
+   * it did instead of showing a number with no account of itself.
+   */
+  chainLinks: number;
+  chainMultiplier: number;
   pauseCount: number;
   abandonReason: AbandonReason | null;
   projectName: string | null;
@@ -85,6 +94,9 @@ export type Snapshot = {
 
 export type ChainSummary = {
   links: number;
+  /** What the chain is worth per session length; the step depends on it. */
+  multiplierByLength: Record<number, number>;
+  /** The 25-minute figure, for anything that wants a single number. */
   multiplier: number;
   windowMs: number | null;
   atCap: boolean;
