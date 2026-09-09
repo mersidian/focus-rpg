@@ -11,7 +11,6 @@ import {
   worldProgress,
 } from "./db/schema";
 import { append, adjustWallet, loadWallet, type Grant } from "./inventory-service";
-import { loadState } from "./game-state";
 import { ARCHETYPE_BY_NAME, type Style } from "./game/archetypes";
 import { BIOME_BY_INDEX } from "./game/biomes";
 import { resolveCombat, RARITIES, rationsPerFailure, spawnPower } from "./game/combat";
@@ -21,6 +20,14 @@ import { checkGate, type GateState, type Requirement } from "./game/gate";
 import { band, loadoutPower, type Equipped, type ItemSpec, type Slot } from "./game/power";
 import { rng, sessionSeed } from "./game/rng";
 import { SKILLS, processingXp, skillLevel, tierSkillRequirement } from "./game/skills";
+import {
+  BIOME_UNLOCK_XP,
+  FIRST_REFINE_TEN_XP,
+  milestoneMarker,
+  skillLevelXp,
+  skillMilestonesCrossed,
+} from "./game/milestones";
+import { applyDelta, loadState } from "./game-state";
 import { tier as tierAt } from "./game/tiers";
 import { areasIn } from "./game/variants";
 import { BOSS_POWER_MULTIPLIER, bossKillSeconds, bossMarker, bossesIn } from "./game/bosses";
@@ -297,16 +304,70 @@ export async function chooseActivity(
 
 /* -------------------------------- resolution ------------------------------- */
 
-async function addSkillXp(userId: string, skill: string, xp: number): Promise<void> {
-  if (xp <= 0) return;
-  await db
+/**
+ * Pay a milestone into V1's ladder, at most once, ever.
+ *
+ * `applyDelta` does not deduplicate by reason, so the marker does it: the insert
+ * is `onConflictDoNothing` and the XP is only paid when it actually created a
+ * row. A milestone that fires twice would inflate the ladder silently, which is
+ * the worst shape a bug can take here.
+ */
+async function payMilestone(
+  userId: string,
+  marker: string,
+  xp: number,
+  label: string,
+): Promise<MilestonePaid | null> {
+  if (xp <= 0) return null;
+  const created = await db
+    .insert(worldProgress)
+    .values({ userId, marker })
+    .onConflictDoNothing()
+    .returning({ marker: worldProgress.marker });
+  if (created.length === 0) return null;
+
+  await applyDelta(userId, null, `milestone:${marker}`, { xp });
+  return { marker, label, xp };
+}
+
+/**
+ * Add skill XP and pay for any milestone level it crossed.
+ *
+ * A single session can carry a low skill through more than one milestone, so
+ * every crossing is paid rather than only the level landed on.
+ */
+async function addSkillXp(
+  userId: string,
+  skill: string,
+  xp: number,
+): Promise<MilestonePaid[]> {
+  if (xp <= 0) return [];
+  const [row] = await db
     .insert(skillStates)
     .values({ userId, skill, xp })
     .onConflictDoUpdate({
       target: [skillStates.userId, skillStates.skill],
       set: { xp: sql`${skillStates.xp} + ${xp}` },
-    });
+    })
+    .returning({ xp: skillStates.xp });
+
+  const after = skillLevel(row?.xp ?? xp);
+  const before = skillLevel(Math.max(0, (row?.xp ?? xp) - xp));
+
+  const paid: MilestonePaid[] = [];
+  for (const level of skillMilestonesCrossed(before, after)) {
+    const got = await payMilestone(
+      userId,
+      milestoneMarker("skill", skill, level),
+      skillLevelXp(level),
+      `${label(skill)} ${level}`,
+    );
+    if (got) paid.push(got);
+  }
+  return paid;
 }
+
+export type MilestonePaid = { marker: string; label: string; xp: number };
 
 export type ResolutionSummary = {
   kind: "gathering" | "combat" | "boss";
@@ -323,6 +384,8 @@ export type ResolutionSummary = {
   equipmentKept: number;
   equipmentSalvaged: number;
   ranDry?: boolean;
+  /** Lumps paid into V1's ladder by this session (§11). */
+  milestones: MilestonePaid[];
 };
 
 /**
@@ -388,6 +451,7 @@ export async function resolveActivity(
     items: [],
     equipmentKept: 0,
     equipmentSalvaged: 0,
+    milestones: [],
   };
 
   if (row.kind === "boss") {
@@ -460,7 +524,7 @@ export async function resolveActivity(
     }
 
     await adjustWallet(userId, { fuel });
-    await addSkillXp(userId, style, Math.round(focusedMs / 60_000));
+    summary.milestones.push(...(await addSkillXp(userId, style, Math.round(focusedMs / 60_000))));
     summary.kills = result.killed ? 1 : 0;
     summary.failures = result.killed ? 0 : 1;
     summary.skillXp = Math.round(focusedMs / 60_000);
@@ -480,7 +544,7 @@ export async function resolveActivity(
     await append(userId, [
       { itemId, delta: result.units, reason: "session_yield", sessionId },
     ]);
-    await addSkillXp(userId, row.skill, result.skillXp);
+    summary.milestones.push(...(await addSkillXp(userId, row.skill, result.skillXp)));
     summary.units = result.units;
     summary.skillXp = result.skillXp;
     summary.items = [{ name: itemId, qty: result.units }];
@@ -565,8 +629,8 @@ export async function resolveActivity(
     }
 
     await adjustWallet(userId, { coins: folded.coins + salvageCoins, fuel });
-    await addSkillXp(userId, style, Math.round(focusedMs / 60_000));
-    await addSkillXp(userId, "slaying", Math.round(combat.kills / 4));
+    summary.milestones.push(...(await addSkillXp(userId, style, Math.round(focusedMs / 60_000))));
+    summary.milestones.push(...(await addSkillXp(userId, "slaying", Math.round(combat.kills / 4))));
 
     summary.kills = combat.kills;
     summary.failures = combat.failures;
@@ -584,6 +648,20 @@ export async function resolveActivity(
   }
 
   if (row.kind === "gathering") await adjustWallet(userId, { fuel });
+
+  // A biome opening up pays once. The marker is the record, so a hundred later
+  // sessions in the same biome pay nothing.
+  if (row.biome !== null) {
+    const biomeName = BIOME_BY_INDEX.get(row.biome)?.name ?? `biome ${row.biome}`;
+    const got = await payMilestone(
+      userId,
+      milestoneMarker("biome", row.biome),
+      BIOME_UNLOCK_XP,
+      `${biomeName} opened`,
+    );
+    if (got) summary.milestones.push(got);
+  }
+
   await advancePlots(userId);
   await db
     .update(sessionActivities)

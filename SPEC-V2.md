@@ -954,15 +954,30 @@ Mining XP. The game must feed V1's ladder, never divert from it — otherwise ch
 activity would mean choosing to slow your own character down, and the whole system would
 be resented.
 
-### Milestones pay character XP too — **DECIDED**
+### Milestones pay character XP too — **BUILT**
 
 Beyond the per-minute rate, the game's own progress pays into V1's ladder in lumps:
 
 | Event | Character XP |
 |---|---|
-| A skill level | scaled to the level reached — level 50 pays far more than level 5 |
-| Unlocking a biome | a medium lump |
-| The first +10 refinement in a material tier | a small lump |
+| A skill level — but only **10, 25, 50, 75, 90, 99** | 20 · 50 · 130 · 260 · 380 · 520 |
+| Unlocking a biome | 250 |
+| The first +10 refinement in a material tier | 100 |
+
+**Why only six levels a skill.** Twenty-two skills at 99 is **2,178 level-ups**. Paying each
+one enough to feel like anything runs to hundreds of thousands of XP and turns the ladder into
+a by-product of the game; paying each one within budget means about 15 XP a level, which is
+less than a fifteen-minute session and therefore not a moment at all. Six levels that pay
+properly is the resolution.
+
+The whole set is **37,320 XP, 6.2% of the 600,000 the ladder runs to** — in line with V1's
+131 achievements at ~27,000, and held there by a test.
+
+**Paid once, ever.** `applyDelta` does not deduplicate by reason, so a `world_progress` marker
+does it: the insert is `onConflictDoNothing` and the XP is paid only when it created a row. A
+milestone that fired twice would inflate the ladder silently, which is the worst shape a bug
+can take here. Those same markers are what `/game` reads back to show what was paid — the
+record of payment is the record of the event.
 
 This does not breach *"XP comes only from sessions the server timed"*: skill levels advance
 only from timed sessions, so milestone XP still derives entirely from timed focus — it is
@@ -1066,8 +1081,11 @@ every V1 screen becomes half-game, and the screens that currently do one job wel
 
 ## 13. Open questions
 
-1. **Milestone character XP** (§11) — specified and not wired. A skill level, a biome unlock
-   and a first +10 should each pay a lump into V1's ladder; today only focused minutes do.
+1. **The between-session actions.** Sessions produce things and the screens show them, but
+   almost nothing can be *done* with them yet: refinement has an action, and crafting,
+   equipping, selling, planting a plot and taking a contract do not. Until they exist the loop
+   runs one way — gather or fight, watch the bank fill — and §4's "gather → process → equip →
+   fight" is only half true. This is the largest remaining gap and it is not a small one.
 2. **The four researched proposals in §15** — each fills a verified hole and costs almost no
    items, but none is decided.
 3. **Eight uniques are named but not wired.** Of the 250, eight carry a `descriptive` effect —
@@ -1094,9 +1112,8 @@ slice, so these describe what landed rather than an order anyone followed.
   spawns, the style wheel, generated drop tables, rations and durability. **Done.**
 - **E5 — Guns and refinement.** Gunsmithing, the saltpetre → gunpowder → cartridge chain,
   the coat armour line, upgrade stones and +1 to +10. **Done.**
-- **E6 — Milestones and projections.** Milestone character XP, and projections on every
-  track. **Milestone XP is specified in §11 and not yet wired**; projections exist for
-  character rank (V1) and skill level, not for every track.
+- **E6 — Milestones and projections.** Milestone character XP: **done**, and visible on
+  `/game`. Projections exist for character rank (V1) and skill level, not for every track.
 - **E7 — Bosses and Slaying.** 40 bosses with guaranteed first-kill uniques, the persistent
   contract ladder. **Done.**
 - **E8 — Depth.** Farming's four crop lines and the plot system, the 250 uniques, and the 224

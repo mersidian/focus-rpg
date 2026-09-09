@@ -14,6 +14,10 @@ import { loadEquipped, loadSkillXp, loadGateState } from "./activity-service";
 import { generateCatalogue, type ItemDef } from "./game/items";
 import { loadoutPower, percentile, type Equipped } from "./game/power";
 import { SKILLS, skillLevel, skillFloorXp, skillNextXp } from "./game/skills";
+import { BIOME_BY_INDEX } from "./game/biomes";
+import { BIOME_UNLOCK_XP, FIRST_REFINE_TEN_XP, skillLevelXp } from "./game/milestones";
+
+const SKILL_LABELS = new Map(SKILLS.map((s) => [s.key, s.label]));
 
 /**
  * The read models the game screens need.
@@ -157,6 +161,8 @@ export type Overview = {
   } | null;
   keyItems: string[];
   bossesDown: number;
+  /** Lumps already paid into V1's ladder, newest first (§11). */
+  milestones: { label: string; xp: number; at: Date }[];
 };
 
 export async function overview(userId: string): Promise<Overview> {
@@ -178,7 +184,10 @@ export async function overview(userId: string): Promise<Overview> {
       .from(slayingContracts)
       .where(and(eq(slayingContracts.userId, userId), isNull(slayingContracts.completedAt)))
       .limit(1),
-    db.select({ marker: worldProgress.marker }).from(worldProgress).where(eq(worldProgress.userId, userId)),
+    db
+      .select({ marker: worldProgress.marker, firstAt: worldProgress.firstAt })
+      .from(worldProgress)
+      .where(eq(worldProgress.userId, userId)),
   ]);
 
   const contract = contractRows[0];
@@ -200,7 +209,44 @@ export async function overview(userId: string): Promise<Overview> {
       : null,
     keyItems: markerList.filter((m) => m.startsWith("key:")).map((m) => m.slice(4)),
     bossesDown: markerList.filter((m) => m.startsWith("boss:")).length,
+    milestones: recentMilestones(markers),
   };
+}
+
+/**
+ * What the ladder has been paid by the game, read back out of the markers.
+ *
+ * The markers are the record of payment, so they are also the record of what
+ * happened — no second table, and nothing to keep in step. Without this the XP
+ * simply appears, and a lump that arrives with no explanation is a worse gift
+ * than no lump at all.
+ */
+function recentMilestones(
+  rows: { marker: string; firstAt?: Date }[],
+): { label: string; xp: number; at: Date }[] {
+  const out: { label: string; xp: number; at: Date }[] = [];
+  for (const row of rows) {
+    if (!row.marker.startsWith("milestone:")) continue;
+    const [, kind, key, at] = row.marker.split(":");
+    const when = row.firstAt ?? new Date(0);
+    if (kind === "skill") {
+      const level = Number(at);
+      out.push({
+        label: `${SKILL_LABELS.get(key) ?? key} ${level}`,
+        xp: skillLevelXp(level),
+        at: when,
+      });
+    } else if (kind === "biome") {
+      out.push({
+        label: `${BIOME_BY_INDEX.get(Number(key))?.name ?? `Biome ${key}`} opened`,
+        xp: BIOME_UNLOCK_XP,
+        at: when,
+      });
+    } else if (kind === "refine") {
+      out.push({ label: `First +10 at tier ${key}`, xp: FIRST_REFINE_TEN_XP, at: when });
+    }
+  }
+  return out.sort((a, b) => b.at.getTime() - a.at.getTime());
 }
 
 export async function collectionProgress(userId: string): Promise<Map<string, number>> {

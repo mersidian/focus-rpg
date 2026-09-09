@@ -11,7 +11,7 @@ checks below before pushing anything.
 ## Before pushing
 
 ```bash
-npm test                   # 279 unit tests, no database needed
+npm test                   # 287 unit tests, no database needed
 node --env-file=.env.local scripts/schema-check.mjs   # the live schema matches the code
 npm run test:integration   # 35 probes against the real database
 npx tsc --noEmit
@@ -80,6 +80,14 @@ before `git push`, and this says whether it took.
   written as prose that looks like it fires is worse than one that admits it does not.
 - **V1's achievement set is frozen at 131.** V2 is a second list and `ALL_ACHIEVEMENTS` is the
   union. Adding a game did not change what V1 means.
+- **A milestone is paid once, ever, and the marker proves it.** `applyDelta` does not
+  deduplicate by reason, so anything paying a lump into the ladder inserts a `world_progress`
+  marker with `onConflictDoNothing` and pays only when it created a row. Never trust a caller
+  not to fire twice — a server action can be retried and a button can be double-clicked, and a
+  milestone that pays twice inflates the ladder with nothing to show it happened.
+- **Milestone XP stays a garnish.** The ladder is ~600,000 XP; V1's achievements are ~27,000 and
+  the milestones are ~37,000, both under 8%, and a test holds the line. Anything that pays into
+  the ladder competes with focused minutes for the meaning of a level.
 
 ## Balancing the game
 

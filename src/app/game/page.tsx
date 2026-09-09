@@ -81,6 +81,33 @@ export default async function GameOverview() {
         )}
       </Block>
 
+      <Block
+        title="Paid into the ladder"
+        aside={`${o.milestones.length} milestone${o.milestones.length === 1 ? "" : "s"}`}
+      >
+        {o.milestones.length === 0 ? (
+          <Empty>
+            Nothing yet. A skill level, a biome opening up and a first +10 each pay a lump of
+            character XP on top of the per-minute rate — so the game feeds V1's ladder rather
+            than competing with it for your afternoon.
+          </Empty>
+        ) : (
+          <>
+            <Rows
+              head={["Milestone", "XP"]}
+              rows={o.milestones.slice(0, 12).map((m) => [m.label, `+${groupNumber(m.xp)}`])}
+            />
+            <p className="mt-4 text-[13px] leading-relaxed text-faint">
+              <span className="tnum text-dim">
+                {groupNumber(o.milestones.reduce((n, m) => n + m.xp, 0))}
+              </span>{" "}
+              XP in lumps so far. Each is paid once, ever — the record of payment is the same row
+              that records it happened.
+            </p>
+          </>
+        )}
+      </Block>
+
       <Block title="Farm" aside={`${o.plots.length} plots`}>
         {o.plots.length === 0 ? (
           <Empty>

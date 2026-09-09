@@ -28,6 +28,7 @@ import {
 } from "./session-service";
 import { evaluateAchievements, setWornTitle } from "./achievements/service";
 import { chooseActivity, offers, resolveActivity, type Activity } from "./activity-service";
+import { refineItem } from "./refine-service";
 import { declinePrestige, doPrestige } from "./prestige-service";
 import {
   archiveProject,
@@ -150,6 +151,20 @@ export async function startSession(input: {
 /** Everything selectable right now, with the gate already evaluated. */
 export async function listActivityOffers() {
   return offers(await requireUserId());
+}
+
+/**
+ * Refine one item by a step.
+ *
+ * Refinement never fails, so there is nothing to roll and nothing to report but
+ * the bill. It is gated the same way everything else is: binary, and it names
+ * what is short rather than refusing.
+ */
+export async function refineItemAction(instanceId: string) {
+  const userId = await requireUserId();
+  const result = await refineItem(userId, instanceId);
+  if (result.ok) revalidatePath("/game/equipment");
+  return result;
 }
 
 export async function pauseSession(sessionId: string, deviceId: string): Promise<Snapshot> {

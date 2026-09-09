@@ -56,7 +56,10 @@ prestige player ever sees.
 | The append-only inventory ledger | `src/lib/inventory-service.ts` |
 | Activity choice, gate check, session resolution | `src/lib/activity-service.ts` |
 | Ten game screens under one nav entry | `src/app/game/` |
+| Milestone XP into V1's ladder | `src/lib/game/milestones.ts` |
+| Refinement, +1 to +10 | `src/lib/refine-service.ts` |
 | The balance audit | `scripts/game-audit.mjs` |
+| Does the live schema match the code | `scripts/schema-check.mjs` |
 | The generated wiki | `src/app/wiki/`, `src/lib/wiki/` |
 
 Sessions are validated against the **server** clock. A device with a wrong clock cannot

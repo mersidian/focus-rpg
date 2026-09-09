@@ -32,6 +32,16 @@ import { IMPLEMENTED, describeEffect, foldEffects, isImplemented } from "../src/
 import { ACHIEVEMENTS, ALL_ACHIEVEMENTS } from "../src/lib/achievements/definitions.ts";
 import { ACHIEVEMENTS_V2, FAMILIES_V2 } from "../src/lib/achievements/definitions-v2.ts";
 import { emptyGameStats, type GameStats } from "../src/lib/game/game-stats.ts";
+import {
+  BIOME_UNLOCK_XP,
+  FIRST_REFINE_TEN_XP,
+  SKILL_MILESTONE_LEVELS,
+  milestoneBudget,
+  milestoneMarker,
+  skillLevelXp,
+  skillMilestonesCrossed,
+} from "../src/lib/game/milestones.ts";
+import { LEVEL_XP } from "../src/lib/levels.ts";
 
 /**
  * A zeroed V1 Stats, so a V2 predicate can be exercised without a session
@@ -1031,4 +1041,80 @@ test("nothing promises a finish line the arithmetic rules out", () => {
     (a) => !CONTRADICTORY.has(a.id) && !a.check(nearly as never),
   ).map((a) => a.id);
   assert.deepEqual(needsEverySkill, [], "an achievement requires all 22 skills at 99");
+});
+
+/* ------------------------------- milestones -------------------------------- */
+
+test("only six levels a skill pay, and the rest pay nothing", () => {
+  const paying = [];
+  for (let l = 1; l <= MAX_SKILL_LEVEL; l++) if (skillLevelXp(l) > 0) paying.push(l);
+  assert.deepEqual(paying, [...SKILL_MILESTONE_LEVELS]);
+  assert.equal(skillLevelXp(1), 0);
+  assert.equal(skillLevelXp(49), 0);
+  assert.equal(skillLevelXp(98), 0);
+});
+
+test("a milestone pays more the further up it is", () => {
+  for (let i = 1; i < SKILL_MILESTONE_LEVELS.length; i++) {
+    assert.ok(
+      skillLevelXp(SKILL_MILESTONE_LEVELS[i]) > skillLevelXp(SKILL_MILESTONE_LEVELS[i - 1]),
+      `level ${SKILL_MILESTONE_LEVELS[i]} pays no more than ${SKILL_MILESTONE_LEVELS[i - 1]}`,
+    );
+  }
+});
+
+test("the whole milestone set stays a garnish, not a second income", () => {
+  // V1 holds its 131 achievements to ~27,000 XP against a 600,000 ladder on
+  // exactly this reasoning. Milestones get the same ceiling.
+  const ladder = LEVEL_XP[LEVEL_XP.length - 1];
+  const budget = milestoneBudget(SKILLS.length);
+  assert.ok(budget > 20_000, `the whole set is only ${budget} XP, which is not a moment`);
+  assert.ok(
+    budget < ladder * 0.08,
+    `milestones are ${((budget / ladder) * 100).toFixed(1)}% of the ladder`,
+  );
+});
+
+test("one session can cross more than one milestone, and all of them pay", () => {
+  // A 50-minute session on a level-8 skill can jump past 10 and 25 at once.
+  assert.deepEqual(skillMilestonesCrossed(8, 27), [10, 25]);
+  assert.deepEqual(skillMilestonesCrossed(1, 99), [...SKILL_MILESTONE_LEVELS]);
+});
+
+test("a level already held never pays again", () => {
+  assert.deepEqual(skillMilestonesCrossed(25, 25), []);
+  assert.deepEqual(skillMilestonesCrossed(30, 31), []);
+  assert.deepEqual(skillMilestonesCrossed(99, 99), []);
+  // And going backwards pays nothing, which cannot happen but must not pay if it does.
+  assert.deepEqual(skillMilestonesCrossed(50, 10), []);
+});
+
+test("landing exactly on a milestone pays it, and stopping one short does not", () => {
+  assert.deepEqual(skillMilestonesCrossed(49, 50), [50]);
+  assert.deepEqual(skillMilestonesCrossed(48, 49), []);
+});
+
+test("every milestone has its own marker, so none can be paid twice or block another", () => {
+  const markers = new Set<string>();
+  for (const skill of SKILLS) {
+    for (const level of SKILL_MILESTONE_LEVELS) {
+      markers.add(milestoneMarker("skill", skill.key, level));
+    }
+  }
+  for (let b = 1; b <= 20; b++) markers.add(milestoneMarker("biome", b));
+  for (let t = 1; t <= MAX_TIER; t++) markers.add(milestoneMarker("refine", t));
+
+  const expected = SKILLS.length * SKILL_MILESTONE_LEVELS.length + 20 + MAX_TIER;
+  assert.equal(markers.size, expected, "two milestones share a marker");
+  // Markers must not collide with the boss and key markers already in the table.
+  for (const marker of markers) {
+    assert.ok(marker.startsWith("milestone:"), marker);
+    assert.ok(!marker.startsWith("boss:") && !marker.startsWith("key:"), marker);
+  }
+});
+
+test("the lumps are ordered: a skill's top milestone beats a biome, which beats a first +10", () => {
+  assert.ok(skillLevelXp(99) > BIOME_UNLOCK_XP);
+  assert.ok(BIOME_UNLOCK_XP > FIRST_REFINE_TEN_XP);
+  assert.ok(FIRST_REFINE_TEN_XP > 0);
 });
