@@ -1,5 +1,5 @@
 /**
- * "Projection for next rank" (SPEC.md §9).
+ * "Projection for next rank" (SPEC-V1.md §9).
  *
  * Pace is measured in focused minutes per calendar day over a recent window,
  * counting the empty days too — a projection that only averages the days you

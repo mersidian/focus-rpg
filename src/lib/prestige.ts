@@ -1,5 +1,5 @@
 /**
- * Prestige (SPEC.md §4.2).
+ * Prestige (SPEC-V1.md §4.2).
  *
  * The one genuine either/or left in the design: at level 50 you may reset to
  * Drifter I and take a star, or press on and climb to names no prestige player

@@ -1,5 +1,5 @@
 /**
- * Streaks and freezes (SPEC.md §7), as pure arithmetic over game days.
+ * Streaks and freezes (SPEC-V1.md §7), as pure arithmetic over game days.
  *
  * The walk is the only thing allowed to spend a freeze, and it spends them one
  * elapsed day at a time, so the result is the same whether the user opened the

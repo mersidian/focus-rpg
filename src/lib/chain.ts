@@ -1,7 +1,7 @@
 /**
  * The session chain.
  *
- * Not in SPEC.md. It answers the risk the spec records against itself in §10:
+ * Not in SPEC-V1.md. It answers the risk the spec records against itself in §10:
  * every mechanic rewards, none asks the user to choose, and the only genuine
  * either/or — prestige — sits a thousand hours away. The spec names the cut
  * mechanic that used to create the decision: descend-or-extract. This is that

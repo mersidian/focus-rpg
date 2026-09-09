@@ -1,5 +1,5 @@
 /**
- * The project ladder (SPEC.md §6).
+ * The project ladder (SPEC-V1.md §6).
  *
  * Deliberately shorter and differently named than the character's hundred
  * levels, so a project title is never mistaken for a rank: nobody confuses a

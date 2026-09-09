@@ -1,5 +1,5 @@
 /**
- * Written from SPEC.md's wording rather than from the implementation, so these
+ * Written from SPEC-V1.md's wording rather than from the implementation, so these
  * are free to disagree with what was built.
  */
 import assert from "node:assert/strict";

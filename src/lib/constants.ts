@@ -1,5 +1,5 @@
 /**
- * Phase 1 game constants. Every value here is fixed by SPEC.md §3 and §4 unless
+ * Phase 1 game constants. Every value here is fixed by SPEC-V1.md §3 and §4 unless
  * marked "spec-silent" — those are implementation choices, kept in one place so
  * they are easy to find and argue with later.
  */

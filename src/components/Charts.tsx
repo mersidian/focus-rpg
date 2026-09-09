@@ -1,5 +1,5 @@
 /**
- * The dashboard's marks (SPEC.md §9).
+ * The dashboard's marks (SPEC-V1.md §9).
  *
  * Plain inline SVG rather than a charting library: the shapes here are simple,
  * and it keeps the page free of a runtime that would have to be themed twice.

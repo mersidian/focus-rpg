@@ -1,5 +1,5 @@
 /**
- * The 100-level ladder: 20 named tiers of five ranks (SPEC.md §4.1).
+ * The 100-level ladder: 20 named tiers of five ranks (SPEC-V1.md §4.1).
  *
  * The spec's table gives two hour figures per tier. Two lines of prose pin down
  * what they mean: "level 50 (Sage V, ~1008 h)" and "Mythic V sits on exactly

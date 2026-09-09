@@ -1,7 +1,7 @@
 /**
  * Pure session arithmetic. No database, no clock of its own — every function
  * takes `now` so the server can pass its own clock and the client can pass a
- * server-corrected one. Client clocks never decide anything (SPEC.md §2).
+ * server-corrected one. Client clocks never decide anything (SPEC-V1.md §2).
  */
 
 import {

@@ -1,5 +1,5 @@
 /**
- * The game day (SPEC.md §7).
+ * The game day (SPEC-V1.md §7).
  *
  * The day rolls over at 4am local time, so a 1am session still counts toward
  * the day the user thinks they are in. Everything downstream — the streak, the
