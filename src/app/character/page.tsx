@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { auth, signOut } from "@/lib/auth";
 import { Nav } from "@/components/Nav";
 import { loadState } from "@/lib/game-state";
 import { loadAchievementBoard } from "@/lib/achievements/service";
@@ -177,6 +177,28 @@ export default async function CharacterPage() {
               );
             })}
           </ol>
+        </section>
+
+        {/*
+          Sign out lives here rather than in the nav. It was the tenth item in a
+          bar whose other nine are places to go, and on a phone the wrap put it
+          wherever the wrap happened to land. The account belongs on the page
+          about the account.
+        */}
+        <section className="mt-14 border-t border-rule pt-6">
+          <form
+            action={async () => {
+              "use server";
+              await signOut({ redirectTo: "/signin" });
+            }}
+          >
+            <button
+              type="submit"
+              className="text-body text-faint underline underline-offset-2 transition-colors hover:text-dim"
+            >
+              Sign out
+            </button>
+          </form>
         </section>
       </main>
     </>

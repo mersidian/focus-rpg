@@ -63,8 +63,10 @@ export function ActivityPicker({
 
   const chosen = offers?.find((o) => value && activityKey(o.activity) === activityKey(value));
 
+  // Tighter than it was: this sits between the length slabs and the Start
+  // button, so every pixel it spends is a pixel the commit moves down the page.
   return (
-    <section className="mt-10 border-t border-rule pt-6">
+    <section className="mt-6 border-t border-rule pt-4">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <p className="text-[13px] text-faint">
           Your character{" "}

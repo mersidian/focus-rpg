@@ -123,9 +123,21 @@ function Idle({
   const ratio = completionRatio(state.sessionsCompleted, state.sessionsAbandoned);
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-6 pb-24 pt-16 sm:px-10">
-      <header>
-        <h1 className="display text-5xl leading-[0.95] sm:text-7xl" style={{ color: "var(--tier)" }}>
+    <main className="mx-auto w-full max-w-3xl px-6 pb-24 pt-10 sm:px-10">
+      {/*
+        Who you are, on one line, and then the thing the page is for.
+
+        This screen used to open with eight retrospective blocks — rank, level,
+        rail, four lifetime stats, a freeze note, an abandon note — and put the
+        session length, the activity and the Start button ninth, tenth and
+        eleventh of fourteen. Measured at 375px with none of the optional blocks
+        present, the top of the Start button sat around 861px down: a viewport
+        and a bit below the fold on the app's primary screen. The stats are
+        still here, one scroll down, which is where a page about starting a
+        session should keep the record of sessions already finished.
+      */}
+      <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h1 className="display text-head leading-[0.95] sm:text-hero" style={{ color: "var(--tier)" }}>
           {snapshot.prestige.stars > 0 && (
             <span className="tnum mr-3 align-middle text-[0.5em]">
               ★{snapshot.prestige.stars}
@@ -136,7 +148,7 @@ function Idle({
             {info.rank}
           </span>
         </h1>
-        <p className="mt-3 text-[13px] text-faint">
+        <p className="text-note text-faint">
           Level <span className="tnum text-dim">{state.level}</span> of 100
           {snapshot.prestige.bonusPercent > 0 && (
             <>
@@ -145,24 +157,92 @@ function Idle({
             </>
           )}
         </p>
-        {snapshot.prestige.offerAvailable && (
-          <p className="mt-4 text-[13px]">
-            <a
-              href="/character"
-              className="underline underline-offset-4"
-              style={{ color: "var(--tier)" }}
-            >
-              You have reached level 50. There is a choice waiting.
-            </a>
-          </p>
-        )}
       </header>
 
-      <div className="mt-10">
+      <div className="mt-4">
         <XpRail xp={state.xp} level={state.level} />
       </div>
 
-      <dl className="mt-8 flex flex-wrap items-baseline gap-x-10 gap-y-4 border-t border-rule pt-6 text-[13px]">
+      <ChainOffer />
+
+      <section className="mt-8">
+        <div className="grid grid-cols-3 gap-px overflow-hidden rounded-sm bg-rule">
+          {SESSION_LENGTHS.map((minutes) => {
+            const selected = choice === minutes;
+            return (
+              <button
+                key={minutes}
+                type="button"
+                onClick={() => onChoose(minutes)}
+                aria-pressed={selected}
+                className="group bg-ground px-4 py-6 text-left transition-colors"
+                style={selected ? { backgroundColor: "var(--color-lift)" } : undefined}
+              >
+                <span
+                  className="tnum block text-title leading-none transition-colors"
+                  style={{ color: selected ? "var(--action)" : undefined }}
+                >
+                  {minutes}
+                </span>
+                <span className="mt-2 block text-[13px] text-faint">minutes</span>
+                <span className="mt-1 block text-[13px] text-faint">
+                  <span className="tnum text-dim">
+                    +
+                    {Math.round(
+                      XP_BY_LENGTH[minutes] *
+                        xpMultiplier(snapshot.prestige.stars) *
+                        (snapshot.chain.multiplierByLength[minutes] ?? snapshot.chain.multiplier),
+                    )}
+                  </span>{" "}
+                  XP
+                  {/* The bonus note wraps the slab onto a second line on a
+                      phone, where the figure already tells the story. */}
+                  {minutes === 50 && <span className="hidden sm:inline"> (+20%)</span>}
+                  {/* The chain is worth more spent on a longer session, so each
+                      slab says what the chain is worth on IT rather than
+                      quoting one figure for all three. */}
+                  {snapshot.chain.links > 0 && (
+                    <span className="tnum block" style={{ color: "var(--tier)" }}>
+                      ×{(snapshot.chain.multiplierByLength[minutes] ?? 1).toFixed(2)}
+                    </span>
+                  )}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <ActivityPicker value={activity} onChange={onActivity} tonic={tonic} onTonic={onTonic} />
+
+        <button
+          type="button"
+          onClick={() => begin(choice, activity ?? undefined, tonic ?? undefined)}
+          disabled={pending}
+          className="mt-5 w-full rounded-sm px-6 py-5 text-commit font-medium text-ground transition-opacity disabled:opacity-50"
+          style={{ backgroundColor: "var(--action)" }}
+        >
+          {/* `pending` covers any in-flight action, including a background
+              refresh, so it disables the button without claiming a session is
+              starting. A real start swaps this whole view out immediately. */}
+          Start {choice} minutes
+        </button>
+
+      </section>
+
+      {/* The error belongs with the press that caused it, not at the far end
+          of the page. */}
+      {error && (
+        <p className="mt-5 text-body" style={{ color: "var(--color-warn)" }}>
+          {error}{" "}
+          <button type="button" onClick={clearError} className="underline underline-offset-2">
+            Dismiss
+          </button>
+        </p>
+      )}
+
+      <RulesetNote ruleset={ruleset} align="left" />
+
+      <dl className="mt-12 flex flex-wrap items-baseline gap-x-10 gap-y-4 border-t border-rule pt-6 text-body">
         <Stat label="focused" value={hours(state.lifetimeFocusedMs)} />
         <Stat label="sessions finished" value={groupNumber(state.sessionsCompleted)} />
         <Stat
@@ -202,79 +282,15 @@ function Idle({
         </p>
       )}
 
-      <ChainOffer />
-
-      <section className="mt-14">
-        <div className="grid grid-cols-3 gap-px overflow-hidden rounded-sm bg-rule">
-          {SESSION_LENGTHS.map((minutes) => {
-            const selected = choice === minutes;
-            return (
-              <button
-                key={minutes}
-                type="button"
-                onClick={() => onChoose(minutes)}
-                aria-pressed={selected}
-                className="group bg-ground px-4 py-6 text-left transition-colors"
-                style={selected ? { backgroundColor: "var(--color-lift)" } : undefined}
-              >
-                <span
-                  className="tnum block text-4xl leading-none transition-colors"
-                  style={{ color: selected ? "var(--action)" : undefined }}
-                >
-                  {minutes}
-                </span>
-                <span className="mt-2 block text-[13px] text-faint">minutes</span>
-                <span className="mt-1 block text-[13px] text-faint">
-                  <span className="tnum text-dim">
-                    +
-                    {Math.round(
-                      XP_BY_LENGTH[minutes] *
-                        xpMultiplier(snapshot.prestige.stars) *
-                        (snapshot.chain.multiplierByLength[minutes] ?? snapshot.chain.multiplier),
-                    )}
-                  </span>{" "}
-                  XP
-                  {/* The bonus note wraps the slab onto a second line on a
-                      phone, where the figure already tells the story. */}
-                  {minutes === 50 && <span className="hidden sm:inline"> (+20%)</span>}
-                  {/* The chain is worth more spent on a longer session, so each
-                      slab says what the chain is worth on IT rather than
-                      quoting one figure for all three. */}
-                  {snapshot.chain.links > 0 && (
-                    <span className="tnum block" style={{ color: "var(--tier)" }}>
-                      ×{(snapshot.chain.multiplierByLength[minutes] ?? 1).toFixed(2)}
-                    </span>
-                  )}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        <ActivityPicker value={activity} onChange={onActivity} tonic={tonic} onTonic={onTonic} />
-
-        <button
-          type="button"
-          onClick={() => begin(choice, activity ?? undefined, tonic ?? undefined)}
-          disabled={pending}
-          className="mt-6 w-full rounded-sm px-6 py-4 text-[15px] font-medium text-ground transition-opacity disabled:opacity-50"
-          style={{ backgroundColor: "var(--action)" }}
-        >
-          {/* `pending` covers any in-flight action, including a background
-              refresh, so it disables the button without claiming a session is
-              starting. A real start swaps this whole view out immediately. */}
-          Start {choice} minutes
-        </button>
-
-        <RulesetNote ruleset={ruleset} align="left" />
-      </section>
-
-      {error && (
-        <p className="mt-6 text-[13px]" style={{ color: "var(--color-warn)" }}>
-          {error}{" "}
-          <button type="button" onClick={clearError} className="underline underline-offset-2">
-            Dismiss
-          </button>
+      {snapshot.prestige.offerAvailable && (
+        <p className="mt-8 text-body">
+          <a
+            href="/character"
+            className="underline underline-offset-4"
+            style={{ color: "var(--tier)" }}
+          >
+            You have reached level 50. There is a choice waiting.
+          </a>
         </p>
       )}
 

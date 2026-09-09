@@ -26,7 +26,7 @@ export default async function GameLayout({ children }: { children: React.ReactNo
 
   return (
     <>
-      <Nav current="/game" />
+      <Nav current="/game" compact />
       <GameNav />
       {children}
     </>

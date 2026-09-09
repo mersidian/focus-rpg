@@ -27,7 +27,7 @@ const LINKS = [
 export function GameNav() {
   const path = usePathname();
   return (
-    <div className="flex flex-wrap items-center gap-x-4 border-b border-rule px-6 py-2 text-[12px] sm:gap-x-5 sm:px-10">
+    <div className="flex flex-wrap items-center gap-x-4 border-b border-rule px-6 py-1 text-note sm:gap-x-5 sm:px-10">
       {LINKS.map((link) => {
         const current = path === link.href;
         return (
@@ -35,7 +35,7 @@ export function GameNav() {
             key={link.href}
             href={link.href}
             aria-current={current ? "page" : undefined}
-            className={`py-1 ${current ? "" : "text-faint transition-colors hover:text-dim"}`}
+            className={`py-2 ${current ? "" : "text-faint transition-colors hover:text-dim"}`}
             style={current ? { color: "var(--tier)" } : undefined}
           >
             {link.label}
