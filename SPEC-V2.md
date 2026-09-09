@@ -1,11 +1,18 @@
 # Focus RPG — V2 Spec: Skills, Fuel, Combat
 
 A Melvor Idle-flavoured skill economy layered onto shipped V1: 22 skills, 8,568 generated items,
-crafting chains, ten equipment slots across four combat styles, refinement, ~222 new
-achievements, and generated monster combat across 200 areas in 20 biomes.
+1,710 recipes, ten equipment slots across four combat styles, refinement, 250 uniques, 40
+bosses, 224 achievements, and generated monster combat across 200 areas in 20 biomes.
 
-**Status: design in progress.** Sections marked **DECIDED** are settled. §12 lists what is
-still open. Nothing here is built. Do not build until §12 is empty.
+**Status: built.** Sections marked **DECIDED** are settled, and §13 lists what is still open.
+
+What exists: twenty pure rule modules under `src/lib/game/` — 24 tiers, 24 weapon archetypes,
+90 species, 20 biomes, 200 areas, 709 monster variants, 8,568 items, 1,710 recipes, 250
+uniques, 40 bosses — the numeric balance model, ten database tables, five services, ten
+`/game` screens, an activity picker on the timer, and 224 achievements wired into the shipped
+engine. **279 unit tests pass**, and `scripts/game-audit.mjs` reports the live balance figures.
+
+What does not exist: the four proposals in §15, and whatever §13 still lists.
 
 V1 is [SPEC-V1.md](SPEC-V1.md) and is closed. Its section numbers are cited by ~150 code
 comments and must not be renumbered.
@@ -1059,7 +1066,8 @@ every V1 screen becomes half-game, and the screens that currently do one job wel
 
 ## 13. Open questions
 
-1. **Phasing** — build order for the expansion. §14 is a sketch, not a decision.
+1. **Milestone character XP** (§11) — specified and not wired. A skill level, a biome unlock
+   and a first +10 should each pay a lump into V1's ladder; today only focused minutes do.
 2. **The four researched proposals in §15** — each fills a verified hole and costs almost no
    items, but none is decided.
 3. **Eight uniques are named but not wired.** Of the 250, eight carry a `descriptive` effect —
@@ -1069,24 +1077,26 @@ every V1 screen becomes half-game, and the screens that currently do one job wel
 
 ---
 
-## 14. Provisional phase sketch
+## 14. Build phases — complete
 
-Not settled; depends on §13.
+The author chose to build the whole thing at once rather than in a vertical
+slice, so these describe what landed rather than an order anyone followed.
 
 - **E1 — Skills spine.** Activity selection on a session, the six gathering skills, seeded
   yield resolution, the append-only inventory ledger with derived balances, the bank with
   its slot limit, the collection log, skill levels, and `db:recompute` extended to replay
-  spends.
+  spends. **Done.**
 - **E2 — Fuel and processing.** Fuel currency, the ten processing skills, recipes, the
-  content file.
+  content file. **Done.**
 - **E3 — Equipment and coins.** Ten slots, four styles, the generator and its axes, rolled
-  stat bands, quality windows, coins, selling, shop, repairs.
+  stat bands, quality windows, coins, selling, shop, repairs. **Done.**
 - **E4 — Combat.** Generated biomes, areas and monsters, the requirement gate, rarity
-  spawns, the style wheel, generated drop tables, rations and durability.
+  spawns, the style wheel, generated drop tables, rations and durability. **Done.**
 - **E5 — Guns and refinement.** Gunsmithing, the saltpetre → gunpowder → cartridge chain,
-  the coat armour line, upgrade stones and +1 to +10.
+  the coat armour line, upgrade stones and +1 to +10. **Done.**
 - **E6 — Milestones and projections.** Milestone character XP, and projections on every
-  track.
+  track. **Milestone XP is specified in §11 and not yet wired**; projections exist for
+  character rank (V1) and skill level, not for every track.
 - **E7 — Bosses and Slaying.** 40 bosses with guaranteed first-kill uniques, the persistent
   contract ladder. **Done.**
 - **E8 — Depth.** Farming's four crop lines and the plot system, the 250 uniques, and the 224

@@ -12,12 +12,20 @@ checks below before pushing anything.
 
 ```bash
 npm test                   # 279 unit tests, no database needed
+node --env-file=.env.local scripts/schema-check.mjs   # the live schema matches the code
 npm run test:integration   # 35 probes against the real database
 npx tsc --noEmit
 npm run build
 ```
 
-All four must pass. The integration probe makes its own throwaway user and deletes it.
+All of these must pass. The integration probe makes its own throwaway user and
+deletes it.
+
+The schema check exists because the probe does not cover it: the probe exercises
+V1's tables, which have existed since the first migration, so it stays green on a
+database missing every V2 table. That is exactly how a deploy lands ahead of its
+schema and only fails on a page nobody has opened yet. Run `npm run db:push`
+before `git push`, and this says whether it took.
 
 ## What must stay true
 
