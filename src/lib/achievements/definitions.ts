@@ -1,5 +1,5 @@
 /**
- * The 131 achievements of SPEC.md §5, in the thirteen families the spec names.
+ * The 131 achievements of SPEC-V1.md §5, in the thirteen families the spec names.
  *
  * The spec fixes what each one is for but not what it pays, which carry a
  * wearable title, or which grant freezes. Those are set here:
@@ -13,6 +13,7 @@
  */
 
 import type { Stats } from "./stats";
+import { ACHIEVEMENTS_V2, FAMILIES_V2, FAMILY_LABEL_V2 } from "./definitions-v2";
 
 export const FAMILIES = [
   "volume",
@@ -318,7 +319,21 @@ export const ACHIEVEMENTS: Achievement[] = [
   ...hidden,
 ];
 
-export const BY_ID = new Map(ACHIEVEMENTS.map((x) => [x.id, x]));
+/**
+ * V1's 131 stay exactly as they are, and every test written against them still
+ * asserts 131. V2's set is a second list, and `ALL_ACHIEVEMENTS` is the union
+ * the engine judges — so adding a game did not quietly change what V1 means.
+ */
+export const ALL_ACHIEVEMENTS: Achievement[] = [...ACHIEVEMENTS, ...ACHIEVEMENTS_V2];
+
+export const ALL_FAMILIES: string[] = [...FAMILIES, ...FAMILIES_V2];
+
+export const ALL_FAMILY_LABEL: Record<string, string> = {
+  ...FAMILY_LABEL,
+  ...FAMILY_LABEL_V2,
+};
+
+export const BY_ID = new Map(ALL_ACHIEVEMENTS.map((x) => [x.id, x]));
 
 export function achievementXp(x: Achievement): number {
   return RARITY_XP[x.rarity];

@@ -1,20 +1,24 @@
 /**
- * Deciding what has been earned (SPEC.md §5).
+ * Deciding what has been earned (SPEC-V1.md §5).
  *
  * The Meta family counts other achievements, so one unlock can cause another —
  * earning a fiftieth unlocks "Fifty Earned", which may itself complete the Meta
  * family. The evaluation therefore runs to a fixed point rather than once.
  */
 
-import { ACHIEVEMENTS, FAMILIES, type Achievement, type Family } from "./definitions";
+import {
+  ALL_ACHIEVEMENTS as ACHIEVEMENTS,
+  ALL_FAMILIES as FAMILIES,
+  type Achievement,
+} from "./definitions";
 import type { Stats } from "./stats";
 
-const FAMILY_SIZE = new Map<Family, number>(
+const FAMILY_SIZE = new Map<string, number>(
   FAMILIES.map((f) => [f, ACHIEVEMENTS.filter((a) => a.family === f).length]),
 );
 
 function metaCounters(unlocked: Set<string>) {
-  const perFamily = new Map<Family, number>();
+  const perFamily = new Map<string, number>();
   let hiddenCount = 0;
   for (const id of unlocked) {
     const x = ACHIEVEMENTS.find((a) => a.id === id);

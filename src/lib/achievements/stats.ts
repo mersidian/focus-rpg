@@ -1,6 +1,6 @@
 /**
  * Everything the 131 achievement predicates need, computed once from the full
- * session history (SPEC.md §5).
+ * session history (SPEC-V1.md §5).
  *
  * This is deliberately done in TypeScript over every row rather than as forty
  * SQL aggregates. It is a single-user app — ten years of eight sessions a day is
@@ -10,6 +10,7 @@
  * code.
  */
 
+import { emptyGameStats, type GameStats } from "../game/game-stats";
 import { addDays, daysBetween, gameDay, quarterOf, weekdayOf } from "../game-day";
 
 export type StatSession = {
@@ -49,6 +50,14 @@ export type DayFacts = {
 
 export type Stats = {
   now: number;
+
+  /**
+   * V2's game facts (SPEC-V2.md §12).
+   *
+   * Defaults to zeros, so V1's 131 achievements and every test written against
+   * them are untouched by the game's existence.
+   */
+  game: GameStats;
   timezone: string;
   today: string;
 
@@ -245,6 +254,8 @@ function seasonOf(month: number): string {
 }
 
 export type StatsInput = {
+  /** Omitted by V1 callers and by tests, which get zeros. */
+  game?: GameStats;
   sessions: StatSession[];
   dayStates: Map<string, DayFacts["state"]>;
   timezone: string;
@@ -560,6 +571,7 @@ export function buildStats(input: StatsInput): Stats {
   }).length;
 
   return {
+    game: input.game ?? emptyGameStats(),
     now: input.now,
     timezone,
     today: input.today,

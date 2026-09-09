@@ -5,7 +5,7 @@ import { Nav } from "@/components/Nav";
 import { loadState } from "@/lib/game-state";
 import { loadAchievementBoard } from "@/lib/achievements/service";
 import { evaluateAchievements } from "@/lib/achievements/service";
-import { FAMILIES, FAMILY_LABEL, RARITY_LABEL } from "@/lib/achievements/definitions";
+import { ALL_FAMILIES as FAMILIES, ALL_FAMILY_LABEL as FAMILY_LABEL, RARITY_LABEL } from "@/lib/achievements/definitions";
 import { describeLevel } from "@/lib/levels";
 import { groupNumber, tierAccent } from "@/lib/format";
 

@@ -15,8 +15,15 @@ import { gameDay } from "../game-day";
 import { prestigeStats } from "../prestige-service";
 import { allThaiHolidayDates } from "../holidays/thailand";
 import { buildStats, type DayFacts, type StatSession } from "./stats";
+import { loadGameStats } from "../game-stats-service";
+import { emptyGameStats } from "../game/game-stats";
 import { evaluate, progressOf } from "./engine";
-import { ACHIEVEMENTS, BY_ID, achievementXp, type Achievement } from "./definitions";
+import {
+  ALL_ACHIEVEMENTS as ACHIEVEMENTS,
+  BY_ID,
+  achievementXp,
+  type Achievement,
+} from "./definitions";
 
 export type Unlocked = {
   id: string;
@@ -106,12 +113,31 @@ async function loadStatsFor(userId: string) {
     ledger.map((d) => [d.day, d.state]),
   );
 
+  /**
+   * V2's facts, loaded alongside V1's. They default to zeros when the game has
+   * never been touched, so an account that only ever used the timer is judged
+   * exactly as it was before the game existed.
+   *
+   * And they fail soft. This runs inside `submitReport`, which is the one path
+   * that must never break: if the game's tables are absent — a deploy that
+   * landed ahead of its migration — logging a session has to keep working. V1's
+   * 131 are judged either way, and V2's simply do not fire until the tables are
+   * there.
+   */
+  let game = emptyGameStats();
+  try {
+    game = await loadGameStats(userId);
+  } catch (error) {
+    console.error("[focus-rpg] game stats unavailable, judging V1 only", error);
+  }
+
   const now = Date.now();
   return {
     settings,
     state,
     streak,
     stats: buildStats({
+      game,
       sessions: statSessions,
       dayStates,
       timezone: settings.timezone,

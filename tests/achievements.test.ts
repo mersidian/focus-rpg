@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   ACHIEVEMENTS,
+  ALL_ACHIEVEMENTS,
   FAMILIES,
   RARITY_XP,
   achievementXp,
@@ -278,7 +279,11 @@ test("same-day recovery needs the abandon to come first", () => {
 test("progress reports each family", () => {
   const p = progressOf(new Set(["vol-first", "vol-10"]));
   assert.equal(p.unlockedCount, 2);
-  assert.equal(p.total, 131);
+  // The engine judges V1 and V2 together, so the total is the union. V1's own
+  // count is still asserted as 131 above — adding a game did not change what
+  // V1 means, only what there is to earn.
+  assert.equal(p.total, ALL_ACHIEVEMENTS.length);
+  assert.ok(p.total > 131);
   assert.equal(p.perFamily.volume.unlocked, 2);
   assert.equal(p.perFamily.volume.total, 14);
 });
