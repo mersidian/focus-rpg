@@ -22,6 +22,19 @@ import { tier } from "./tiers";
 import type { Rng } from "./rng";
 import type { Variant } from "./variants";
 import type { Speed } from "./species";
+import { emptyModifiers, type Modifiers } from "./effects";
+
+/**
+ * Ammunition spent per kill, by style. Melee pays nothing and has the lowest
+ * ceiling; a firearm pays most and hits hardest. §7 describes this ladder, and
+ * this is where it is actually charged.
+ */
+export const AMMO_PER_KILL: Record<Style, number> = {
+  melee: 0,
+  ranged: 1,
+  magic: 1,
+  gun: 2,
+};
 
 export type Rarity = "common" | "uncommon" | "elite" | "rare" | "legendary";
 
@@ -160,6 +173,16 @@ export type CombatInput = {
   twoHanded: boolean;
   /** Rations in the bank. A failed kill eats one or more. */
   rations: number;
+  /**
+   * Ammunition on hand. Melee needs none; every other style spends some per
+   * kill, which is the cost ladder of §7 actually being charged rather than
+   * described. Running dry stops the session's killing — a preparation failure,
+   * never a penalty for minutes already spent. Omitted means unlimited, which
+   * is what the pure tests use.
+   */
+  ammo?: number;
+  /** Folded from equipped uniques (`effects.ts`). Omitted means none. */
+  modifiers?: Modifiers;
   rng: Rng;
 };
 
@@ -167,6 +190,10 @@ export type CombatResult = {
   spawns: Spawn[];
   kills: number;
   failures: number;
+  /** Ammunition spent. Zero for melee, and zero with `freeAmmoOnKill`. */
+  ammoUsed: number;
+  /** True once ammunition ran out, so the session stopped fighting. */
+  outOfAmmo: boolean;
   /** Rations eaten, never more than were carried. */
   rationsUsed: number;
   /** Durability spent on the weapon: one per failure. */
@@ -184,6 +211,7 @@ export type CombatResult = {
 export function resolveCombat(input: CombatInput): CombatResult {
   const { focusedMs, roster, areaTier, loadoutPower, style, twoHanded, rng } = input;
   const { offence, defence } = loadoutPower;
+  const mods = input.modifiers ?? emptyModifiers();
   const spawns: Spawn[] = [];
   let remaining = focusedMs / 1000;
   let rationsUsed = 0;
@@ -191,22 +219,55 @@ export function resolveCombat(input: CombatInput): CombatResult {
   let kills = 0;
   let lootWeight = 0;
   let ranDry = false;
+  let ammoUsed = 0;
+  let outOfAmmo = false;
+
+  const perKill = AMMO_PER_KILL[style];
+  const ammoOnHand = input.ammo ?? Number.POSITIVE_INFINITY;
+  const spendsAmmo = perKill > 0 && !mods.freeAmmoOnKill;
 
   // A roster should never be empty — an area with nothing in it is a content
   // bug, not a quiet no-op — but resolving to nothing is safer than looping.
   if (roster.length === 0) {
-    return { spawns, kills: 0, failures: 0, rationsUsed: 0, durabilityUsed: 0, lootWeight: 0, ranDry: false };
+    return {
+      spawns,
+      kills: 0,
+      failures: 0,
+      ammoUsed: 0,
+      outOfAmmo: false,
+      rationsUsed: 0,
+      durabilityUsed: 0,
+      lootWeight: 0,
+      ranDry: false,
+    };
   }
 
   let guard = 0;
   while (remaining > 0 && guard++ < 10_000) {
+    // Out of ammunition stops the fighting. It is a preparation failure, and it
+    // takes nothing away from the minutes already spent — the session still
+    // completes and still pays.
+    if (spendsAmmo && ammoUsed + perKill > ammoOnHand) {
+      outOfAmmo = true;
+      break;
+    }
+
     const variant = roster[rng.int(0, roster.length - 1)];
     const rarity = rollRarity(rng, areaTier);
     const spawn = spawnPower(variant.tier, rarity);
-    const effective = offence * wheelFactor(style, variant.style);
-    const seconds = killSeconds(variant, effective, spawn, twoHanded);
+
+    // A unique may excuse the wheel's penalty; it may not invent its bonus.
+    const wheel = mods.ignoreWheelPenalty
+      ? Math.max(1, wheelFactor(style, variant.style))
+      : wheelFactor(style, variant.style);
+    const effective = offence * (1 + mods.offencePct / 100) * wheel;
+
+    const seconds =
+      killSeconds(variant, effective, spawn, twoHanded) / (1 + mods.throughputPct / 100);
     if (seconds > remaining) break;
     remaining -= seconds;
+
+    if (spendsAmmo) ammoUsed += perKill;
 
     const killed = rng.chance(successChance(effective, spawn));
     if (killed) {
@@ -215,9 +276,11 @@ export function resolveCombat(input: CombatInput): CombatResult {
       spawns.push({ variant, rarity, killed: true, loot: rarity.loot });
     } else {
       failures += 1;
-      const cost = rationsPerFailure(spawn, defence);
-      if (rationsUsed + cost <= input.rations) rationsUsed += cost;
-      else ranDry = true;
+      if (!mods.freeRations) {
+        const cost = rationsPerFailure(spawn, defence * (1 + mods.defencePct / 100));
+        if (rationsUsed + cost <= input.rations) rationsUsed += cost;
+        else ranDry = true;
+      }
       spawns.push({ variant, rarity, killed: false, loot: 0 });
     }
   }
@@ -226,8 +289,11 @@ export function resolveCombat(input: CombatInput): CombatResult {
     spawns,
     kills,
     failures,
+    ammoUsed,
+    outOfAmmo,
     rationsUsed,
-    durabilityUsed: failures,
+    // Only a failure wears the weapon, and a unique can excuse even that.
+    durabilityUsed: mods.freeDurability ? 0 : failures,
     lootWeight,
     ranDry,
   };

@@ -59,11 +59,21 @@ export type DropInput = {
   rarity: RarityDef;
   /** The style the player fought as; dropped gear favours it. */
   style: string;
+  /**
+   * From an equipped unique's `dropRate` effect, as a multiplier on how often a
+   * table pays out. It may NOT move rarity: rarity belongs to the monster
+   * (§7), so luck changes how often the good table fires and never which table
+   * a spawn had. 1 means no bonus.
+   */
+  dropBonus?: number;
+  /** From a `rollTwice` unique: draw the band twice and keep the better. */
+  rollTwice?: boolean;
   rng: Rng;
 };
 
 export function rollDrops(input: DropInput): Drop[] {
   const { variant, rarity, style, rng } = input;
+  const dropBonus = input.dropBonus ?? 1;
   const out: Drop[] = [];
   const t = variant.tier;
 
@@ -78,16 +88,20 @@ export function rollDrops(input: DropInput): Drop[] {
   });
 
   // A biome material, sometimes. This is what makes where you fought matter.
-  if (rng.chance(0.45)) {
+  if (rng.chance(Math.min(0.95, 0.45 * dropBonus))) {
     const material = variant.biome.materials[rng.int(0, 2)];
     out.push({ kind: "item", itemId: `biome:${material}`, name: material, qty: 1 });
   }
 
   // Equipment, rarely, and its quality is rolled from the same table a
   // crafted item can never reach: quality above Plain is found, not made.
-  if (rng.chance(EQUIPMENT_CHANCE[rarity.key] ?? 0)) {
+  if (rng.chance(Math.min(0.95, (EQUIPMENT_CHANCE[rarity.key] ?? 0) * dropBonus))) {
     const slot = SLOT_POOL[rng.int(0, SLOT_POOL.length - 1)];
     const quality = rng.weighted(QUALITIES, (q) => q.weight);
+    // A roll-twice unique keeps the better of two draws, which is the whole of
+    // its effect and the reason it is worth a slot.
+    const first = rng.next();
+    const percentile = input.rollTwice ? Math.max(first, rng.next()) : first;
     out.push({
       kind: "equipment",
       itemId: `${slot === "weapon" ? "weapon" : "armour"}:${style}:${slot}:${t}:${quality.key}`,
@@ -95,7 +109,7 @@ export function rollDrops(input: DropInput): Drop[] {
       style,
       tier: t,
       quality: quality.key,
-      percentile: rng.next(),
+      percentile,
     });
   }
 

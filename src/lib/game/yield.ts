@@ -12,6 +12,7 @@
 import { tierValue } from "./economy";
 import type { Rng } from "./rng";
 import { tierSkillRequirement } from "./skills";
+import { emptyModifiers, type Modifiers } from "./effects";
 
 /** Units a minute at parity, before any bonus. A 25-minute session is ~12. */
 export const BASE_UNITS_PER_MINUTE = 0.5;
@@ -29,6 +30,8 @@ export type YieldInput = {
   skillLevel: number;
   /** From `chain.ts`; 1 when no links stand behind the session. */
   chainMultiplier: number;
+  /** Folded from equipped uniques (`effects.ts`). */
+  modifiers?: Modifiers;
   rng: Rng;
 };
 
@@ -49,9 +52,11 @@ export function resolveYield(input: YieldInput): YieldResult {
   const toolAbove = Math.max(0, input.toolTier - input.tier);
   const skillAbove = Math.max(0, input.skillLevel - required);
 
+  const mods = input.modifiers ?? emptyModifiers();
   const multiplier =
     (1 + toolAbove * TOOL_TIER_BONUS) *
     (1 + Math.min(MAX_SKILL_BONUS, skillAbove * SKILL_LEVEL_BONUS)) *
+    (1 + mods.yieldPct / 100) *
     input.chainMultiplier;
 
   const expected = minutes * BASE_UNITS_PER_MINUTE * multiplier;
@@ -62,7 +67,7 @@ export function resolveYield(input: YieldInput): YieldResult {
 
   return {
     units,
-    skillXp: Math.round(minutes),
+    skillXp: Math.round(minutes * (1 + mods.skillXpPct / 100)),
     coinValue: units * tierValue(input.tier),
     multiplier,
   };

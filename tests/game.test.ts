@@ -51,6 +51,7 @@ import {
   plotCost,
 } from "../src/lib/game/farm.ts";
 import { contractDepth, rollContract } from "../src/lib/game/contracts.ts";
+import { AMMO_PER_KILL, WHEEL_DISADVANTAGE } from "../src/lib/game/combat.ts";
 import { CROP_LINES } from "../src/lib/game/items.ts";
 
 /**
@@ -1204,4 +1205,184 @@ test("the ladder leans deep, because a contract sending you back to the meadow i
   }
   const mean = biomes.reduce((a, b) => a + b, 0) / biomes.length;
   assert.ok(mean > BIOMES.length / 2, `contracts average biome ${mean.toFixed(1)}`);
+});
+
+/* ----------------------- the effects actually do something ----------------- */
+
+/**
+ * These are the tests that were missing. `effects.ts` typed sixteen kinds and
+ * nothing read them, so every one of 250 uniques was cosmetic — by exactly the
+ * standard that module sets against modifiers written as prose. A kind listed in
+ * IMPLEMENTED has to change an outcome, and here is where that is checked.
+ */
+function combatBase(overrides: Partial<Parameters<typeof resolveCombat>[0]> = {}) {
+  const biome = BIOMES[8];
+  return {
+    focusedMs: 25 * 60_000,
+    roster: variantsIn(biome),
+    areaTier: biome.tierLo,
+    loadoutPower: { offence: 400, defence: 400 },
+    style: "melee" as const,
+    twoHanded: false,
+    rations: 100,
+    rng: rng("effects"),
+    ...overrides,
+  };
+}
+
+test("a yield effect raises the haul, and only for its own skill", () => {
+  const base = {
+    focusedMs: 25 * 60_000,
+    tier: 9,
+    toolTier: 9,
+    skillLevel: 40,
+    chainMultiplier: 1,
+  };
+  const plain = resolveYield({ ...base, rng: rng("y") });
+  const boosted = resolveYield({
+    ...base,
+    modifiers: foldEffects([{ kind: "yield", pct: 50 }]),
+    rng: rng("y"),
+  });
+  assert.ok(boosted.multiplier > plain.multiplier, "a +50% yield unique changed nothing");
+  assert.ok(boosted.units >= plain.units);
+
+  const wrongSkill = resolveYield({
+    ...base,
+    modifiers: foldEffects([{ kind: "yield", pct: 50, skill: "fishing" }], "mining"),
+    rng: rng("y"),
+  });
+  assert.equal(wrongSkill.multiplier, plain.multiplier, "a fishing unique paid for mining");
+});
+
+test("a skillXp effect raises skill XP", () => {
+  const base = { focusedMs: 50 * 60_000, tier: 5, toolTier: 5, skillLevel: 20, chainMultiplier: 1 };
+  const plain = resolveYield({ ...base, rng: rng("s") });
+  const boosted = resolveYield({
+    ...base,
+    modifiers: foldEffects([{ kind: "skillXp", pct: 100 }]),
+    rng: rng("s"),
+  });
+  assert.ok(boosted.skillXp > plain.skillXp, "a +100% skill XP unique changed nothing");
+});
+
+test("freeRations means a failure costs no rations", () => {
+  const weak = combatBase({ loadoutPower: { offence: 40, defence: 40 } });
+  const plain = resolveCombat({ ...weak, rng: rng("fr") });
+  assert.ok(plain.failures > 0, "the fixture never failed, so it proves nothing");
+  assert.ok(plain.rationsUsed > 0);
+
+  const free = resolveCombat({
+    ...weak,
+    modifiers: foldEffects([{ kind: "freeRations" }]),
+    rng: rng("fr"),
+  });
+  assert.equal(free.rationsUsed, 0, "freeRations still ate rations");
+});
+
+test("freeDurability means a failure costs no durability", () => {
+  const weak = combatBase({ loadoutPower: { offence: 40, defence: 40 } });
+  assert.ok(resolveCombat({ ...weak, rng: rng("fd") }).durabilityUsed > 0);
+  const free = resolveCombat({
+    ...weak,
+    modifiers: foldEffects([{ kind: "freeDurability" }]),
+    rng: rng("fd"),
+  });
+  assert.equal(free.durabilityUsed, 0, "freeDurability still wore the weapon");
+});
+
+test("throughput buys kills, and offence buys conversion", () => {
+  const plain = resolveCombat(combatBase({ rng: rng("t") }));
+  const faster = resolveCombat(
+    combatBase({ modifiers: foldEffects([{ kind: "throughput", pct: 100 }]), rng: rng("t") }),
+  );
+  assert.ok(faster.spawns.length > plain.spawns.length, "+100% throughput met no more spawns");
+
+  const weak = combatBase({ loadoutPower: { offence: 60, defence: 400 } });
+  const before = resolveCombat({ ...weak, rng: rng("o") });
+  const after = resolveCombat({
+    ...weak,
+    modifiers: foldEffects([{ kind: "offence", pct: 300 }]),
+    rng: rng("o"),
+  });
+  assert.ok(after.kills > before.kills, "+300% offence converted nothing extra");
+});
+
+test("ignoreWheelPenalty removes the penalty without granting the bonus", () => {
+  // The penalty is the thing removed: a unique may excuse a bad matchup, not
+  // invent a good one.
+  assert.equal(wheelFactor("melee", "gun"), WHEEL_DISADVANTAGE);
+  const bad = combatBase({ style: "melee", loadoutPower: { offence: 120, defence: 400 } });
+  const penalised = resolveCombat({ ...bad, rng: rng("w") });
+  const excused = resolveCombat({
+    ...bad,
+    modifiers: foldEffects([{ kind: "ignoreWheelPenalty" }]),
+    rng: rng("w"),
+  });
+  assert.ok(excused.kills >= penalised.kills, "ignoring the penalty helped nothing");
+});
+
+test("ammunition is spent, and running dry stops the fighting", () => {
+  const ranged = combatBase({ style: "ranged" });
+  const plenty = resolveCombat({ ...ranged, ammo: 10_000, rng: rng("a") });
+  assert.ok(plenty.ammoUsed > 0, "a ranged session spent no ammunition");
+  assert.equal(plenty.outOfAmmo, false);
+
+  const short = resolveCombat({ ...ranged, ammo: 5, rng: rng("a") });
+  assert.equal(short.outOfAmmo, true, "five arrows lasted a whole session");
+  assert.ok(short.ammoUsed <= 5, "spent more ammunition than was carried");
+  assert.ok(short.spawns.length < plenty.spawns.length);
+});
+
+test("melee spends nothing, and a firearm spends most", () => {
+  assert.equal(AMMO_PER_KILL.melee, 0);
+  assert.ok(AMMO_PER_KILL.gun > AMMO_PER_KILL.ranged, "a gun is no dearer to fire than a bow");
+  const melee = resolveCombat(combatBase({ style: "melee", ammo: 0, rng: rng("m") }));
+  assert.equal(melee.ammoUsed, 0);
+  assert.equal(melee.outOfAmmo, false, "melee ran out of ammunition it does not use");
+  assert.ok(melee.kills > 0, "melee could not fight with no ammunition");
+});
+
+test("freeAmmoOnKill fires for nothing", () => {
+  const ranged = combatBase({ style: "ranged", ammo: 3 });
+  const free = resolveCombat({
+    ...ranged,
+    modifiers: foldEffects([{ kind: "freeAmmoOnKill" }]),
+    rng: rng("fa"),
+  });
+  assert.equal(free.ammoUsed, 0);
+  assert.equal(free.outOfAmmo, false, "three arrows still ran out with free ammunition");
+});
+
+test("a drop bonus pays out more often, and never changes rarity", () => {
+  const variant = variantsIn(BIOMES[8])[0];
+  const rarity = RARITIES[0];
+  const count = (bonus: number) => {
+    const r = rng("drops");
+    let items = 0;
+    for (let n = 0; n < 400; n++) {
+      items += rollDrops({ variant, rarity, style: "melee", dropBonus: bonus, rng: r }).length;
+    }
+    return items;
+  };
+  assert.ok(count(2) > count(1), "a +100% drop unique paid out no more often");
+});
+
+test("rollTwice keeps the better of two draws", () => {
+  const variant = variantsIn(BIOMES[8])[0];
+  const best = (rollTwice: boolean) => {
+    const r = rng("rt");
+    let sum = 0;
+    let n = 0;
+    for (let i = 0; i < 600; i++) {
+      for (const drop of rollDrops({ variant, rarity: RARITIES[4], style: "melee", rollTwice, rng: r })) {
+        if (drop.kind === "equipment") {
+          sum += drop.percentile;
+          n += 1;
+        }
+      }
+    }
+    return n === 0 ? 0 : sum / n;
+  };
+  assert.ok(best(true) > best(false) + 0.05, "rolling twice was no better than rolling once");
 });

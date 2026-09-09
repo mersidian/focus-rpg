@@ -32,7 +32,9 @@ import { tier as tierAt } from "./game/tiers";
 import { areasIn } from "./game/variants";
 import { BOSS_POWER_MULTIPLIER, bossKillSeconds, bossMarker, bossesIn } from "./game/bosses";
 import { resolveBoss } from "./game/combat";
-import { uniqueItemId } from "./game/uniques";
+import { UNIQUE_BY_NAME, uniqueItemId, type Unique } from "./game/uniques";
+import { foldEffects, type Effect, type Modifiers } from "./game/effects";
+import { AMMO_LINES } from "./game/items";
 import { resolveYield } from "./game/yield";
 import type { Activity } from "./game/activity";
 import { chainMultiplier, linksBefore, type ChainSession } from "./chain";
@@ -103,6 +105,130 @@ export async function loadEquipped(userId: string): Promise<Equipped> {
     equipped[spec.slot] = { spec, rolled: (row.rolled / 1000) * worn };
   }
   return equipped;
+}
+
+/**
+ * A unique arrives as something you can wear.
+ *
+ * It used to arrive as a ledger stack, which meant the whole point of a
+ * unique — its modifier — could never apply, because only an
+ * `equipment_instance` can be equipped. A boss's signature rolls at the TOP of
+ * its band: it is guaranteed, so there is nothing to be unlucky about.
+ */
+async function grantUnique(userId: string, unique: Unique, sessionId: string): Promise<void> {
+  const spec: ItemSpec = {
+    slot: unique.slot,
+    // A style-agnostic unique has to resolve to something for affinity, and the
+    // difference on a modifier slot is a couple of percent. Recorded rather than
+    // hidden.
+    style: (unique.style ?? "melee") as Style,
+    tier: unique.tier,
+    quality: "masterwork",
+    refine: 0,
+    archetype: undefined,
+  };
+  const { hi } = band(spec);
+  await db.insert(equipmentInstances).values({
+    userId,
+    itemId: uniqueItemId(unique),
+    slot: unique.slot,
+    style: spec.style,
+    tier: unique.tier,
+    quality: "masterwork",
+    rolled: Math.round(hi * 1000),
+    sessionId,
+  });
+  await logCollected(userId, uniqueItemId(unique), 1);
+}
+
+/**
+ * What the equipped uniques do.
+ *
+ * `effects.ts` types sixteen kinds and nothing was reading them, which made all
+ * 250 uniques cosmetic — by exactly the standard that module sets against
+ * modifiers written as prose. This is the reader.
+ */
+export async function loadModifiers(userId: string, skill?: string): Promise<Modifiers> {
+  const rows = await db
+    .select({ itemId: equipmentInstances.itemId })
+    .from(equipmentInstances)
+    .where(
+      and(eq(equipmentInstances.userId, userId), sql`${equipmentInstances.equippedSlot} is not null`),
+    );
+
+  const effects: Effect[] = [];
+  for (const row of rows) {
+    if (!row.itemId.startsWith("unique:")) continue;
+    const unique = UNIQUE_BY_NAME.get(row.itemId.slice("unique:".length));
+    if (unique) effects.push(unique.effect);
+  }
+  return foldEffects(effects, skill);
+}
+
+/** Ammunition on hand for a style, at any tier. */
+async function ammoCount(userId: string, style: Style): Promise<number> {
+  const lines = AMMO_LINES.filter((l) => l.style === style).map((l) => l.name);
+  if (lines.length === 0) return Number.POSITIVE_INFINITY;
+  const rows = await db
+    .select({ itemId: sql<string>`item_id`, qty: sql<number>`qty` })
+    .from(sql`inventory_balance`)
+    .where(sql`user_id = ${userId} and item_id like 'ammo:%' and qty > 0`);
+  return rows
+    .filter((r) => lines.some((name) => String(r.itemId).startsWith(`ammo:${name}:`)))
+    .reduce((n, r) => n + Number(r.qty), 0);
+}
+
+/** Spend ammunition, highest tier first — the good stuff is for the hard fights. */
+async function spendAmmo(userId: string, style: Style, want: number): Promise<Grant[]> {
+  if (want <= 0) return [];
+  const lines = AMMO_LINES.filter((l) => l.style === style).map((l) => l.name);
+  const rows = await db
+    .select({ itemId: sql<string>`item_id`, qty: sql<number>`qty` })
+    .from(sql`inventory_balance`)
+    .where(sql`user_id = ${userId} and item_id like 'ammo:%' and qty > 0`);
+  const mine = rows
+    .filter((r) => lines.some((name) => String(r.itemId).startsWith(`ammo:${name}:`)))
+    .sort((a, b) => Number(String(b.itemId).split(":")[2]) - Number(String(a.itemId).split(":")[2]));
+
+  const out: Grant[] = [];
+  let left = want;
+  for (const row of mine) {
+    if (left <= 0) break;
+    const take = Math.min(left, Number(row.qty));
+    out.push({ itemId: String(row.itemId), delta: -take, reason: "consumed" });
+    left -= take;
+  }
+  return out;
+}
+
+/**
+ * Spend rations, cheapest tier first.
+ *
+ * `rationCount` counts them at any tier, so spending a hardcoded
+ * `ration:{areaTier}` was a real bug: holding tier-3 rations and fighting in a
+ * tier-9 area passed the gate and then spent rations that were never owned,
+ * driving the balance negative — which `db:recompute` would refuse to refold,
+ * correctly, because a negative fold is a spend-rule bug.
+ */
+async function spendRations(userId: string, want: number): Promise<Grant[]> {
+  if (want <= 0) return [];
+  const rows = await db
+    .select({ itemId: sql<string>`item_id`, qty: sql<number>`qty` })
+    .from(sql`inventory_balance`)
+    .where(sql`user_id = ${userId} and item_id like 'ration:%' and qty > 0`);
+  const cheapest = rows.sort(
+    (a, b) => Number(String(a.itemId).split(":")[1]) - Number(String(b.itemId).split(":")[1]),
+  );
+
+  const out: Grant[] = [];
+  let left = want;
+  for (const row of cheapest) {
+    if (left <= 0) break;
+    const take = Math.min(left, Number(row.qty));
+    out.push({ itemId: String(row.itemId), delta: -take, reason: "consumed" });
+    left -= take;
+  }
+  return out;
 }
 
 /** Rations on hand, at any tier. A failed kill eats the cheapest first. */
@@ -384,6 +510,9 @@ export type ResolutionSummary = {
   equipmentKept: number;
   equipmentSalvaged: number;
   ranDry?: boolean;
+  /** True when ammunition ran out and the session stopped fighting. */
+  outOfAmmo?: boolean;
+  ammoUsed?: number;
   /** Lumps paid into V1's ladder by this session (§11). */
   milestones: MilestonePaid[];
 };
@@ -438,7 +567,11 @@ export async function resolveActivity(
     })),
     session.startedAt.getTime(),
   );
-  const chain = chainMultiplier(links);
+  // A unique can add links to the chain — the only place V2 reaches into a V1
+  // mechanic, and it reaches by adding to the count rather than by storing a
+  // multiplier, which would let it drift from the ledger.
+  const chainMods = await loadModifiers(userId);
+  const chain = chainMultiplier(links + chainMods.chainLinks);
 
   const fuel = FUEL_BY_LENGTH[session.plannedMinutes] ?? 0;
   const summary: ResolutionSummary = {
@@ -494,13 +627,7 @@ export async function resolveActivity(
     // The signature is guaranteed on the first kill and never rolled — and
     // `world_progress` is what stops a guarantee firing twice.
     if (result.firstKill && boss?.signature) {
-      grants.push({
-        itemId: uniqueItemId(boss.signature),
-        delta: 1,
-        reason: "combat_drop",
-        sessionId,
-        percentile: 1,
-      });
+      await grantUnique(userId, boss.signature, sessionId);
     }
     await append(userId, grants);
 
@@ -532,12 +659,18 @@ export async function resolveActivity(
   } else if (row.kind === "gathering") {
     const skills = await loadSkills(userId);
     const gate = await loadGateState(userId);
+    const mods = await loadModifiers(userId, row.skill);
     const result = resolveYield({
       focusedMs,
       tier: row.tier,
-      toolTier: gate.toolTier[row.skill] ?? row.tier,
+      toolTier: Math.max(
+        gate.toolTier[row.skill] ?? row.tier,
+        // A unique that "counts as a tool two tiers above itself" is read here.
+        (gate.toolTier[row.skill] ?? row.tier) + (mods.toolBonus[row.skill] ?? 0),
+      ),
       skillLevel: skills[row.skill] ?? 1,
       chainMultiplier: chain,
+      modifiers: mods,
       rng: rng(sessionSeed(sessionId, "yield")),
     });
     const itemId = gatheredItemId(row.skill, row.tier);
@@ -556,6 +689,7 @@ export async function resolveActivity(
     const style = (row.style ?? equipped.weapon?.spec.style ?? "melee") as Style;
     const rations = await rationCount(userId);
 
+    const mods = await loadModifiers(userId);
     const combat = resolveCombat({
       focusedMs,
       roster: area?.roster ?? [],
@@ -564,13 +698,27 @@ export async function resolveActivity(
       style,
       twoHanded: equipped.weapon?.spec.archetype?.hands === 2,
       rations,
+      ammo: await ammoCount(userId, style),
+      modifiers: mods,
       rng: rng(sessionSeed(sessionId, "combat")),
     });
 
     const lootRng = rng(sessionSeed(sessionId, "loot"));
+    // +rare drop chance is read here, and nowhere else: rarity belongs to the
+    // monster, so a unique may only move how often a rare table pays out.
+    const dropBonus = 1 + mods.dropRatePct / 100;
     const drops = combat.spawns
       .filter((s) => s.killed)
-      .flatMap((s) => rollDrops({ variant: s.variant, rarity: s.rarity, style, rng: lootRng }));
+      .flatMap((s) =>
+        rollDrops({
+          variant: s.variant,
+          rarity: s.rarity,
+          style,
+          dropBonus,
+          rollTwice: mods.rollTwice,
+          rng: lootRng,
+        }),
+      );
     const folded = foldDrops(drops);
 
     const wallet = await loadWallet(userId);
@@ -581,16 +729,32 @@ export async function resolveActivity(
       sessionId,
     }));
 
-    // Rations are spent, and never more than were carried.
-    if (combat.rationsUsed > 0) {
-      grants.push({
-        itemId: `ration:${row.tier}`,
-        delta: -combat.rationsUsed,
-        reason: "consumed",
-        sessionId,
-      });
-    }
+    // Rations and ammunition are both spent from what is actually held, at
+    // whatever tier that is, rather than from an id assumed to exist.
+    grants.push(
+      ...(await spendRations(userId, combat.rationsUsed)).map((g) => ({ ...g, sessionId })),
+    );
+    grants.push(
+      ...(await spendAmmo(userId, style, combat.ammoUsed)).map((g) => ({ ...g, sessionId })),
+    );
     await append(userId, grants);
+
+    // A failure wears the weapon. Worn gear is never destroyed — it is halved
+    // until repaired — and without this it never wore at all, so `repairAll`
+    // had nothing to mend and the cost of a failure was only ever rations.
+    if (combat.durabilityUsed > 0) {
+      await db
+        .update(equipmentInstances)
+        .set({
+          durability: sql`greatest(0, ${equipmentInstances.durability} - ${combat.durabilityUsed})`,
+        })
+        .where(
+          and(
+            eq(equipmentInstances.userId, userId),
+            eq(equipmentInstances.equippedSlot, "weapon"),
+          ),
+        );
+    }
 
     // Found gear meets the auto-salvage rules before it reaches the bank, which
     // is what stops a limited bank becoming an inventory minigame.
@@ -646,6 +810,8 @@ export async function resolveActivity(
     summary.equipmentKept = kept;
     summary.equipmentSalvaged = salvaged;
     summary.ranDry = combat.ranDry;
+    summary.outOfAmmo = combat.outOfAmmo;
+    summary.ammoUsed = combat.ammoUsed;
     summary.items = [...folded.items.values()].map((i) => ({ name: i.name, qty: i.qty }));
 
     await advanceContract(userId, combat.spawns.filter((s) => s.killed).map((s) => s.variant.name));
@@ -664,6 +830,25 @@ export async function resolveActivity(
       `${biomeName} opened`,
     );
     if (got) summary.milestones.push(got);
+  }
+
+  // A `characterXp` unique pays a lump here rather than inside V1's XP path.
+  // Reaching into `session-service` would put a V2 dependency in the one code
+  // path that must never break, and the arithmetic is the same either way.
+  if (chainMods.characterXpPct > 0) {
+    // Derived from the minutes actually focused rather than the planned length:
+    // this runs after resolution, where only the timed figure is to hand, and it
+    // is the timed figure that the ladder is paid on anyway.
+    const base = Math.round(focusedMs / 60_000);
+    const bonus = Math.round(base * (chainMods.characterXpPct / 100));
+    if (bonus > 0) {
+      await applyDelta(userId, null, `unique:characterXp:${sessionId}`, { xp: bonus });
+      summary.milestones.push({
+        marker: `unique:${sessionId}`,
+        label: "Unique XP bonus",
+        xp: bonus,
+      });
+    }
   }
 
   await advancePlots(userId);

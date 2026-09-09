@@ -11,7 +11,7 @@ checks below before pushing anything.
 ## Before pushing
 
 ```bash
-npm test                   # 295 unit tests, no database needed
+npm test                   # 306 unit tests, no database needed
 node --env-file=.env.local scripts/schema-check.mjs   # the live schema matches the code
 npm run test:integration   # 35 probes against the real database
 npx tsc --noEmit
@@ -78,6 +78,20 @@ before `git push`, and this says whether it took.
 - **A unique's effect is typed or it says it is not.** `effects.ts` has sixteen kinds the engine
   applies; anything else is `descriptive`, which means named, intended and inert. A modifier
   written as prose that looks like it fires is worse than one that admits it does not.
+- **A typed effect must have a reader, and a test that proves it.** The whole set shipped once
+  with `foldEffects` written and never called, which made all 250 uniques cosmetic — by exactly
+  the standard the line above sets. Every kind in `IMPLEMENTED` now changes an outcome and
+  `tests/game.test.ts` asserts it does. Adding a kind means adding both.
+- **A cost written in a constant is not a cost.** `AMMO_COST` existed for a week and nothing
+  spent ammunition, so all four styles fired free and the ladder that makes style choice
+  economic did not exist. Same for durability: `resolveCombat` returned `durabilityUsed` and
+  nothing applied it, so gear never wore and `repairAll` had nothing to mend. If a number
+  describes a price, something has to charge it.
+- **Spend from what is held, never from an id you assume exists.** Rations were spent from
+  `ration:{areaTier}` while the gate counted them at any tier, so fighting a tier-9 area with
+  tier-3 rations passed the gate and then drove the balance negative. Rations, ammunition and
+  upgrade stones all now walk what is actually owned — cheapest first for rations and stones,
+  highest tier first for ammunition.
 - **V1's achievement set is frozen at 131.** V2 is a second list and `ALL_ACHIEVEMENTS` is the
   union. Adding a game did not change what V1 means.
 - **A milestone is paid once, ever, and the marker proves it.** `applyDelta` does not

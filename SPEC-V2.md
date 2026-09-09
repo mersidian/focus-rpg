@@ -500,7 +500,7 @@ reliably convert.
 **Luck belongs on trinkets** — explicit drop-rate modifiers you trade a slot for, never a
 passive consequence of tier.
 
-### Ammunition — **DECIDED**
+### Ammunition — **BUILT**
 
 Every style except melee consumes something, and the cost ladder is what makes the four
 styles economically different rather than merely different on the wheel.
@@ -511,6 +511,22 @@ styles economically different rather than merely different on the wheel.
 | Ranged | arrows, bolts, darts | Fletching: logs + metal | cheap | low-mid |
 | Magic | runes | Runecrafting: essence | medium | high |
 | Gun | cartridges, shells, cells | Gunsmithing: gunpowder | expensive | highest |
+
+**What it actually costs**, from `game-audit.mjs` at tier 12 over a 25-minute session — a kill
+grosses roughly 63 coins in parts and coin:
+
+| Style | Kills | Ammunition | Net |
+|---|---|---|---|
+| Melee | 34 | none | ~2,140 |
+| Ranged | 39 | 123 coins | ~2,330 |
+| Magic | 52 | 371 coins | ~2,900 |
+| Gun | 53 | 1,344 coins | ~2,000 |
+
+So gunfire is the **worst style for farming commons and the best for hunting rare things**: it
+kills most and nets least, and it pays for itself only on the spawns its conversion can reach
+that melee's cannot. That is the trade, and it is the shape the first set of numbers did not
+have — the audit priced a gun session at 5,488 coins against a thousand coins of kills, which
+is not an expensive style but an unusable one.
 
 - **Damage scales with upkeep.** Melee is the zero-cost style with the lowest ceiling; guns
   are the opposite. Choosing a style therefore becomes an *economic* decision as well as a

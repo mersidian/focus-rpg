@@ -64,6 +64,7 @@ prestige player ever sees.
 | Plots: buy, sow, harvest | `src/lib/farm-service.ts`, `src/lib/game/farm.ts` |
 | Slaying contract targets | `src/lib/game/contracts.ts` |
 | One button per action | `src/components/GameActions.tsx`, `ActionButton.tsx` |
+| Reading equipped uniques' effects | `loadModifiers` in `src/lib/activity-service.ts` |
 | The balance audit | `scripts/game-audit.mjs` |
 | Does the live schema match the code | `scripts/schema-check.mjs` |
 | The generated wiki | `src/app/wiki/`, `src/lib/wiki/` |

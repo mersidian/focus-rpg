@@ -1,6 +1,7 @@
 import "server-only";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "./db";
+import { UNIQUE_BY_NAME } from "./game/uniques";
 import {
   collectionLog,
   equipmentInstances,
@@ -228,6 +229,19 @@ export async function adjustWallet(
 /** How many bank slots are in use: one per distinct stack, one per instance. */
 export async function bankUsage(userId: string): Promise<{ used: number; slots: number }> {
   const wallet = await loadWallet(userId);
+  // Equipped uniques can grant slots. Read from the instances directly rather
+  // than through `activity-service`, which imports this file.
+  const equippedUniques = await db
+    .select({ itemId: equipmentInstances.itemId })
+    .from(equipmentInstances)
+    .where(
+      and(eq(equipmentInstances.userId, userId), sql`${equipmentInstances.equippedSlot} is not null`),
+    );
+  const bonusSlots = equippedUniques.reduce((n, row) => {
+    if (!row.itemId.startsWith("unique:")) return n;
+    const unique = UNIQUE_BY_NAME.get(row.itemId.slice("unique:".length));
+    return unique?.effect.kind === "bankSlots" ? n + unique.effect.slots : n;
+  }, 0);
   const [stacks] = await db
     .select({ n: sql<number>`count(*)::int` })
     .from(inventoryBalances)
@@ -236,5 +250,5 @@ export async function bankUsage(userId: string): Promise<{ used: number; slots: 
     .select({ n: sql<number>`count(*)::int` })
     .from(equipmentInstances)
     .where(and(eq(equipmentInstances.userId, userId), sql`${equipmentInstances.equippedSlot} is null`));
-  return { used: (stacks?.n ?? 0) + (instances?.n ?? 0), slots: wallet.bankSlots };
+  return { used: (stacks?.n ?? 0) + (instances?.n ?? 0), slots: wallet.bankSlots + bonusSlots };
 }

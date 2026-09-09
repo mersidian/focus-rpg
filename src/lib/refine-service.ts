@@ -8,6 +8,7 @@ import { MAX_REFINE } from "./game/power";
 import { refineCoinCost, refineStoneCost } from "./game/economy";
 import { STONE_KINDS } from "./game/items";
 import { FIRST_REFINE_TEN_XP, milestoneMarker } from "./game/milestones";
+import { loadModifiers } from "./activity-service";
 
 /**
  * Refinement, +1 to +10 (SPEC-V2.md §8).
@@ -50,7 +51,14 @@ export async function refineItem(userId: string, instanceId: string): Promise<Re
   }
 
   const step = item.refine + 1;
-  const stonesNeeded = refineStoneCost(step);
+  // A unique can make refinement cheaper in stones. It never makes it free of
+  // coins: the cost curve is the whole axis, and one item may bend it, not break
+  // it.
+  const mods = await loadModifiers(userId);
+  const stonesNeeded = Math.max(
+    1,
+    Math.ceil(refineStoneCost(step) * (1 - Math.min(90, mods.refineDiscountPct) / 100)),
+  );
   const coinsNeeded = refineCoinCost(step, item.tier);
 
   const ids = stoneIds(item.tier);

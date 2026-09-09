@@ -86,12 +86,25 @@ export const REFINE_ALWAYS_SUCCEEDS = true;
 
 /* -------------------------------- upkeep --------------------------------- */
 
-/** Ammunition per shot, by style. Melee pays nothing; guns pay most. */
+/**
+ * Ammunition cost per unit, as a fraction of tier value. Melee pays nothing and
+ * a firearm pays most — but the ladder has to leave every style *profitable*,
+ * and the first version of these numbers did not.
+ *
+ * `game-audit.mjs` priced a 25-minute tier-12 gun session at 5,488 coins of
+ * cartridges against roughly a thousand coins of kills. That is not an expensive
+ * style, it is an unusable one. These figures are set against what a kill
+ * actually grosses — parts plus coins, about 60 coins at tier 12 — so upkeep
+ * lands near 4% of gross for a bow, 11% for runes and 40% for a firearm, which
+ * a gun pays for with the throughput and conversion it already has.
+ *
+ * Re-run the audit after touching these.
+ */
 export const AMMO_COST: Record<Style, number> = {
   melee: 0,
-  ranged: 0.35,
-  magic: 0.8,
-  gun: 2.2,
+  ranged: 0.12,
+  magic: 0.3,
+  gun: 0.55,
 };
 
 export function ammoUnitPrice(t: number, style: Style): number {

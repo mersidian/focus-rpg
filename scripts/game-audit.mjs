@@ -15,7 +15,7 @@ import { RARITIES, spawnPower, successChance, wheelFactor, resolveCombat, ration
 import { allVariants, allAreas, areasIn } from "../src/lib/game/variants.ts";
 import { BIOMES } from "../src/lib/game/biomes.ts";
 import { SKILL_XP, skillLevel, tierSkillRequirement } from "../src/lib/game/skills.ts";
-import { refineTotal, bankSlotsTotalCost, tierValue } from "../src/lib/game/economy.ts";
+import { refineTotal, bankSlotsTotalCost, tierValue, ammoUnitPrice } from "../src/lib/game/economy.ts";
 import { rng } from "../src/lib/game/rng.ts";
 import { resolveYield } from "../src/lib/game/yield.ts";
 
@@ -113,6 +113,20 @@ for (const [len, t] of [[25, 6], [25, 12], [50, 12], [25, 24]]) {
     loadoutPower: p, style: "melee", twoHanded: false, rations: 40, rng: rng(`audit:${len}:${t}`),
   });
   line(`  ${len}min in ${area.name} (t${area.tier}), tier ${t} gear: ${r.kills} kills, ${r.failures} failures, loot ${r.lootWeight.toFixed(0)}, rations ${r.rationsUsed}`);
+}
+
+line("\n=== UPKEEP: what a session actually costs ===");
+for (const style of STYLES) {
+  const t = 12;
+  const area = areasIn(BIOMES.find((b) => b.tierLo <= t && b.tierHi >= t) ?? BIOMES[0])[4];
+  const p = fullSet(style, t);
+  const r = resolveCombat({
+    focusedMs: 25 * 60_000, roster: area.roster, areaTier: area.tier,
+    loadoutPower: p, style, twoHanded: false, rations: 200, ammo: 100_000,
+    rng: rng(`upkeep:${style}`),
+  });
+  const unit = ammoUnitPrice(t, style);
+  line(`  ${style.padEnd(7)} 25min: ${String(r.kills).padStart(3)} kills, ${String(r.ammoUsed).padStart(3)} ammo (${(r.ammoUsed * unit).toLocaleString()} coins), ${r.rationsUsed} rations`);
 }
 
 line("\n=== GATHERING ===");
