@@ -1,9 +1,15 @@
 "use server";
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "./db";
-import { focusSessions, projects, userSettings, vacations } from "./db/schema";
+import {
+  focusSessions,
+  projects,
+  sessionActivities,
+  userSettings,
+  vacations,
+} from "./db/schema";
 import { requireUserId } from "./auth";
 import { applyDelta, loadState } from "./game-state";
 import { SLACKED_XP_MULTIPLIER } from "./constants";
@@ -23,6 +29,7 @@ import {
   isValidLength,
   reconcile,
   withSettled,
+  withGame,
   withUnlocked,
   type Reconciliation,
 } from "./session-service";
@@ -65,6 +72,7 @@ import {
   saveStreakState,
 } from "./streak-service";
 import type { Snapshot } from "./game-types";
+import type { ResolutionSummary } from "./game-types";
 
 type Row = typeof focusSessions.$inferSelect;
 
@@ -156,6 +164,22 @@ export async function startSession(input: {
     })
     .onConflictDoNothing();
 
+  /*
+   * Settle anything a previous resolution dropped.
+   *
+   * The catch around `resolveActivity` says a failure "leaves resolved_at null,
+   * so the next attempt can still settle it" — and there was no next attempt.
+   * It has one caller, and by the time it runs the session is already
+   * `completed` and will never be reported again, so a resolution that threw
+   * was lost silently and for good. This is that next attempt.
+   *
+   * It goes on a write path and not in `buildSnapshot`: pages call that, and a
+   * page must not be able to resolve a session by accident. Capped, because a
+   * sweep that grows without bound would eventually be the slowest part of
+   * pressing Start.
+   */
+  await sweepUnresolved(userId);
+
   if (input.activity) {
     const chosen = await chooseActivity(userId, input.id, input.activity);
     if (!chosen.ok) {
@@ -167,6 +191,30 @@ export async function startSession(input: {
 
   revalidatePath("/log");
   return withSettled(await buildSnapshot(userId, input.deviceId), earlier);
+}
+
+/** At most three sessions whose game half never settled. */
+async function sweepUnresolved(userId: string): Promise<void> {
+  try {
+    const stranded = await db
+      .select({ sessionId: sessionActivities.sessionId })
+      .from(sessionActivities)
+      .innerJoin(focusSessions, eq(focusSessions.id, sessionActivities.sessionId))
+      .where(
+        and(
+          eq(sessionActivities.userId, userId),
+          isNull(sessionActivities.resolvedAt),
+          eq(focusSessions.status, "completed"),
+        ),
+      )
+      .limit(3);
+    for (const row of stranded) {
+      await resolveActivity(userId, row.sessionId);
+    }
+  } catch (error) {
+    // Same rule as the original: the game may never stop a session starting.
+    console.error("[focus-rpg] sweep of unresolved sessions failed", error);
+  }
 }
 
 /** Everything selectable right now, with the gate already evaluated. */
@@ -457,8 +505,9 @@ export async function submitReport(input: {
   // It reads the finished row for its focused minutes and the chain, and it is
   // idempotent — `resolved_at` guards against a retry or a double click paying
   // twice.
+  let game: ResolutionSummary | null = null;
   try {
-    await resolveActivity(userId, row.id);
+    game = await resolveActivity(userId, row.id);
   } catch (error) {
     // The game must never be able to lose a logged session. XP, the streak and
     // the report are already committed above; a failure here leaves
@@ -473,7 +522,12 @@ export async function submitReport(input: {
   revalidatePath("/log");
   revalidatePath("/achievements");
   revalidatePath("/game");
-  return withUnlocked(await buildSnapshot(userId, input.deviceId), unlocked);
+  // The bank is where the result screen sends you, so it must not be stale.
+  revalidatePath("/game/bank");
+  return withGame(
+    withUnlocked(await buildSnapshot(userId, input.deviceId), unlocked),
+    game,
+  );
 }
 
 export async function createProject(

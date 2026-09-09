@@ -29,7 +29,7 @@ const V2_TABLES = [
 ];
 
 /** Columns added to session_activity after its first migration. */
-const V2_COLUMNS = ["kills", "failures", "legendary_kills", "units_gathered"];
+const V2_COLUMNS = ["kills", "failures", "legendary_kills", "units_gathered", "result"];
 
 const tables = new Set(
   (

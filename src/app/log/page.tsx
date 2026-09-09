@@ -6,6 +6,8 @@ import { listProjectDetails } from "@/lib/project-service";
 import { SessionCorrection } from "@/components/SessionCorrection";
 import { groupNumber } from "@/lib/format";
 import { ABANDON_REASON_LABEL } from "@/lib/constants";
+import { sessionResults } from "@/lib/game-view-service";
+import type { ResolutionSummary } from "@/lib/game-types";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +26,15 @@ export default async function LogPage() {
     listLog(session.user.id, 200),
     listProjectDetails(session.user.id),
   ]);
+  /*
+   * What the game paid, per session. Read here rather than joined onto
+   * `LogEntry`, because `listLog` is on `buildSnapshot`'s path and that runs on
+   * every heartbeat — sixty summaries per ping for a line only this page draws.
+   */
+  const results = await sessionResults(
+    session.user.id,
+    entries.map((e) => e.id),
+  );
   const projectOptions = projects.map((p) => ({ id: p.id, name: p.name }));
 
   const days = new Map<string, typeof entries>();
@@ -107,6 +118,14 @@ export default async function LogPage() {
                             derived rather than stored, so this is worked out
                             from the sessions before it — and without it the XP
                             figure was a number with no account of itself. */}
+                        {/* What the character did with the session, so the
+                            game leaves a trace in the record rather than only
+                            in a screen you have already dismissed. */}
+                        {results.get(entry.id) && (
+                          <p className="mt-1 text-faint">
+                            {describeResult(results.get(entry.id)!)}
+                          </p>
+                        )}
                         {entry.status === "completed" && entry.chainLinks > 0 && (
                           <p className="mt-1 text-faint">
                             <span className="tnum" style={{ color: "var(--tier)" }}>
@@ -161,4 +180,22 @@ export default async function LogPage() {
       </main>
     </>
   );
+}
+
+/** One line for what a session's character got up to. */
+function describeResult(r: ResolutionSummary): string {
+  const bits: string[] = [];
+  if (r.kind === "gathering" && r.items[0]) {
+    bits.push(`${r.items[0].qty} ${r.items[0].name}`);
+  } else if (r.kind === "boss") {
+    bits.push(r.bossDown ? `${r.bossName ?? "a boss"} down` : `${r.bossName ?? "a boss"} held`);
+  } else if (r.kills !== undefined) {
+    bits.push(`${r.kills} ${r.kills === 1 ? "kill" : "kills"}${r.where ? ` in ${r.where}` : ""}`);
+  }
+  if (r.coins > 0) bits.push(`${groupNumber(r.coins)} coins`);
+  if (r.equipmentKept > 0) bits.push(`${r.equipmentKept} kept`);
+  if (r.outOfAmmo) bits.push("ran out of ammunition");
+  const milestone = r.milestones.reduce((n, m) => n + m.xp, 0);
+  if (milestone > 0) bits.push(`+${groupNumber(milestone)} XP toward your rank`);
+  return bits.join(" · ");
 }

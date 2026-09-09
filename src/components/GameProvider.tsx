@@ -25,7 +25,9 @@ import { tierAccent, tierAction } from "@/lib/format";
 import { deviceId as readDeviceId, detectRuleset } from "@/lib/client/device";
 import { playChime } from "@/lib/client/chime";
 import { notifySessionEnd } from "@/lib/client/notify";
-import type { LevelChange, SettleEvent, Snapshot } from "@/lib/game-types";
+import type { LevelChange, SettleEvent, Snapshot,
+  ResolutionSummary,
+} from "@/lib/game-types";
 
 const CACHE_KEY = "focusrpg:snapshot";
 
@@ -42,6 +44,9 @@ type Ctx = {
   lastSettled: SettleEvent | null;
   levelChange: LevelChange | null;
   dismissLevelChange: () => void;
+  /** What the game paid for the session just logged, until it is dismissed. */
+  gameResult: ResolutionSummary | null;
+  dismissGameResult: () => void;
   begin: (minutes: number, activity?: Activity, tonicItemId?: string) => void;
   pause: () => void;
   resume: () => void;
@@ -107,6 +112,15 @@ export function GameProvider({
     initial.levelChange ?? null,
   );
   const [lastSettled, setLastSettled] = useState<SettleEvent | null>(initial.settled);
+  /*
+   * Held in provider state rather than read off the snapshot, because the
+   * snapshot is replaced by every heartbeat and every visibility change — and
+   * `buildSnapshot` deliberately sets this to null, so reading it there would
+   * make the screen vanish the moment the next ping landed.
+   */
+  const [gameResult, setGameResult] = useState<ResolutionSummary | null>(
+    initial.game ?? null,
+  );
   const [pending, startTransition] = useTransition();
 
   const [ruleset, setRuleset] = useState<"desktop" | "mobile">("desktop");
@@ -134,6 +148,7 @@ export function GameProvider({
     setSnapshot(snap);
     writeCache(snap);
     if (snap.levelChange) setLevelChange(snap.levelChange);
+    if (snap.game) setGameResult(snap.game);
     if (snap.settled) {
       setLastSettled(snap.settled);
       // Chime and notification fire once per session, wherever the transition
@@ -385,6 +400,8 @@ export function GameProvider({
       lastSettled,
       levelChange,
       dismissLevelChange: () => setLevelChange(null),
+      gameResult,
+      dismissGameResult: () => setGameResult(null),
       begin,
       pause,
       resume,
@@ -400,6 +417,7 @@ export function GameProvider({
       error,
       lastSettled,
       levelChange,
+      gameResult,
       begin,
       pause,
       resume,

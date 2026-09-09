@@ -204,6 +204,14 @@ export type CombatResult = {
   lootWeight: number;
   /** True once rations ran out; failures then stop costing what is not there. */
   ranDry: boolean;
+  /**
+   * Seconds actually spent fighting.
+   *
+   * The loop already tracks this and threw it away. It is what lets a session
+   * that stopped four minutes in say so, instead of reporting the minutes it
+   * was given as if it had used them.
+   */
+  secondsFought: number;
 };
 
 /**
@@ -235,6 +243,7 @@ export function resolveCombat(input: CombatInput): CombatResult {
       spawns,
       kills: 0,
       failures: 0,
+      secondsFought: 0,
       ammoUsed: 0,
       outOfAmmo: false,
       rationsUsed: 0,
@@ -298,6 +307,7 @@ export function resolveCombat(input: CombatInput): CombatResult {
     durabilityUsed: mods.freeDurability ? 0 : failures,
     lootWeight,
     ranDry,
+    secondsFought: Math.max(0, Math.round(focusedMs / 1000 - remaining)),
   };
 }
 

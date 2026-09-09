@@ -11,9 +11,9 @@ checks below before pushing anything.
 ## Before pushing
 
 ```bash
-npm test                   # 339 unit tests, no database needed
+npm test                   # 342 unit tests, no database needed
 node --env-file=.env.local scripts/schema-check.mjs   # the live schema matches the code
-npm run test:integration   # 35 probes against the real database
+npm run test:integration   # 48 probes against the real database
 npx tsc --noEmit
 npm run build
 ```
@@ -120,6 +120,17 @@ before `git push`, and this says whether it took.
   whose value is that every row means something cannot afford rows that mean nothing. Found and
   crafted gear both go through it; forgetting would make collection achievements silently
   unearnable, since they read the log and not holdings.
+- **A session says what it came to, and the record is the say.** `ResolutionSummary` was
+  built on every completed session and its one caller dropped it, so a fifty-minute fight that
+  stopped after four minutes for want of ammunition reported "+1250 XP banked" and nothing
+  else. It is now written into `session_activity.result` in the *same statement* that sets
+  `resolved_at`, so a settled session always has a record of what settled it, and a retry —
+  which the guard makes a no-op — can still read back the first call's result. It is a
+  description of writes already made, never a derived total: `db:recompute` has nothing to
+  rebuild in it, and nothing re-rolls to display it, because yield is seeded from the session
+  id precisely so a roll is reproducible. Re-deriving it from the ledger is impossible anyway —
+  coins and fuel go through the wallet, skill XP to `skill_state`, a milestone is a
+  `world_progress` marker with no session on it, and salvaged gear leaves no trace at all.
 - **Milestone XP stays a garnish.** The ladder is ~600,000 XP; V1's achievements are ~27,000 and
   the milestones are ~37,000, both under 8%, and a test holds the line. Anything that pays into
   the ladder competes with focused minutes for the meaning of a level.

@@ -43,6 +43,16 @@ export type YieldResult = {
   coinValue: number;
   /** The multiplier that was applied, so the summary can explain itself. */
   multiplier: number;
+  /**
+   * The factors behind that multiplier, in the order they applied.
+   *
+   * `multiplier` alone could not explain itself — it is the product of four
+   * things and the screen has to be able to name them. The house rule: a figure
+   * that is the product of a multiplier has to show its parts.
+   */
+  parts: { label: string; factor: number }[];
+  /** The units before the roll, so a lucky one reads as luck. */
+  expected: number;
 };
 
 export function resolveYield(input: YieldInput): YieldResult {
@@ -53,11 +63,16 @@ export function resolveYield(input: YieldInput): YieldResult {
   const skillAbove = Math.max(0, input.skillLevel - required);
 
   const mods = input.modifiers ?? emptyModifiers();
-  const multiplier =
-    (1 + toolAbove * TOOL_TIER_BONUS) *
-    (1 + Math.min(MAX_SKILL_BONUS, skillAbove * SKILL_LEVEL_BONUS)) *
-    (1 + mods.yieldPct / 100) *
-    input.chainMultiplier;
+  const parts = [
+    { label: "a tool above the tier", factor: 1 + toolAbove * TOOL_TIER_BONUS },
+    {
+      label: "skill above the requirement",
+      factor: 1 + Math.min(MAX_SKILL_BONUS, skillAbove * SKILL_LEVEL_BONUS),
+    },
+    { label: "what you are wearing", factor: 1 + mods.yieldPct / 100 },
+    { label: "the chain", factor: input.chainMultiplier },
+  ];
+  const multiplier = parts.reduce((n, p) => n * p.factor, 1);
 
   const expected = minutes * BASE_UNITS_PER_MINUTE * multiplier;
   // The fraction is a coin flip rather than a rounding, so short sessions are
@@ -70,5 +85,7 @@ export function resolveYield(input: YieldInput): YieldResult {
     skillXp: Math.round(minutes * (1 + mods.skillXpPct / 100)),
     coinValue: units * tierValue(input.tier),
     multiplier,
+    parts,
+    expected,
   };
 }

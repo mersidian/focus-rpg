@@ -95,7 +95,8 @@ export default async function GameOverview() {
           <>
             <Rows
               head={["Milestone", "XP"]}
-              rows={o.milestones.slice(0, 12).map((m) => [m.label, `+${groupNumber(m.xp)}`])}
+              rows={o.milestones.slice(-12).map((m) => [m.label, `+${groupNumber(m.xp)}`])}
+              total={o.milestones.length}
             />
             <p className="mt-4 text-[13px] leading-relaxed text-faint">
               <span className="tnum text-dim">

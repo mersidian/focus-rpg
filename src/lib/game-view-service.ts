@@ -1,15 +1,17 @@
 import "server-only";
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "./db";
 import {
   collectionLog,
   equipmentInstances,
   farmPlots,
   inventoryBalances,
+  sessionActivities,
   slayingContracts,
   worldProgress,
 } from "./db/schema";
 import { loadWallet, bankUsage } from "./inventory-service";
+import type { ResolutionSummary } from "./game-types";
 import { loadEquipped, loadSkillXp, loadGateState } from "./activity-service";
 import { generateCatalogue, type ItemDef } from "./game/items";
 import { loadoutPower, percentile, type Equipped } from "./game/power";
@@ -29,19 +31,13 @@ const SKILL_LABELS = new Map(SKILLS.map((s) => [s.key, s.label]));
 
 /** The catalogue, indexed once per request rather than per lookup. */
 let INDEX: Map<string, ItemDef> | null = null;
-export function itemIndex(): Map<string, ItemDef> {
-  if (!INDEX) INDEX = new Map(generateCatalogue().map((i) => [i.id, i]));
-  return INDEX;
-}
-
-export function itemName(itemId: string): string {
-  const found = itemIndex().get(itemId);
-  if (found) return found.name;
-  // Parts, biome materials and rations carry their name in the id, because they
-  // are generated from tables the catalogue reads rather than from the spine.
-  const [, ...rest] = itemId.split(":");
-  return rest.join(" ") || itemId;
-}
+/*
+ * Moved to `game/items`, where the purity rule says they belong: they take no
+ * clock and touch no database. Re-exported so this module's callers — and there
+ * are many — do not have to care that they moved.
+ */
+export { itemIndex, itemName } from "./game/items";
+import { itemIndex, itemName } from "./game/items";
 
 export type SkillView = {
   key: string;
@@ -77,6 +73,32 @@ export async function skillViews(userId: string): Promise<SkillView[]> {
 }
 
 export type BankRow = { itemId: string; name: string; qty: number; cls: string; tier: number };
+
+/**
+ * What each of these sessions came to, for the log.
+ *
+ * Deliberately not part of `LogEntry`. `listLog` is called by `buildSnapshot`,
+ * which runs on every heartbeat — joining sixty summaries onto it would put a
+ * page of JSON on every ping for a figure only the log page draws.
+ */
+export async function sessionResults(
+  userId: string,
+  sessionIds: string[],
+): Promise<Map<string, ResolutionSummary>> {
+  if (sessionIds.length === 0) return new Map();
+  const rows = await db
+    .select({ sessionId: sessionActivities.sessionId, result: sessionActivities.result })
+    .from(sessionActivities)
+    .where(
+      and(
+        eq(sessionActivities.userId, userId),
+        inArray(sessionActivities.sessionId, sessionIds),
+      ),
+    );
+  return new Map(
+    rows.flatMap((r) => (r.result ? [[r.sessionId, r.result] as const] : [])),
+  );
+}
 
 export async function bankRows(userId: string): Promise<BankRow[]> {
   const rows = await db

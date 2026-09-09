@@ -367,3 +367,29 @@ export function catalogueBreakdown(): Record<string, number> {
   for (const item of generateCatalogue()) out[item.cls] = (out[item.cls] ?? 0) + 1;
   return out;
 }
+
+/* --------------------------- naming what you hold -------------------------- */
+
+let INDEX: Map<string, ItemDef> | null = null;
+
+/**
+ * The catalogue by id, built once.
+ *
+ * This lived in `game-view-service`, which is a database module — so anything
+ * that wanted an item's name had to import Postgres to get it, and
+ * `activity-service` simply gave up and wrote the raw id into a session
+ * summary. It is pure: no clock, no database, just the generated catalogue.
+ */
+export function itemIndex(): Map<string, ItemDef> {
+  if (!INDEX) INDEX = new Map(generateCatalogue().map((i) => [i.id, i]));
+  return INDEX;
+}
+
+export function itemName(itemId: string): string {
+  const found = itemIndex().get(itemId);
+  if (found) return found.name;
+  // Parts, biome materials and rations carry their name in the id, because they
+  // are generated from tables the catalogue reads rather than from the spine.
+  const [, ...rest] = itemId.split(":");
+  return rest.join(" ") || itemId;
+}

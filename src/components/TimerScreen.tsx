@@ -26,10 +26,11 @@ import { CHAIN_WINDOW_MS, MAX_CHAIN_LINKS } from "@/lib/chain";
 import { clock, completionRatio, groupNumber, hours } from "@/lib/format";
 import { ActivityPicker } from "./ActivityPicker";
 import type { Activity } from "@/lib/game/activity";
+import { SessionResultScreen } from "./SessionResultScreen";
 
 export function TimerScreen() {
   const game = useGame();
-  const { snapshot, ruleset, serverNow } = game;
+  const { snapshot, ruleset, serverNow, gameResult } = game;
   const session = snapshot.active;
 
   useTick(1000, Boolean(session));
@@ -76,6 +77,26 @@ export function TimerScreen() {
       <>
         <ReportCard />
         <LevelUpOverlay />
+      </>
+    );
+  }
+
+  /*
+   * The result comes after the report, not instead of it.
+   *
+   * `resolveActivity` runs inside the report handler, after the session is
+   * marked complete — nothing is credited before a session is logged — so the
+   * card cannot show a result it precedes, and resolving earlier would pay for
+   * a session the user has not yet accounted for. A "just focus" session
+   * resolves to null, so this branch never fires and the fork lands on Idle
+   * exactly as it always did.
+   */
+  if (gameResult) {
+    return (
+      <>
+        <SessionResultScreen result={gameResult} />
+        <LevelUpOverlay />
+        <UnlockToast />
       </>
     );
   }

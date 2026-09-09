@@ -12,6 +12,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "next-auth/adapters";
+import type { ResolutionSummary } from "../game-types";
 
 /* ------------------------------------------------------------------ auth.js */
 
@@ -446,6 +447,25 @@ export const sessionActivities = pgTable(
     failures: integer("failures").notNull().default(0),
     legendaryKills: integer("legendary_kills").notNull().default(0),
     unitsGathered: integer("units_gathered").notNull().default(0),
+
+    /**
+     * The whole of what this session came to, as it was paid.
+     *
+     * The counters above are what SQL needs to judge an achievement; this is
+     * what the user needs to see what happened. Written in the same statement
+     * that sets `resolved_at`, so it can never disagree with the guard.
+     *
+     * It is a record of writes already made and never a thing to recompute.
+     * Re-deriving it from the ledger is not possible even in principle — coins
+     * and fuel go through the wallet, which writes no ledger row; skill XP goes
+     * to `skill_state`; a milestone is a `world_progress` marker with no
+     * session on it; and gear that was salvaged rather than kept leaves no
+     * trace of having existed. A screen assembled from what survives would show
+     * a smaller number than the one that was paid. Re-rolling for display is
+     * out too: yield is seeded from the session id precisely so a resolution is
+     * reproducible, and a roll shown to the user has to be the roll they got.
+     */
+    result: jsonb("result").$type<ResolutionSummary>(),
   },
   (t) => [index("session_activity_user_idx").on(t.userId, t.resolvedAt)],
 );

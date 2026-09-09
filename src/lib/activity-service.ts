@@ -36,10 +36,17 @@ import { BOSS_POWER_MULTIPLIER, bossKillSeconds, bossMarker, bossesIn } from "./
 import { resolveBoss } from "./game/combat";
 import { UNIQUE_BY_NAME, uniqueItemId, type Unique } from "./game/uniques";
 import { describeEffect, foldEffects, type Effect, type Modifiers } from "./game/effects";
-import { AMMO_LINES, STONE_KINDS, TOOL_SKILLS } from "./game/items";
+import { AMMO_LINES, STONE_KINDS, TOOL_SKILLS, itemName } from "./game/items";
 import { resolveYield } from "./game/yield";
 import type { Activity } from "./game/activity";
 import { chainMultiplier, linksBefore, type ChainSession } from "./chain";
+import type { MilestonePaid, ResolutionSummary } from "./game-types";
+
+/*
+ * Re-exported, because the declarations moved to game-types so a client
+ * component can name them without importing a `server-only` module.
+ */
+export type { MilestonePaid, ResolutionSummary };
 
 /**
  * Choosing what a session is, and turning a finished one into things you own.
@@ -543,8 +550,14 @@ async function payMilestone(
     .returning({ marker: worldProgress.marker });
   if (created.length === 0) return null;
 
-  await applyDelta(userId, null, `milestone:${marker}`, { xp });
-  return { marker, label, xp };
+  /*
+   * The level change is kept rather than dropped. A milestone lump can carry
+   * the character over a rank, and this was the one path where the *game*
+   * levelled you up — so it was the one rank-up with no full-screen moment,
+   * because applyDelta's return value went in the bin.
+   */
+  const { levelChange } = await applyDelta(userId, null, `milestone:${marker}`, { xp });
+  return { marker, label, xp, levelChange };
 }
 
 /**
@@ -584,31 +597,6 @@ async function addSkillXp(
   return paid;
 }
 
-export type MilestonePaid = { marker: string; label: string; xp: number };
-
-export type ResolutionSummary = {
-  kind: "gathering" | "combat" | "boss";
-  skill: string;
-  tier: number;
-  units?: number;
-  kills?: number;
-  failures?: number;
-  legendaryKills?: number;
-  coins: number;
-  fuel: number;
-  skillXp: number;
-  items: { name: string; qty: number }[];
-  equipmentKept: number;
-  equipmentSalvaged: number;
-  ranDry?: boolean;
-  /** True when ammunition ran out and the session stopped fighting. */
-  outOfAmmo?: boolean;
-  ammoUsed?: number;
-  /** Upgrade stones from salvage, when the rule is set to stones. */
-  salvageStones?: number;
-  /** Lumps paid into V1's ladder by this session (§11). */
-  milestones: MilestonePaid[];
-};
 
 /**
  * Resolve one completed session, exactly once.
@@ -671,6 +659,7 @@ export async function resolveActivity(
     kind: row.kind,
     skill: row.skill,
     tier: row.tier,
+    minutes: Math.round(focusedMs / 60_000),
     coins: 0,
     fuel,
     skillXp: 0,
@@ -749,6 +738,18 @@ export async function resolveActivity(
     summary.failures = result.killed ? 0 : 1;
     summary.skillXp = Math.round(focusedMs / 60_000);
     summary.items = result.firstKill && boss?.signature ? [{ name: boss.signature.name, qty: 1 }] : [];
+    summary.bossDown = result.killed;
+    summary.bossProgress = result.progress;
+    summary.bossName = boss?.name;
+    summary.bossWeakTo = boss?.style;
+    summary.style = style;
+    summary.where = boss?.name;
+    summary.rationsUsed = result.rationsUsed;
+    // A fifty that fell short of the kill and a fifty that was simply too short
+    // for one are different problems with different answers, so the screen has
+    // to be able to tell them apart.
+    summary.bossTooShort =
+      !result.killed && boss ? bossKillSeconds(boss.tier, power.offence) > focusedMs / 1000 : false;
   } else if (row.kind === "gathering") {
     const skills = await loadSkills(userId);
     const gate = await loadGateState(userId);
@@ -773,7 +774,12 @@ export async function resolveActivity(
     summary.milestones.push(...(await addSkillXp(userId, row.skill, result.skillXp)));
     summary.units = result.units;
     summary.skillXp = result.skillXp;
-    summary.items = [{ name: itemId, qty: result.units }];
+    // The NAME, not the id. This was `name: itemId`, so a gathering result
+    // would have read literally "raw:Ore:12" — combat already used the name.
+    summary.items = [{ name: itemName(itemId), qty: result.units }];
+    summary.where = itemName(itemId);
+    summary.yieldParts = result.parts;
+    summary.unitsExpected = result.expected;
   } else {
     const biome = BIOME_BY_INDEX.get(row.biome ?? 1);
     const area = biome ? areasIn(biome)[(row.area ?? 1) - 1] : undefined;
@@ -781,6 +787,7 @@ export async function resolveActivity(
     const power = loadoutPower(equipped);
     const style = (row.style ?? equipped.weapon?.spec.style ?? "melee") as Style;
     const rations = await rationCount(userId);
+    const carriedAmmo = await ammoCount(userId, style);
 
     const mods = await loadModifiers(userId, undefined, tonicEffectOf(row.tonicItemId));
     const combat = resolveCombat({
@@ -791,7 +798,7 @@ export async function resolveActivity(
       style,
       twoHanded: equipped.weapon?.spec.archetype?.hands === 2,
       rations,
-      ammo: await ammoCount(userId, style),
+      ammo: carriedAmmo,
       modifiers: mods,
       rng: rng(sessionSeed(sessionId, "combat")),
     });
@@ -852,6 +859,7 @@ export async function resolveActivity(
     // Found gear meets the auto-salvage rules before it reaches the bank, which
     // is what stops a limited bank becoming an inventory minigame.
     let kept = 0;
+    const keptPieces: NonNullable<ResolutionSummary["equipment"]> = [];
     let salvaged = 0;
     let salvageCoins = 0;
     const salvageStones: Grant[] = [];
@@ -900,6 +908,12 @@ export async function resolveActivity(
       // to be told separately — otherwise found equipment would never count
       // toward a collection achievement, which reads the log and not holdings.
       await logCollected(userId, piece.itemId, piece.percentile);
+      keptPieces.push({
+        name: itemName(piece.itemId),
+        slot: piece.slot,
+        quality: piece.quality,
+        percentile: piece.percentile,
+      });
       kept += 1;
     }
 
@@ -914,6 +928,10 @@ export async function resolveActivity(
       (s) => s.killed && s.rarity.key === "legendary",
     ).length;
     summary.coins = folded.coins + salvageCoins;
+    // The two halves of that sum, so the screen can say which was which
+    // rather than quoting a total with no account of itself.
+    summary.coinsFromDrops = folded.coins;
+    summary.coinsFromSalvage = salvageCoins;
     summary.skillXp = Math.round(focusedMs / 60_000);
     summary.equipmentKept = kept;
     summary.equipmentSalvaged = salvaged;
@@ -921,6 +939,18 @@ export async function resolveActivity(
     summary.ranDry = combat.ranDry;
     summary.outOfAmmo = combat.outOfAmmo;
     summary.ammoUsed = combat.ammoUsed;
+    summary.ammoCarried = carriedAmmo;
+    summary.rationsUsed = combat.rationsUsed;
+    summary.secondsFought = combat.secondsFought;
+    summary.where = area?.name;
+    summary.style = style;
+    summary.equipment = keptPieces;
+    summary.killsByRarity = combat.spawns
+      .filter((sp) => sp.killed)
+      .reduce<Record<string, number>>((acc, sp) => {
+        acc[sp.rarity.key] = (acc[sp.rarity.key] ?? 0) + 1;
+        return acc;
+      }, {});
     summary.items = [...folded.items.values()].map((i) => ({ name: i.name, qty: i.qty }));
 
     await advanceContract(userId, combat.spawns.filter((s) => s.killed).map((s) => s.variant.name));
@@ -960,7 +990,17 @@ export async function resolveActivity(
     }
   }
 
+  // The last rank a milestone paid for, so the overlay can fire for it.
+  summary.levelChange =
+    [...summary.milestones].reverse().find((m) => m.levelChange)?.levelChange ?? null;
+
   await advancePlots(userId);
+  /*
+   * The summary is written in the same statement that sets `resolved_at`, so
+   * there is no window where a session is settled but has no record of what it
+   * paid — and a retry, which the guard turns into a no-op, can still read back
+   * the result the first call produced instead of showing the user nothing.
+   */
   await db
     .update(sessionActivities)
     .set({
@@ -969,6 +1009,7 @@ export async function resolveActivity(
       failures: summary.failures ?? 0,
       legendaryKills: summary.legendaryKills ?? 0,
       unitsGathered: summary.units ?? 0,
+      result: summary,
     })
     .where(eq(sessionActivities.sessionId, sessionId));
 

@@ -1669,3 +1669,93 @@ test("a group never claims more rows than it shows", () => {
     assert.ok(group.items.length <= 12, `${group.cls} ignored its own cap`);
   }
 });
+
+test("a session's account of itself adds up", () => {
+  // The house rule: "if a figure on screen is the product of a multiplier, the
+  // screen has to say so… a number the user cannot take apart is a number they
+  // cannot trust, and they will assume the smallest of the possible
+  // explanations." resolveYield folded four factors into one number and kept
+  // none of them, so the screen had nothing to take apart.
+  const r = resolveYield({
+    focusedMs: 50 * 60_000,
+    tier: 3,
+    toolTier: 5,
+    skillLevel: 40,
+    chainMultiplier: 1.2,
+    rng: rng(sessionSeed("account", "yield")),
+  });
+
+  assert.ok(r.parts.length > 0, "the yield explains itself with no parts");
+  const product = r.parts.reduce((n, p) => n * p.factor, 1);
+  assert.ok(
+    Math.abs(product - r.multiplier) < 1e-9,
+    `the parts multiply to ${product}, not the ${r.multiplier} that was applied`,
+  );
+  assert.ok(
+    Math.abs(r.expected - 50 * 0.5 * r.multiplier) < 1e-9,
+    "the expectation does not follow from the multiplier",
+  );
+  // The roll rounds the expectation up or down, never further.
+  assert.ok(
+    r.units === Math.floor(r.expected) || r.units === Math.floor(r.expected) + 1,
+    `${r.units} units against an expectation of ${r.expected}`,
+  );
+});
+
+test("every named factor is a factor, not a difference", () => {
+  // A part of 1 means "this did nothing", which is what the screen filters on.
+  // A part of 0 would silently zero the haul.
+  const r = resolveYield({
+    focusedMs: 25 * 60_000,
+    tier: 1,
+    toolTier: 1,
+    skillLevel: 1,
+    chainMultiplier: 1,
+    rng: rng(sessionSeed("neutral", "yield")),
+  });
+  for (const part of r.parts) {
+    assert.ok(part.factor > 0, `${part.label} is not a multiplier: ${part.factor}`);
+  }
+  assert.ok(
+    Math.abs(r.multiplier - 1) < 1e-9,
+    "nothing was above its requirement and the multiplier still moved",
+  );
+});
+
+test("a fight reports the seconds it actually used", () => {
+  // Without this a session that stopped early reported the minutes it was
+  // given, so running out of ammunition four minutes in read as a full fifty.
+  const dry = resolveCombat({
+    focusedMs: 50 * 60_000,
+    roster: areasIn(BIOMES[0])[0].roster,
+    areaTier: 1,
+    loadoutPower: { offence: 400, defence: 400 },
+    style: "ranged",
+    twoHanded: false,
+    rations: 50,
+    ammo: 4,
+    rng: rng(sessionSeed("dry", "combat")),
+  });
+  assert.equal(dry.outOfAmmo, true, "four rounds lasted a whole fifty");
+  assert.ok(dry.secondsFought > 0, "it fought for no time at all");
+  assert.ok(
+    dry.secondsFought < 50 * 60,
+    `it claims ${dry.secondsFought}s of a 3000s session after running dry`,
+  );
+
+  const full = resolveCombat({
+    focusedMs: 50 * 60_000,
+    roster: areasIn(BIOMES[0])[0].roster,
+    areaTier: 1,
+    loadoutPower: { offence: 400, defence: 400 },
+    style: "melee",
+    twoHanded: false,
+    rations: 50,
+    ammo: 0,
+    rng: rng(sessionSeed("full", "combat")),
+  });
+  assert.ok(
+    full.secondsFought <= 50 * 60,
+    "it fought for longer than the session lasted",
+  );
+});

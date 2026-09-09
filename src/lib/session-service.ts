@@ -21,6 +21,7 @@ import type {
   LevelChange,
   LogEntry,
   ProjectSummary,
+  ResolutionSummary,
   SettleEvent,
   Snapshot,
 } from "./game-types";
@@ -356,6 +357,9 @@ export async function buildSnapshot(
     settled,
     levelChange,
     unlocked: [],
+    // Never read back here. This runs on every heartbeat and every visibility
+    // change; `submitReport` is the only thing that attaches a result.
+    game: null,
     chain,
     prestige: {
       stars: prestige.stars,
@@ -397,6 +401,26 @@ export function withUnlocked(
   unlocked: Snapshot["unlocked"],
 ): Snapshot {
   return unlocked.length === 0 ? snapshot : { ...snapshot, unlocked };
+}
+
+/**
+ * Attach what the game paid for the session just logged.
+ *
+ * Same shape as `withUnlocked`, and for the same reason: this belongs to one
+ * report rather than to the character, so it rides on the snapshot that answers
+ * that report and on no other.
+ *
+ * A rank that arrived off a milestone lump is promoted here too, but only when
+ * V1's own XP path did not already produce one — the overlay shows a single
+ * rank, and the ladder cannot cross two in one session.
+ */
+export function withGame(snapshot: Snapshot, game: ResolutionSummary | null): Snapshot {
+  if (!game) return snapshot;
+  return {
+    ...snapshot,
+    game,
+    levelChange: snapshot.levelChange ?? game.levelChange ?? null,
+  };
 }
 
 export function withSettled(snapshot: Snapshot, earlier: Reconciliation | null): Snapshot {

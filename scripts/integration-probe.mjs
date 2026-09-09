@@ -20,6 +20,12 @@ import {
 import { checkVacation } from "../src/lib/streak-service.ts";
 import { gameDay, addDays } from "../src/lib/game-day.ts";
 import { applyDelta, loadState } from "../src/lib/game-state.ts";
+import {
+  chooseActivity,
+  ensureStarterKit,
+  offers,
+  resolveActivity,
+} from "../src/lib/activity-service.ts";
 
 const sql = neon(process.env.DATABASE_URL);
 const userId = `probe-${crypto.randomUUID()}`;
@@ -217,7 +223,59 @@ check("a brand new name creates a project",
 check("a blank name resolves to nothing",
       (await resolveProject(userId, null, "   ")) === null);
 
-console.log("\n10. XP can never go negative");
+console.log("\n10. A session says what it came to");
+/*
+ * None of this was covered: the probe never touched activity-service, so the
+ * whole reward path — the thing every completed session runs through — had no
+ * test that talked to a database at all.
+ */
+await ensureStarterKit(userId);
+const starterAgain = await ensureStarterKit(userId);
+check("the starter kit is granted once, not twice", starterAgain === false);
+
+const gatherable = (await offers(userId, 50)).filter(
+  (o) => o.open && o.activity.kind === "gathering",
+);
+check("a fresh account has something it can do", gatherable.length > 0,
+      `${gatherable.length} open offers`);
+
+const resolveId = crypto.randomUUID();
+await sql`insert into focus_session
+  (id, user_id, planned_minutes, ruleset, device_id, status, started_at, ended_at, last_heartbeat_at, paused_ms, xp_awarded)
+  values (${resolveId}, ${userId}, 50, 'desktop', 'probe', 'completed',
+          ${new Date(Date.now() - 50 * 60_000)}, ${new Date()}, ${new Date()}, 0, 60)`;
+await chooseActivity(userId, resolveId, gatherable[0].activity, null);
+
+const summary = await resolveActivity(userId, resolveId);
+check("resolving a reported session returns a summary", summary !== null);
+check("the summary names the item rather than its id",
+      Boolean(summary?.items[0]) && !summary.items[0].name.includes(":"),
+      summary?.items[0]?.name);
+check("it carries the minutes every other figure derives from", summary?.minutes === 50);
+check("it shows the factors behind the figure",
+      (summary?.yieldParts?.length ?? 0) > 0, `${summary?.yieldParts?.length} parts`);
+check("those factors multiply out to what was expected",
+      Math.abs(
+        (summary?.yieldParts ?? []).reduce((n, f) => n * f.factor, 1) * 50 * 0.5 -
+          (summary?.unitsExpected ?? -1),
+      ) < 0.01);
+
+const [stored] = await sql`select result, resolved_at from session_activity where session_id = ${resolveId}`;
+check("the summary is persisted, not just returned", stored.result !== null);
+check("what was stored is what was paid", stored.result.units === summary.units);
+
+const twice = await resolveActivity(userId, resolveId);
+check("a second resolve pays nothing", twice === null);
+const [afterRetry] = await sql`select result, resolved_at from session_activity where session_id = ${resolveId}`;
+check("and leaves resolved_at alone",
+      String(afterRetry.resolved_at) === String(stored.resolved_at));
+check("and the stored result is still readable after it",
+      afterRetry.result.units === summary.units);
+const grantRows = await sql`select count(*)::int as n from inventory_entry
+  where session_id = ${resolveId} and delta > 0`;
+check("the retry wrote no second grant", grantRows[0].n === 1, `${grantRows[0].n} row(s)`);
+
+console.log("\n11. XP can never go negative");
 await applyDelta(userId, null, "probe", { xp: -999_999 });
 check("a huge penalty floors at zero", (await loadState(userId)).xp === 0);
 
