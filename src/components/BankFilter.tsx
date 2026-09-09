@@ -1,0 +1,81 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import type { BankRow } from "@/lib/game-view-service";
+
+/**
+ * The bank is search-first, and that is a design requirement rather than a
+ * nicety: with ~8,500 item types and a slot limit, a grid you scroll is the
+ * inventory-management minigame this app cannot afford.
+ */
+export function BankFilter({ rows }: { rows: BankRow[] }) {
+  const [query, setQuery] = useState("");
+  const [cls, setCls] = useState("all");
+
+  const classes = useMemo(
+    () => ["all", ...[...new Set(rows.map((r) => r.cls))].sort()],
+    [rows],
+  );
+
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return rows.filter(
+      (r) => (cls === "all" || r.cls === cls) && (q === "" || r.name.toLowerCase().includes(q)),
+    );
+  }, [rows, query, cls]);
+
+  return (
+    <div className="mt-6">
+      <div className="flex flex-wrap items-center gap-3">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search the bank"
+          className="min-w-0 flex-1 border-b border-rule bg-transparent py-2 text-[13px] text-text outline-none placeholder:text-faint focus:border-current"
+          style={{ caretColor: "var(--tier)" }}
+        />
+        <div className="flex flex-wrap gap-x-3 text-[12px]">
+          {classes.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setCls(c)}
+              className={`py-1 ${c === cls ? "" : "text-faint transition-colors hover:text-dim"}`}
+              style={c === cls ? { color: "var(--tier)" } : undefined}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <p className="mt-3 text-[12px] text-faint">
+        <span className="tnum">{shown.length}</span> of <span className="tnum">{rows.length}</span>{" "}
+        stacks
+      </p>
+
+      {shown.length === 0 ? (
+        <p className="mt-6 text-[13px] text-faint">Nothing matches.</p>
+      ) : (
+        <ul className="mt-2">
+          {shown.map((row) => (
+            <li
+              key={row.itemId}
+              className="flex items-baseline justify-between gap-4 border-b border-rule py-2 text-[13px] last:border-0"
+            >
+              <span className="min-w-0 text-dim">
+                {row.name}
+                <span className="text-faint">
+                  {" "}
+                  · {row.cls}
+                  {row.tier > 0 && ` t${row.tier}`}
+                </span>
+              </span>
+              <span className="tnum shrink-0 text-faint">{row.qty.toLocaleString()}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}

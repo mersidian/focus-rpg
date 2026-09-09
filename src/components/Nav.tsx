@@ -9,10 +9,12 @@ const links = [
   { href: "/projects", label: "Projects" },
   { href: "/dashboard", label: "Dashboard" },
   { href: "/log", label: "Log" },
+  { href: "/game", label: "Game" },
+  { href: "/wiki", label: "Wiki" },
 ];
 
 /**
- * Seven destinations do not fit across a phone, so the row wraps rather than
+ * Nine destinations do not fit across a phone, so the row wraps rather than
  * running off the edge. Hiding half the app behind a sideways scroll nobody
  * would think to try is worse than a second line.
  */

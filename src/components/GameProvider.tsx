@@ -1,5 +1,6 @@
 "use client";
 
+import type { Activity } from "@/lib/game/activity";
 import {
   createContext,
   useCallback,
@@ -41,7 +42,7 @@ type Ctx = {
   lastSettled: SettleEvent | null;
   levelChange: LevelChange | null;
   dismissLevelChange: () => void;
-  begin: (minutes: number) => void;
+  begin: (minutes: number, activity?: Activity) => void;
   pause: () => void;
   resume: () => void;
   abandon: () => void;
@@ -266,7 +267,7 @@ export function GameProvider({
   /* ------------------------------------------------------------- commands */
 
   const begin = useCallback(
-    (minutes: number) => {
+    (minutes: number, activity?: Activity) => {
       const id = crypto.randomUUID();
       const at = serverNow();
       setLastSettled(null);
@@ -294,7 +295,14 @@ export function GameProvider({
       });
 
       run(
-        () => startSession({ id, plannedMinutes: minutes, ruleset, deviceId: device.current }),
+        () =>
+          startSession({
+            id,
+            plannedMinutes: minutes,
+            ruleset,
+            deviceId: device.current,
+            activity,
+          }),
         () => {
           /**
            * The optimistic session has to go if the server would not take it.

@@ -27,6 +27,7 @@ import {
   type Reconciliation,
 } from "./session-service";
 import { evaluateAchievements, setWornTitle } from "./achievements/service";
+import { chooseActivity, offers, resolveActivity, type Activity } from "./activity-service";
 import { declinePrestige, doPrestige } from "./prestige-service";
 import {
   archiveProject,
@@ -78,6 +79,16 @@ export async function startSession(input: {
   plannedMinutes: number;
   ruleset: "desktop" | "mobile";
   deviceId: string;
+  /**
+   * What the character does for these minutes (SPEC-V2.md §5).
+   *
+   * Optional, because V1's timer works without it and must keep working. When
+   * it is given, the requirement gate is checked BEFORE the timer starts — that
+   * ordering is the whole point: a gate evaluated afterwards would be checking
+   * rations after the fight, and would let a session be claimed as combat once
+   * its roll was known.
+   */
+  activity?: Activity;
 }): Promise<Snapshot> {
   const userId = await requireUserId();
 
@@ -123,8 +134,22 @@ export async function startSession(input: {
     })
     .onConflictDoNothing();
 
+  if (input.activity) {
+    const chosen = await chooseActivity(userId, input.id, input.activity);
+    if (!chosen.ok) {
+      // The gate is checked, never trusted. A client that offers a closed
+      // activity does not get to have it.
+      throw new Error(`That needs ${chosen.missing.join(", ")}.`);
+    }
+  }
+
   revalidatePath("/log");
   return withSettled(await buildSnapshot(userId, input.deviceId), earlier);
+}
+
+/** Everything selectable right now, with the gate already evaluated. */
+export async function listActivityOffers() {
+  return offers(await requireUserId());
 }
 
 export async function pauseSession(sessionId: string, deviceId: string): Promise<Snapshot> {
@@ -237,12 +262,29 @@ export async function submitReport(input: {
   // runs after the slack adjustment rather than at completion (§6, §7).
   await recordCompletedSession(userId, row.startedAt, finalXp);
 
+  // The game resolves last, and only now: a session becomes `completed` when
+  // its report lands, and nothing is credited before that. An abandoned session
+  // yields nothing, so this is deliberately not on the completion path.
+  //
+  // It reads the finished row for its focused minutes and the chain, and it is
+  // idempotent — `resolved_at` guards against a retry or a double click paying
+  // twice.
+  try {
+    await resolveActivity(userId, row.id);
+  } catch (error) {
+    // The game must never be able to lose a logged session. XP, the streak and
+    // the report are already committed above; a failure here leaves
+    // `resolved_at` null, so the next attempt can still settle it.
+    console.error("[focus-rpg] activity resolution failed", error);
+  }
+
   // Achievements are judged against the whole history, after the streak has
   // moved — several of them read the streak (§5).
   const unlocked = await evaluateAchievements(userId, input.deviceId);
 
   revalidatePath("/log");
   revalidatePath("/achievements");
+  revalidatePath("/game");
   return withUnlocked(await buildSnapshot(userId, input.deviceId), unlocked);
 }
 

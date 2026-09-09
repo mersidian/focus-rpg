@@ -393,3 +393,298 @@ export const prestigeCycles = pgTable(
   },
   (t) => [index("prestige_cycle_user_idx").on(t.userId, t.ordinal)],
 );
+
+/* ------------------------------------------------------------- V2: the game */
+
+/**
+ * What a session's character was doing (SPEC-V2.md §5).
+ *
+ * Chosen BEFORE the timer starts, because the requirement gate has to be
+ * evaluated before you commit fifty minutes — and because a choice made
+ * afterwards would let a session be claimed as combat once its roll was known.
+ *
+ * Separate from the project tag on `focus_session`: one is what your character
+ * did, the other is what you did. They are orthogonal on purpose.
+ */
+export const sessionActivities = pgTable(
+  "session_activity",
+  {
+    sessionId: text("session_id")
+      .primaryKey()
+      .references(() => focusSessions.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: text("kind").$type<"gathering" | "combat" | "boss">().notNull(),
+    /** The gathering or combat skill this session fed. */
+    skill: text("skill").notNull(),
+    /** Resource tier for gathering; area tier for combat. */
+    tier: integer("tier").notNull(),
+    /** Combat only. */
+    biome: integer("biome"),
+    area: integer("area"),
+    /** The style fought as, so a recompute need not guess at the loadout. */
+    style: text("style").$type<"melee" | "ranged" | "magic" | "gun">(),
+    /** Resolved once, on completion, and never again. */
+    resolvedAt: timestamp("resolved_at", { mode: "date", withTimezone: true }),
+    /**
+     * What the session came to. Written at resolution and never updated.
+     *
+     * These are counters rather than a log of every kill: an achievement asking
+     * "1,000 kills" should not require a row per goblin, and the ledger already
+     * holds everything that was actually obtained.
+     */
+    kills: integer("kills").notNull().default(0),
+    failures: integer("failures").notNull().default(0),
+    legendaryKills: integer("legendary_kills").notNull().default(0),
+    unitsGathered: integer("units_gathered").notNull().default(0),
+  },
+  (t) => [index("session_activity_user_idx").on(t.userId, t.resolvedAt)],
+);
+
+/**
+ * The inventory ledger (SPEC-V2.md §10.1).
+ *
+ * **Append-only.** Every grant and every spend is a row, and a balance is a fold
+ * over the rows — nothing here is ever mutated and nothing is ever deleted.
+ *
+ * This is the shape the whole architecture turns on. Grants derive from
+ * `focus_session` and can be rebuilt from it; spends are DECISIONS, which
+ * `db:recompute` replays in order rather than recomputing. That is the same
+ * carve-out spending a freeze already has, and it is what lets a bug in a spend
+ * rule be fixed by correcting the rule and replaying, instead of by hand-editing
+ * quantities nobody can audit.
+ */
+export const inventoryEntries = pgTable(
+  "inventory_entry",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** The generated catalogue id, e.g. "raw:Ore:12". */
+    itemId: text("item_id").notNull(),
+    /** Positive for a grant, negative for a spend. Never zero. */
+    delta: integer("delta").notNull(),
+    reason: text("reason")
+      .$type<
+        | "session_yield"
+        | "combat_drop"
+        | "craft_output"
+        | "craft_input"
+        | "sold"
+        | "bought"
+        | "consumed"
+        | "refine_cost"
+        | "salvage"
+        | "gate_entry"
+        | "correction"
+      >()
+      .notNull(),
+    /** The session that caused it, where there was one. */
+    sessionId: text("session_id").references(() => focusSessions.id, { onDelete: "set null" }),
+    /** Ordering for replay. Monotonic per user. */
+    seq: bigint("seq", { mode: "number" }).notNull(),
+    at: timestamp("at", { mode: "date", withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("inventory_entry_user_seq_idx").on(t.userId, t.seq),
+    index("inventory_entry_user_item_idx").on(t.userId, t.itemId),
+  ],
+);
+
+/**
+ * A cache of the ledger above, for reads.
+ *
+ * Same relationship `game_state` has to `focus_session`: convenient, and never
+ * the truth. Where this disagrees with the ledger, the ledger wins.
+ */
+export const inventoryBalances = pgTable(
+  "inventory_balance",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    itemId: text("item_id").notNull(),
+    qty: integer("qty").notNull().default(0),
+    /** The ledger sequence this balance was folded up to. */
+    throughSeq: bigint("through_seq", { mode: "number" }).notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.itemId] })],
+);
+
+/**
+ * Every item type ever obtained, permanently (SPEC-V2.md §9).
+ *
+ * A limited bank breaks the collection achievements on its own — "every item of
+ * one material tier" is hundreds of items against sixty starting slots. So
+ * collection reads THIS, never current holdings: you have to have found it, not
+ * still be holding it. Selling a Legendary never erases that you had one.
+ */
+export const collectionLog = pgTable(
+  "collection_log",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    itemId: text("item_id").notNull(),
+    firstAt: timestamp("first_at", { mode: "date", withTimezone: true }).notNull().defaultNow(),
+    /** The best band percentile ever seen for this item, 0-1000 for precision. */
+    bestRoll: integer("best_roll").notNull().default(0),
+    seen: integer("seen").notNull().default(1),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.itemId] })],
+);
+
+/** One row per skill per user. XP only ever rises. */
+export const skillStates = pgTable(
+  "skill_state",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    skill: text("skill").notNull(),
+    xp: bigint("xp", { mode: "number" }).notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.skill] })],
+);
+
+/**
+ * One owned piece of equipment.
+ *
+ * The catalogue is a definition; this is an instance. The difference is the
+ * three axes that only exist once something has actually dropped: the rolled
+ * value inside its band, the quality window it landed in, and whatever
+ * refinement has since been paid for.
+ *
+ * Worn equipment is never destroyed (§7), so `durability` floors at zero and the
+ * row stays.
+ */
+export const equipmentInstances = pgTable(
+  "equipment_instance",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** The catalogue id it was generated from. */
+    itemId: text("item_id").notNull(),
+    slot: text("slot").notNull(),
+    style: text("style").$type<"melee" | "ranged" | "magic" | "gun">().notNull(),
+    tier: integer("tier").notNull(),
+    quality: text("quality").notNull(),
+    archetype: text("archetype"),
+    /** The rolled value, stored x1000 so it is an integer. */
+    rolled: integer("rolled").notNull(),
+    refine: integer("refine").notNull().default(0),
+    durability: integer("durability").notNull().default(100),
+    /** Which slot it is worn in, or null if it is in the bank. */
+    equippedSlot: text("equipped_slot"),
+    foundAt: timestamp("found_at", { mode: "date", withTimezone: true }).notNull().defaultNow(),
+    sessionId: text("session_id").references(() => focusSessions.id, { onDelete: "set null" }),
+  },
+  (t) => [
+    index("equipment_user_slot_idx").on(t.userId, t.slot),
+    uniqueIndex("equipment_one_per_slot_idx").on(t.userId, t.equippedSlot),
+  ],
+);
+
+/**
+ * Coins, fuel, and the two caps money buys.
+ *
+ * Derived from the ledger like everything else, and cached here for reads. Fuel
+ * does not decay — it is capped instead (§2), and fuel earned at cap is simply
+ * not granted rather than lost.
+ */
+export const wallets = pgTable("wallet", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  coins: bigint("coins", { mode: "number" }).notNull().default(0),
+  fuel: integer("fuel").notNull().default(0),
+  fuelCap: integer("fuel_cap").notNull().default(500),
+  bankSlots: integer("bank_slots").notNull().default(60),
+  /** Set once; salvage pays coins or upgrade stones, never both. */
+  salvageOutput: text("salvage_output").$type<"coins" | "stones">().notNull().default("coins"),
+  /** Auto-salvage thresholds, as band percentiles x1000. */
+  salvageBelow: integer("salvage_below").notNull().default(600),
+  keepAbove: integer("keep_above").notNull().default(900),
+  autoRepair: boolean("auto_repair").notNull().default(true),
+  version: integer("version").notNull().default(0),
+});
+
+/**
+ * Farming plots (SPEC-V2.md §6).
+ *
+ * `stagesLeft` counts down by one per COMPLETED SESSION, whatever the session
+ * was doing — never by elapsed time. That is the whole reason Farming is legal
+ * here: the user's focus is the only clock in this app.
+ */
+export const farmPlots = pgTable(
+  "farm_plot",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** 1-based, and how many exist is bought with coins. */
+    slot: integer("slot").notNull(),
+    seedItemId: text("seed_item_id"),
+    stagesLeft: integer("stages_left").notNull().default(0),
+    plantedAt: timestamp("planted_at", { mode: "date", withTimezone: true }),
+  },
+  (t) => [uniqueIndex("farm_plot_user_slot_idx").on(t.userId, t.slot)],
+);
+
+/**
+ * The Slaying contract. One at a time, and it never expires (§7).
+ *
+ * Daily contracts were rejected: three-a-day-or-lose-them is a login incentive,
+ * and this app already has a healthier one in the streak.
+ */
+export const slayingContracts = pgTable(
+  "slaying_contract",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    variantName: text("variant_name").notNull(),
+    biome: integer("biome").notNull(),
+    required: integer("required").notNull(),
+    killed: integer("killed").notNull().default(0),
+    tier: integer("tier").notNull(),
+    takenAt: timestamp("taken_at", { mode: "date", withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp("completed_at", { mode: "date", withTimezone: true }),
+  },
+  (t) => [index("slaying_user_idx").on(t.userId, t.completedAt)],
+);
+
+/**
+ * What the world has given up so far: bosses down, key items held, areas seen.
+ *
+ * A boss's FIRST kill always drops its signature unique, so the row has to
+ * remember that it happened — a guaranteed drop that fires twice is a bug, and
+ * one that never fires is worse.
+ */
+export const worldProgress = pgTable(
+  "world_progress",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** "boss:14:lord", "key:rimeworksCipher", "area:7:3". */
+    marker: text("marker").notNull(),
+    count: integer("count").notNull().default(1),
+    firstAt: timestamp("first_at", { mode: "date", withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.marker] })],
+);

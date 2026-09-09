@@ -24,6 +24,8 @@ import { describeLevel } from "@/lib/levels";
 import { xpMultiplier } from "@/lib/prestige";
 import { CHAIN_WINDOW_MS, MAX_CHAIN_LINKS } from "@/lib/chain";
 import { clock, completionRatio, groupNumber, hours } from "@/lib/format";
+import { ActivityPicker } from "./ActivityPicker";
+import type { Activity } from "@/lib/game/activity";
 
 export function TimerScreen() {
   const game = useGame();
@@ -33,6 +35,13 @@ export function TimerScreen() {
   useTick(1000, Boolean(session));
 
   const [choice, setChoice] = useState<number>(25);
+  /**
+   * The activity survives a report and a settle, because a player who is mining
+   * iron this afternoon is probably still mining iron in twenty minutes. It is
+   * still chosen before every session — this only spares you re-picking the same
+   * thing, and the gate is re-checked server-side each time regardless.
+   */
+  const [activity, setActivity] = useState<Activity | null>(null);
   const now = serverNow();
 
   const verdict = useMemo(() => {
@@ -75,7 +84,12 @@ export function TimerScreen() {
       {session && remainingMs !== null ? (
         <Running remainingMs={remainingMs} paused={verdict?.kind === "paused"} now={now} />
       ) : (
-        <Idle choice={choice} onChoose={setChoice} />
+        <Idle
+          choice={choice}
+          onChoose={setChoice}
+          activity={activity}
+          onActivity={setActivity}
+        />
       )}
       <LevelUpOverlay />
       <UnlockToast />
@@ -85,7 +99,17 @@ export function TimerScreen() {
 
 /* ------------------------------------------------------------------ idle */
 
-function Idle({ choice, onChoose }: { choice: number; onChoose: (n: number) => void }) {
+function Idle({
+  choice,
+  onChoose,
+  activity,
+  onActivity,
+}: {
+  choice: number;
+  onChoose: (n: number) => void;
+  activity: Activity | null;
+  onActivity: (a: Activity | null) => void;
+}) {
   const { snapshot, ruleset, begin, pending, error, clearError, lastSettled } = useGame();
   const { state } = snapshot;
   const info = describeLevel(state.level);
@@ -212,9 +236,11 @@ function Idle({ choice, onChoose }: { choice: number; onChoose: (n: number) => v
           })}
         </div>
 
+        <ActivityPicker value={activity} onChange={onActivity} />
+
         <button
           type="button"
-          onClick={() => begin(choice)}
+          onClick={() => begin(choice, activity ?? undefined)}
           disabled={pending}
           className="mt-6 w-full rounded-sm px-6 py-4 text-[15px] font-medium text-ground transition-opacity disabled:opacity-50"
           style={{ backgroundColor: "var(--tier)" }}
