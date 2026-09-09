@@ -145,7 +145,7 @@ export function StreakControls({
               value={start}
               min={today}
               onChange={(e) => setStart(e.target.value)}
-              className="tnum mt-1 block rounded-sm border border-rule bg-lift px-3 py-2 text-[14px] text-text outline-none"
+              className="tnum mt-1 block rounded-sm border border-rule bg-lift px-3 py-2 text-field text-text"
             />
           </label>
           <label className="text-[13px] text-faint">
@@ -155,7 +155,7 @@ export function StreakControls({
               value={end}
               min={start}
               onChange={(e) => setEnd(e.target.value)}
-              className="tnum mt-1 block rounded-sm border border-rule bg-lift px-3 py-2 text-[14px] text-text outline-none"
+              className="tnum mt-1 block rounded-sm border border-rule bg-lift px-3 py-2 text-field text-text"
             />
           </label>
           <button
@@ -188,7 +188,7 @@ export function StreakControls({
                   setCalendarSettings({ birthday: e.target.value || null }, deviceId()),
                 );
               }}
-              className="tnum mt-1 block rounded-sm border border-rule bg-lift px-3 py-2 text-[14px] text-text outline-none"
+              className="tnum mt-1 block rounded-sm border border-rule bg-lift px-3 py-2 text-field text-text"
             />
           </label>
           <p className="pb-2 text-[12px] text-faint">Only the day and month are read.</p>

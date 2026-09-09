@@ -32,7 +32,7 @@ export function BankFilter({ rows }: { rows: BankRow[] }) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search the bank"
-          className="min-w-0 flex-1 border-b border-rule bg-transparent py-2 text-[13px] text-text outline-none placeholder:text-faint focus:border-current"
+          className="min-w-0 flex-1 border-b border-rule bg-transparent py-2 text-[13px] text-text placeholder:text-faint focus:border-current"
           style={{ caretColor: "var(--tier)" }}
         />
         <div className="flex flex-wrap gap-x-3 text-[12px]">

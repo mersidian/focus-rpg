@@ -54,8 +54,9 @@ export default async function LogPage() {
                   {rows.map((entry) => (
                     <li
                       key={entry.id}
-                      className="flex gap-4 border-b border-rule py-4 text-[13px] last:border-0"
+                      className="border-b border-rule py-4 text-body last:border-0"
                     >
+                      <div className="flex gap-4">
                       <span
                         aria-hidden
                         className="mt-[6px] h-2 w-[2px] shrink-0"
@@ -115,18 +116,6 @@ export default async function LogPage() {
                             <span className="tnum">{entry.plannedMinutes}</span> minutes
                           </p>
                         )}
-                        {entry.status === "completed" && (
-                          <div className="mt-1">
-                            <SessionCorrection
-                              sessionId={entry.id}
-                              projects={projectOptions}
-                              currentProjectName={entry.projectName}
-                              currentNote={entry.note}
-                              currentHonest={entry.honest}
-                              baseXp={entry.baseXp > 0 ? entry.baseXp : entry.xpAwarded}
-                            />
-                          </div>
-                        )}
                       </div>
 
                       <span
@@ -139,6 +128,29 @@ export default async function LogPage() {
                         {entry.xpAwarded >= 0 ? "+" : "−"}
                         {groupNumber(Math.abs(entry.xpAwarded))}
                       </span>
+                      </div>
+
+                      {/*
+                        The editor is a sibling of the row, not a child of its
+                        narrowest column. It used to render inside `min-w-0
+                        flex-1`, which is about 189px at 375px and 157px inside
+                        its own padding — and it has to hold every project as a
+                        chip, a textarea, and two chips reading "I focused — 250
+                        XP". Roughly 500px of controls in 157px, indented 66px
+                        from the edge. Out here it has the full width.
+                      */}
+                      {entry.status === "completed" && (
+                        <div className="mt-2 border-l-2 border-rule pl-4">
+                          <SessionCorrection
+                            sessionId={entry.id}
+                            projects={projectOptions}
+                            currentProjectName={entry.projectName}
+                            currentNote={entry.note}
+                            currentHonest={entry.honest}
+                            baseXp={entry.baseXp > 0 ? entry.baseXp : entry.xpAwarded}
+                          />
+                        </div>
+                      )}
                     </li>
                   ))}
                 </ul>

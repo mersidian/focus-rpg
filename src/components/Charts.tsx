@@ -55,9 +55,27 @@ export function BarChart({
   format?: (n: number) => string;
 }) {
   const max = Math.max(1, ...bars.map((b) => b.value));
+  /*
+   * The box still stretches to the container, because a bar chart that keeps
+   * its aspect ratio letterboxes itself away from the edges and stops being a
+   * chart of the width it was given.
+   *
+   * What the stretch used to break was the drawing inside it: `rx` turned into
+   * an ellipse whose shape depended on the viewport, and a 1-unit stroke went
+   * sub-pixel horizontally while staying 1px vertically. Both are fixed where
+   * they happen — no corner radius on a bar this thin, and a non-scaling stroke
+   * on the axis. Bar *density* is a different problem and belongs to the
+   * caller: 120 bars in 327px is texture whatever the geometry does, so the
+   * dashboard shows a phone the last four weeks instead.
+   */
   const width = 1000;
   const slot = width / Math.max(1, bars.length);
-  const barWidth = Math.max(1, slot - gap);
+  /*
+   * Capped, so a sparse series reads as bars rather than as a wall. With one
+   * week of history the weekly chart was a single slab across the full box —
+   * which is exactly the chart a new user sees first.
+   */
+  const barWidth = Math.min(48, Math.max(1, slot - gap));
 
   return (
     <svg
@@ -76,7 +94,6 @@ export function BarChart({
             y={height - Math.max(h, 1)}
             width={barWidth}
             height={Math.max(bar.value > 0 ? 1.5 : 1, h)}
-            rx={Math.min(2, barWidth / 2)}
             // An empty slot keeps a 1px stub, so a quiet hour reads as an hour
             // with nothing in it rather than as absent from the chart.
             fill={bar.value > 0 ? color : "var(--color-rule)"}
@@ -85,7 +102,15 @@ export function BarChart({
           </rect>
         );
       })}
-      <line x1={0} y1={height} x2={width} y2={height} stroke={AXIS} strokeWidth={1} />
+      <line
+        x1={0}
+        y1={height}
+        x2={width}
+        y2={height}
+        stroke={AXIS}
+        strokeWidth={1}
+        vectorEffect="non-scaling-stroke"
+      />
     </svg>
   );
 }
@@ -176,13 +201,33 @@ export function LineChart({
       aria-label="Completion ratio by month"
     >
       {[0.5, 1].map((v) => (
-        <line key={v} x1={0} y1={y(v)} x2={width} y2={y(v)} stroke={AXIS} strokeWidth={1} />
+        <line
+          key={v}
+          x1={0}
+          y1={y(v)}
+          x2={width}
+          y2={y(v)}
+          stroke={AXIS}
+          strokeWidth={1}
+          vectorEffect="non-scaling-stroke"
+        />
       ))}
       <path d={path} fill="none" stroke="var(--tier)" strokeWidth={2} vectorEffect="non-scaling-stroke" />
+      {/* A circle in a box with preserveAspectRatio="none" renders as an
+          oval whose shape depends on the viewport. A 2px-wide upright tick is
+          the same mark at every width. */}
       {points.map((p, i) => (
-        <circle key={p.label} cx={x(i)} cy={y(p.value)} r={4} fill="var(--tier)">
+        <rect
+          key={p.label}
+          x={x(i) - 1}
+          y={y(p.value) - 5}
+          width={2}
+          height={10}
+          fill="var(--tier)"
+          vectorEffect="non-scaling-stroke"
+        >
           <title>{p.title}</title>
-        </circle>
+        </rect>
       ))}
     </svg>
   );

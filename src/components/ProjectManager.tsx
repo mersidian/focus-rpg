@@ -110,7 +110,7 @@ export function ProjectManager({ projects }: { projects: ProjectItem[] }) {
                         value={draft}
                         onChange={(e) => setDraft(e.target.value)}
                         maxLength={80}
-                        className="rounded-sm border border-rule bg-lift px-3 py-2 text-[15px] outline-none"
+                        className="rounded-sm border border-rule bg-lift px-3 py-2 text-field"
                       />
                       <button
                         type="button"

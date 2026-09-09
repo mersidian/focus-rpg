@@ -126,7 +126,7 @@ export function SessionCorrection({
           onChange={(e) => setNewName(e.target.value)}
           maxLength={80}
           placeholder="Project name"
-          className="mt-3 w-full rounded-sm border border-rule bg-lift px-3 py-2 text-[14px] outline-none placeholder:text-faint"
+          className="mt-3 w-full rounded-sm border border-rule bg-lift px-3 py-2 text-field placeholder:text-faint"
         />
       )}
 
@@ -136,7 +136,7 @@ export function SessionCorrection({
         rows={2}
         maxLength={2000}
         placeholder="Note (optional)"
-        className="mt-3 w-full resize-none rounded-sm border border-rule bg-lift px-3 py-2 text-[14px] leading-relaxed outline-none placeholder:text-faint"
+        className="mt-3 w-full resize-none rounded-sm border border-rule bg-lift px-3 py-2 text-field leading-relaxed placeholder:text-faint"
       />
 
       <div className="mt-3 flex flex-wrap gap-2">

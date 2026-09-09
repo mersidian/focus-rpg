@@ -38,7 +38,7 @@ export function CraftButton({ recipeId, label }: { recipeId: string; label?: str
         value={times}
         onChange={(e) => setTimes(Number(e.target.value))}
         aria-label="How many"
-        className="border-b border-rule bg-transparent py-0.5 text-[12px] text-dim outline-none"
+        className="border-b border-rule bg-transparent py-0.5 text-[12px] text-dim"
       >
         {[1, 5, 10, 25, 100].map((n) => (
           <option key={n} value={n}>
@@ -80,7 +80,7 @@ export function SellStackButton({ itemId, held }: { itemId: string; held: number
         value={qty}
         onChange={(e) => setQty(Number(e.target.value))}
         aria-label="How many to sell"
-        className="border-b border-rule bg-transparent py-0.5 text-[12px] text-dim outline-none"
+        className="border-b border-rule bg-transparent py-0.5 text-[12px] text-dim"
       >
         {options.map((n) => (
           <option key={n} value={n}>
@@ -101,7 +101,7 @@ export function BuyButton({ itemId }: { itemId: string }) {
         value={qty}
         onChange={(e) => setQty(Number(e.target.value))}
         aria-label="How many to buy"
-        className="border-b border-rule bg-transparent py-0.5 text-[12px] text-dim outline-none"
+        className="border-b border-rule bg-transparent py-0.5 text-[12px] text-dim"
       >
         {[1, 10, 50, 200].map((n) => (
           <option key={n} value={n}>
@@ -143,7 +143,7 @@ export function SowButton({
         value={seed}
         onChange={(e) => setSeed(e.target.value)}
         aria-label="Which seed"
-        className="border-b border-rule bg-transparent py-0.5 text-[12px] text-dim outline-none"
+        className="border-b border-rule bg-transparent py-0.5 text-[12px] text-dim"
       >
         {seeds.map((s) => (
           <option key={s.itemId} value={s.itemId}>
@@ -186,7 +186,7 @@ export function ExchangeStonesButton({ tiers }: { tiers: number[] }) {
         value={qty}
         onChange={(e) => setQty(Number(e.target.value))}
         aria-label="How many"
-        className="border-b border-rule bg-transparent py-0.5 text-[12px] text-dim outline-none"
+        className="border-b border-rule bg-transparent py-0.5 text-[12px] text-dim"
       >
         {[1, 5, 20, 100].map((n) => (
           <option key={n} value={n}>
@@ -198,7 +198,7 @@ export function ExchangeStonesButton({ tiers }: { tiers: number[] }) {
         value={from}
         onChange={(e) => setFrom(Number(e.target.value))}
         aria-label="From tier"
-        className="border-b border-rule bg-transparent py-0.5 text-[12px] text-dim outline-none"
+        className="border-b border-rule bg-transparent py-0.5 text-[12px] text-dim"
       >
         {tiers.map((t) => (
           <option key={t} value={t}>
@@ -210,7 +210,7 @@ export function ExchangeStonesButton({ tiers }: { tiers: number[] }) {
         value={to}
         onChange={(e) => setTo(Number(e.target.value))}
         aria-label="To tier"
-        className="border-b border-rule bg-transparent py-0.5 text-[12px] text-dim outline-none"
+        className="border-b border-rule bg-transparent py-0.5 text-[12px] text-dim"
       >
         {Array.from({ length: Math.max(1, from - 1) }, (_, i) => i + 1).map((t) => (
           <option key={t} value={t}>

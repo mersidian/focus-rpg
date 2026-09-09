@@ -138,7 +138,7 @@ export function ReportCard() {
             onChange={(e) => setNewProjectName(e.target.value)}
             placeholder="Thesis, side project, guitar…"
             maxLength={80}
-            className="mt-4 w-full rounded-sm border border-rule bg-lift px-4 py-3 text-[15px] outline-none placeholder:text-faint"
+            className="mt-4 w-full rounded-sm border border-rule bg-lift px-4 py-3 text-field placeholder:text-faint"
           />
         )}
       </section>
@@ -154,7 +154,7 @@ export function ReportCard() {
           rows={3}
           maxLength={2000}
           placeholder="Optional."
-          className="mt-3 w-full resize-none rounded-sm border border-rule bg-lift px-4 py-3 text-[15px] leading-relaxed outline-none placeholder:text-faint"
+          className="mt-3 w-full resize-none rounded-sm border border-rule bg-lift px-4 py-3 text-field leading-relaxed placeholder:text-faint"
         />
       </section>
 

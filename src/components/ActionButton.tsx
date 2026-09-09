@@ -55,6 +55,7 @@ export function ActionButton({
         type="button"
         onClick={press}
         disabled={pending || disabled}
+        aria-busy={pending || undefined}
         className={
           quiet
             ? "text-[12px] text-faint underline underline-offset-2 transition-colors hover:text-dim disabled:opacity-40"
@@ -64,14 +65,26 @@ export function ActionButton({
       >
         {pending ? busyLabel : label}
       </button>
-      {said && (
-        <span
-          className="text-[12px]"
-          style={outcome?.ok ? { color: "var(--action)" } : { color: "var(--color-warn)" }}
-        >
-          {said}
-        </span>
-      )}
+      {/*
+        A live region, because the whole point of this component is that the
+        outcome appears where you were looking rather than as a toast — and a
+        span that only appears is invisible to a screen reader. Seven of these
+        sit on a game page, every one of them succeeding or refusing in silence.
+      */}
+      <span
+        role="status"
+        aria-live="polite"
+        className="text-note"
+        style={
+          said
+            ? outcome?.ok
+              ? { color: "var(--action)" }
+              : { color: "var(--color-warn)" }
+            : undefined
+        }
+      >
+        {said}
+      </span>
     </span>
   );
 }

@@ -67,6 +67,14 @@ export default async function DashboardPage() {
 
   const empty = totalCompleted === 0;
 
+  const dailyBars = data.daily.map((d) => ({
+    label: d.day,
+    value: d.minutes,
+    title: `${dayFormat.format(new Date(`${d.day}T12:00:00Z`))} — ${d.sessions} session${
+      d.sessions === 1 ? "" : "s"
+    }, ${minutes(d.minutes)}${d.abandons > 0 ? `, ${d.abandons} abandoned` : ""}`,
+  }));
+
   return (
     <>
       <Nav current="/dashboard" />
@@ -131,34 +139,40 @@ export default async function DashboardPage() {
 
             <section className="mt-16">
               <div className="flex items-baseline justify-between">
-                <h2 className="text-[15px] text-text">Every day, four months back</h2>
-                <p className="text-[13px] text-faint">
+                <h2 className="text-lead text-text">Every day, four months back</h2>
+                <p className="text-body text-faint">
                   <span className="tnum text-dim">
                     {minutes(data.daily.reduce((n, d) => n + d.minutes, 0))}
                   </span>{" "}
                   in all
                 </p>
               </div>
-              <div className="mt-5">
-                <BarChart
-                  bars={data.daily.map((d) => ({
-                    label: d.day,
-                    value: d.minutes,
-                    title: `${dayFormat.format(new Date(`${d.day}T12:00:00Z`))} — ${
-                      d.sessions
-                    } session${d.sessions === 1 ? "" : "s"}, ${minutes(d.minutes)}${
-                      d.abandons > 0 ? `, ${d.abandons} abandoned` : ""
-                    }`,
-                  }))}
-                  format={minutes}
-                />
+              {/*
+                Two windows on the same series. 120 bars in a 327px phone
+                viewport is a 2.7px bar — texture, not data — and the values are
+                only reachable as SVG tooltips, which do not exist on touch. A
+                phone gets the last four weeks at a bar you can actually see;
+                the four months are still there one breakpoint up.
+              */}
+              <div className="mt-5 sm:hidden">
+                <BarChart bars={dailyBars.slice(-28)} format={minutes} />
               </div>
-              <p className="mt-2 flex justify-between text-[12px] text-faint">
-                <span className="tnum">
+              <div className="mt-5 hidden sm:block">
+                <BarChart bars={dailyBars} format={minutes} />
+              </div>
+              <p className="mt-2 flex justify-between text-note text-faint">
+                <span className="tnum sm:hidden">
+                  {dayFormat.format(new Date(`${data.daily[data.daily.length - 28].day}T12:00:00Z`))}
+                </span>
+                <span className="tnum hidden sm:inline">
                   {dayFormat.format(new Date(`${data.daily[0].day}T12:00:00Z`))}
                 </span>
                 <span className="tnum">today</span>
               </p>
+              <ValueTable
+                caption="Minutes focused per day"
+                rows={dailyBars.map((b) => [b.title, minutes(b.value)])}
+              />
             </section>
 
             <section className="mt-14">
@@ -255,5 +269,29 @@ export default async function DashboardPage() {
         )}
       </main>
     </>
+  );
+}
+
+/**
+ * The numbers behind a chart, for anyone who cannot hover one.
+ *
+ * Every value on this page lived in an SVG <title>, which is a tooltip — so on
+ * a phone, which is where this app mostly lives, there was no way to read a
+ * single figure. Visually hidden rather than drawn, because the chart is the
+ * point and a table beside it would be noise.
+ */
+function ValueTable({ caption, rows }: { caption: string; rows: [string, string][] }) {
+  return (
+    <table className="sr-only">
+      <caption>{caption}</caption>
+      <tbody>
+        {rows.map(([label, value]) => (
+          <tr key={label}>
+            <th scope="row">{label}</th>
+            <td>{value}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }

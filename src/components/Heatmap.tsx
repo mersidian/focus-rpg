@@ -1,5 +1,6 @@
 import { addDays, dayRange, weekdayOf } from "@/lib/game-day";
 import { hours } from "@/lib/format";
+import { ScrollToEnd } from "./ScrollToEnd";
 
 export type HeatDay = {
   day: string;
@@ -27,7 +28,7 @@ export function Heatmap({ days, today }: { days: HeatDay[]; today: string }) {
   for (let i = 0; i < all.length; i += 7) weeks.push(all.slice(i, i + 7));
 
   return (
-    <div className="overflow-x-auto pb-2">
+    <ScrollToEnd className="pb-2">
       <div className="flex gap-[3px]" style={{ minWidth: "min-content" }}>
         {weeks.map((week, column) => (
           <div key={week[0]} className="flex flex-col gap-[3px]">
@@ -46,7 +47,7 @@ export function Heatmap({ days, today }: { days: HeatDay[]; today: string }) {
           </div>
         ))}
       </div>
-    </div>
+    </ScrollToEnd>
   );
 }
 
