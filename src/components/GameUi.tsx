@@ -61,8 +61,19 @@ export function Rows({
   total?: number;
 }) {
   const hidden = total !== undefined && total > rows.length;
+  const wide = head.length > 4;
   return (
     <div className="mt-4 overflow-x-auto">
+      {/*
+        A table that scrolls sideways with nothing to say so is a table with
+        columns nobody finds. The hint is only worth showing where the columns
+        actually run out of room, and only on the widths where they do.
+      */}
+      {wide && (
+        <p className="mb-1 text-note text-faint sm:hidden" aria-hidden>
+          scroll sideways for the rest →
+        </p>
+      )}
       <table className="w-full border-collapse text-[13px]">
         <thead>
           <tr>
@@ -70,7 +81,7 @@ export function Rows({
               <th
                 key={i}
                 className={`border-b border-rule pb-2 pr-4 font-medium text-faint last:pr-0 ${
-                  i === 0 ? "text-left" : "text-right"
+                  i === 0 ? "sticky left-0 bg-ground text-left" : "text-right"
                 }`}
               >
                 {h}
@@ -85,7 +96,9 @@ export function Rows({
                 <td
                   key={i}
                   className={`border-b border-rule py-2 pr-4 align-top last:pr-0 ${
-                    i === 0 ? "text-dim" : "tnum text-right text-faint"
+                    i === 0
+                      ? "sticky left-0 bg-ground text-dim"
+                      : "tnum text-right text-faint"
                   }`}
                 >
                   {cell}
