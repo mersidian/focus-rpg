@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { Screen, Block, Rail } from "@/components/GameUi";
-import { Icon, type IconName } from "@/components/Icon";
+import { Screen, Block, Rail, KindMark, KindDot } from "@/components/GameUi";
+import type { IconName } from "@/components/Icon";
+import { skillKindHue } from "@/lib/palette";
 import { skillViews } from "@/lib/game-view-service";
 import { depthInk, groupNumber } from "@/lib/format";
 import { MAX_SKILL_LEVEL, SKILL_XP } from "@/lib/game/skills";
@@ -41,46 +42,46 @@ export default async function SkillsPage() {
         const here = skills.filter((s) => s.kind === kind.key);
         return (
           <Block key={kind.key} title={kind.label} aside={`${here.length}`}>
-            <p className="mt-3 text-body text-faint">{kind.note}</p>
+            <p className="mt-3 flex items-baseline gap-2 text-body text-faint">
+              <KindDot hue={skillKindHue(kind.key)} />
+              {kind.note}
+            </p>
             <ul>
               {here.map((s) => (
                 <li key={s.key} className="border-b border-rule py-3 last:border-0">
-                  <div className="flex items-baseline justify-between gap-4 text-body">
-                    <p className="flex min-w-0 items-baseline gap-2 text-dim">
-                      {/*
-                        The mark takes the same depth colour as the level, so a
-                        skill you have put six hundred hours into is legible as
-                        one from across the row — and an untouched one sits at
-                        the body colour rather than shouting for attention it
-                        has not earned.
-                      */}
-                      <Icon
-                        name={s.key as IconName}
-                        className="size-4 shrink-0 translate-y-0.5"
-                        style={{ color: depthInk(s.level, MAX_SKILL_LEVEL) }}
-                      />
-                      <span className="min-w-0">
-                        {s.label} <span className="text-faint">— {s.note}</span>
-                      </span>
-                    </p>
-                    <p
-                      className="tnum shrink-0"
-                      style={{ color: depthInk(s.level, MAX_SKILL_LEVEL) }}
-                    >
-                      {s.level}
-                    </p>
+                  <div className="flex items-center gap-3">
+                    {/*
+                      The well says what kind of skill this is; the level beside
+                      it says how far along. Two questions, two colours — and
+                      the level keeps the earned accent, because that is the one
+                      of the two that is a quantity.
+                    */}
+                    <KindMark name={s.key as IconName} hue={skillKindHue(s.kind)} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline justify-between gap-4 text-body">
+                        <p className="min-w-0 truncate text-dim">
+                          {s.label} <span className="text-faint">— {s.note}</span>
+                        </p>
+                        <p
+                          className="tnum shrink-0"
+                          style={{ color: depthInk(s.level, MAX_SKILL_LEVEL) }}
+                        >
+                          {s.level}
+                        </p>
+                      </div>
+                      <Rail progress={s.progress} />
+                      <p className="mt-1 text-note text-faint">
+                        <span className="tnum">{groupNumber(s.xp)}</span> xp
+                        {s.next !== null && (
+                          <>
+                            {" · "}
+                            <span className="tnum">{groupNumber(s.next - s.xp)}</span> to{" "}
+                            {s.level + 1}
+                          </>
+                        )}
+                      </p>
+                    </div>
                   </div>
-                  <Rail progress={s.progress} />
-                  <p className="mt-1 text-note text-faint">
-                    <span className="tnum">{groupNumber(s.xp)}</span> xp
-                    {s.next !== null && (
-                      <>
-                        {" · "}
-                        <span className="tnum">{groupNumber(s.next - s.xp)}</span> to{" "}
-                        {s.level + 1}
-                      </>
-                    )}
-                  </p>
                 </li>
               ))}
             </ul>

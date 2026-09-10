@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { Screen, Block, Rows, Gauge, DepthValue } from "@/components/GameUi";
+import { Screen, Block, Rows, Gauge, KindDot, TierBars } from "@/components/GameUi";
+import { classHue } from "@/lib/palette";
 import { collectionProgress, itemIndex } from "@/lib/game-view-service";
 import { groupNumber } from "@/lib/format";
-import { TIERS, MAX_TIER } from "@/lib/game/tiers";
+import { TIERS } from "@/lib/game/tiers";
 
 export const dynamic = "force-dynamic";
 
@@ -51,7 +52,10 @@ export default async function CollectionPage() {
           rows={[...byClass.entries()]
             .sort((a, b) => b[1].total - a[1].total)
             .map(([cls, n]) => [
-              cls,
+              <span key="c" className="inline-flex items-baseline gap-2 text-dim">
+                <KindDot hue={classHue(cls)} />
+                {cls}
+              </span>,
               groupNumber(n.got),
               groupNumber(n.total),
               `${Math.round((n.got / n.total) * 100)}%`,
@@ -60,19 +64,19 @@ export default async function CollectionPage() {
       </Block>
 
       <Block title="By tier" aside="how deep you have been">
-        <Rows
-          head={["Tier", "Material", "Found", "Total"]}
-          rows={TIERS.map((t) => {
+        {/*
+          Twenty-four rows of "found" and "total" made you read the whole table
+          to learn the one thing it was for — how far in you have got. As bars
+          it is a wall that stops where you stopped.
+        */}
+        <TierBars
+          bars={TIERS.map((t) => {
             const n = byTier.get(t.tier) ?? { total: 0, got: 0 };
-            return [
-              <DepthValue key="t" step={t.tier} steps={MAX_TIER} />,
-              <span key="m" className="text-faint">
-                {t.metal}
-              </span>,
-              groupNumber(n.got),
-              groupNumber(n.total),
-            ];
+            return { tier: t.tier, got: n.got, total: n.total };
           })}
+          label={(b) =>
+            `Tier ${b.tier} ${TIERS[b.tier - 1]?.metal ?? ""} — ${groupNumber(b.got)} of ${groupNumber(b.total)} found`
+          }
         />
       </Block>
     </Screen>

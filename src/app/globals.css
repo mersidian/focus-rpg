@@ -6,7 +6,15 @@
   One idea carries the interface: the accent colour is earned. Every tier in the
   ladder owns a hue, and --tier is set from the character's current tier at the
   document root. A Drifter's app is nearly colourless; a Mythic's burns violet.
-  Nothing else on the page is allowed to be saturated.
+
+  Amended once, for kind. The rule above governs quantity — tier, level, rarity,
+  progress — and the accent says all of those, because more of them is more of
+  what you earned. It had nothing to say about *what a thing is*, so eleven item
+  classes and three kinds of skill came out as one grey list. Categorical data
+  gets categorical hue, in src/lib/palette.ts, capped below ACTION_FLOOR so a
+  label can never out-ink a control, and held at one lightness so no category
+  can look more important than another. Nothing outside that file, and nothing
+  in it that encodes how much.
 */
 
 @theme {

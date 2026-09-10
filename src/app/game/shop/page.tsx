@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { Screen, Block, Rows, DepthValue } from "@/components/GameUi";
+import { Screen, Block, Rows, DepthValue, KindDot } from "@/components/GameUi";
+import { classHue } from "@/lib/palette";
 import { loadWallet, bankUsage } from "@/lib/inventory-service";
 import {
   bankSlotCost,
@@ -132,6 +133,10 @@ export default async function ShopPage() {
 
       {stock.map((group) => (
         <Block key={group.cls} title={CLASS_TITLE[group.cls]} aside={`${group.total} in stock`}>
+          <p className="mt-3 flex items-center gap-2 text-note text-faint">
+            <KindDot hue={classHue(group.cls)} />
+            {group.cls}
+          </p>
           <Rows
             head={["Item", "Tier", "Price", ""]}
             rows={group.items.map((i) => [

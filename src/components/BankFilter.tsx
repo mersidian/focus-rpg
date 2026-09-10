@@ -6,6 +6,7 @@ import { SellStackButton } from "./GameActions";
 import { Depth } from "./GameUi";
 import { MAX_TIER } from "@/lib/game/tiers";
 import { depthInk } from "@/lib/format";
+import { classHue } from "@/lib/palette";
 
 /**
  * The bank is search-first, and that is a design requirement rather than a
@@ -71,7 +72,7 @@ export function BankFilter({ rows }: { rows: BankRow[] }) {
                 {row.tier > 0 && <Depth step={row.tier} steps={MAX_TIER} title={`Tier ${row.tier}`} />}
                 <span className="min-w-0">
                   {row.name}
-                  <span className="text-faint"> · {row.cls}</span>
+                  <span style={{ color: classHue(row.cls) }}> {row.cls}</span>
                   {row.tier > 0 && (
                     <span className="tnum" style={{ color: depthInk(row.tier, MAX_TIER) }}>
                       {" "}

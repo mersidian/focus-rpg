@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 import { depthFill, depthInk, groupNumber } from "@/lib/format";
+import { wash } from "@/lib/palette";
+import { Icon, type IconName } from "./Icon";
 
 /**
  * The handful of shapes every game screen needs, so ten pages do not each
@@ -218,6 +220,98 @@ export function DepthValue({
         {label ?? step}
       </span>
     </span>
+  );
+}
+
+/**
+ * A mark in the colour of what a thing *is*, rather than how much of it there
+ * is. See src/lib/palette.ts for why those are two different questions.
+ *
+ * The well is what makes it read as an object rather than a hairline: sixteen
+ * pixels of 1.6px stroke on a dark ground is a smudge, and twenty-two of them
+ * in a column is a smudge you scroll past.
+ */
+export function KindMark({
+  name,
+  hue,
+  className = "",
+}: {
+  name: IconName;
+  hue: string;
+  className?: string;
+}) {
+  return (
+    <span
+      className={`inline-flex size-8 shrink-0 items-center justify-center rounded-md ${className}`}
+      style={{ backgroundColor: wash(hue, 18), color: hue }}
+    >
+      <Icon name={name} className="size-[18px]" />
+    </span>
+  );
+}
+
+/** A dot in a category's colour, where there is no room for a well. */
+export function KindDot({ hue, title }: { hue: string; title?: string }) {
+  return (
+    <span
+      title={title}
+      aria-hidden
+      className="inline-block size-2 shrink-0 rounded-full align-middle"
+      style={{ backgroundColor: hue }}
+    />
+  );
+}
+
+/**
+ * The catalogue as a shape, which is the one thing a twenty-four row table of
+ * "found" and "total" could not be.
+ *
+ * Every column is a tier and every column carries its own depth colour, so it
+ * says two things at once: how much of each tier you have seen, and how deep
+ * the tiers you have seen at all go. A wall that stops halfway across is a
+ * reader's own progress, drawn.
+ */
+export function TierBars({
+  bars,
+  height = 120,
+  label,
+}: {
+  bars: { tier: number; got: number; total: number }[];
+  height?: number;
+  label: (b: { tier: number; got: number; total: number }) => string;
+}) {
+  const steps = bars.length;
+  return (
+    <div className="mt-4">
+      <div className="flex items-end gap-[3px]" style={{ height }}>
+        {bars.map((b) => {
+          const share = b.total === 0 ? 0 : b.got / b.total;
+          return (
+            <div
+              key={b.tier}
+              title={label(b)}
+              className="relative h-full flex-1 rounded-[1px]"
+              style={{ backgroundColor: "var(--color-lift)" }}
+            >
+              <div
+                className="absolute inset-x-0 bottom-0 rounded-[1px]"
+                style={{
+                  height: `${share > 0 ? Math.max(2, share * 100) : 0}%`,
+                  backgroundColor: depthFill(b.tier, steps),
+                }}
+              />
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-1.5 flex gap-[3px] text-note text-faint">
+        {bars.map((b) => (
+          <span key={b.tier} className="tnum flex-1 text-center">
+            {b.tier === 1 || b.tier % 6 === 0 ? b.tier : "\u00a0"}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 
