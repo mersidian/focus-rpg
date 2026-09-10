@@ -1,19 +1,20 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { NavLink } from "./NavLink";
+import type { IconName } from "./Icon";
 
-const LINKS = [
-  { href: "/game", label: "Overview" },
-  { href: "/game/skills", label: "Skills" },
-  { href: "/game/areas", label: "Areas" },
-  { href: "/game/equipment", label: "Equipment" },
-  { href: "/game/bank", label: "Bank" },
-  { href: "/game/collection", label: "Collection" },
-  { href: "/game/crafting", label: "Crafting" },
-  { href: "/game/farm", label: "Farm" },
-  { href: "/game/slaying", label: "Slaying" },
-  { href: "/game/shop", label: "Shop" },
+const LINKS: { href: string; label: string; icon: IconName }[] = [
+  { href: "/game", label: "Overview", icon: "overview" },
+  { href: "/game/skills", label: "Skills", icon: "skills" },
+  { href: "/game/areas", label: "Areas", icon: "areas" },
+  { href: "/game/equipment", label: "Equipment", icon: "equipment" },
+  { href: "/game/bank", label: "Bank", icon: "bank" },
+  { href: "/game/collection", label: "Collection", icon: "collection" },
+  { href: "/game/crafting", label: "Crafting", icon: "crafting" },
+  { href: "/game/farm", label: "Farm", icon: "farm" },
+  { href: "/game/slaying", label: "Slaying", icon: "slaying" },
+  { href: "/game/shop", label: "Shop", icon: "shop" },
 ];
 
 /**
@@ -28,20 +29,16 @@ export function GameNav() {
   const path = usePathname();
   return (
     <div className="flex flex-wrap items-center gap-x-4 border-b border-rule px-6 py-1 text-note sm:gap-x-5 sm:px-10">
-      {LINKS.map((link) => {
-        const current = path === link.href;
-        return (
-          <Link
-            key={link.href}
-            href={link.href}
-            aria-current={current ? "page" : undefined}
-            className={`py-2 ${current ? "" : "text-faint transition-colors hover:text-dim"}`}
-            style={current ? { color: "var(--tier)" } : undefined}
-          >
-            {link.label}
-          </Link>
-        );
-      })}
+      {LINKS.map((link) => (
+        <NavLink
+          key={link.href}
+          href={link.href}
+          label={link.label}
+          icon={link.icon}
+          current={path === link.href}
+          className="py-2"
+        />
+      ))}
     </div>
   );
 }

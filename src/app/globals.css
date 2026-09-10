@@ -242,6 +242,19 @@ button:not(:disabled):active {
 .animate-rise { animation: rise 320ms cubic-bezier(0.2, 0.7, 0.3, 1) both; }
 .animate-pop { animation: count-pop 420ms cubic-bezier(0.3, 1.4, 0.5, 1); }
 
+/*
+  A wait, shown. The only animation in the app that repeats, and the one
+  exception the rule below deliberately keeps: everything else here is a
+  moment that happens once, and a wait is a state that lasts.
+
+  It still stops under prefers-reduced-motion, because the cap below is
+  blanket. Nothing depends on the spin to carry the message — the word
+  "Loading" sits beside it, and in the nav it replaces an icon the user has
+  just pressed.
+*/
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 800ms linear infinite; transform-origin: 50% 50%; }
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

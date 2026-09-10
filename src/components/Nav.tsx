@@ -1,19 +1,17 @@
-import Link from "next/link";
+import { NavLink } from "./NavLink";
+import type { IconName } from "./Icon";
 
-const links = [
-  { href: "/", label: "Timer" },
-  { href: "/character", label: "Character" },
-  { href: "/streak", label: "Streak" },
-  { href: "/achievements", label: "Achievements" },
-  { href: "/projects", label: "Projects" },
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/log", label: "Log" },
-  { href: "/game", label: "Game" },
-  { href: "/wiki", label: "Wiki" },
+const links: { href: string; label: string; icon: IconName }[] = [
+  { href: "/", label: "Timer", icon: "timer" },
+  { href: "/character", label: "Character", icon: "character" },
+  { href: "/streak", label: "Streak", icon: "streak" },
+  { href: "/achievements", label: "Achievements", icon: "achievements" },
+  { href: "/projects", label: "Projects", icon: "projects" },
+  { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
+  { href: "/log", label: "Log", icon: "log" },
+  { href: "/game", label: "Game", icon: "game" },
+  { href: "/wiki", label: "Wiki", icon: "wiki" },
 ];
-
-/** Inside the game, the app row shrinks to the four ways out of it. */
-const COMPACT = new Set(["/", "/character", "/game", "/wiki"]);
 
 /**
  * Nine destinations do not fit across a phone, so the row wraps rather than
@@ -29,26 +27,29 @@ const COMPACT = new Set(["/", "/character", "/game", "/wiki"]);
  *
  * `compact` is for `/game`, which stacks this row above its own ten-link one.
  * Two full navigations meant 184px of chrome before any game screen began.
+ * It used to buy that back by dropping this row to four links, which deleted
+ * Streak, Achievements, Projects, Dashboard and Log from the one section
+ * where nothing else reaches them — the app looked like it had lost five
+ * pages. It now condenses instead of deleting: below `sm` the words go and
+ * the marks stay, which is nine destinations on one line instead of four on
+ * one line and five nowhere. That is what the icons are for. Above `sm`
+ * there is room for both, so both show.
  */
 export function Nav({ current, compact = false }: { current: string; compact?: boolean }) {
-  const shown = compact ? links.filter((l) => COMPACT.has(l.href)) : links;
-
   return (
     <nav className="safe-top flex flex-wrap items-center gap-x-5 border-b border-rule px-6 pb-2 text-body sm:gap-x-6 sm:px-10 sm:pb-3">
-      {shown.map((link) => (
-        <Link
+      {links.map((link) => (
+        <NavLink
           key={link.href}
           href={link.href}
-          aria-current={link.href === current ? "page" : undefined}
+          label={link.label}
+          icon={link.icon}
+          current={link.href === current}
           // Padding rather than margin, so the tap target is comfortably
           // bigger than the text without opening gaps in the row.
-          className={`py-3 ${
-            link.href === current ? "" : "text-faint transition-colors hover:text-dim"
-          }`}
-          style={link.href === current ? { color: "var(--tier)" } : undefined}
-        >
-          {link.label}
-        </Link>
+          className="py-3"
+          labelClass={compact ? "sr-only sm:not-sr-only" : ""}
+        />
       ))}
     </nav>
   );
