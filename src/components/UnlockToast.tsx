@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useGameOptional } from "./GameProvider";
 import type { Snapshot } from "@/lib/game-types";
 import { groupNumber } from "@/lib/format";
@@ -20,13 +20,26 @@ import { groupNumber } from "@/lib/format";
 export function UnlockToast({ unlocked }: { unlocked?: Snapshot["unlocked"] }) {
   const game = useGameOptional();
   const incoming = unlocked ?? game?.snapshot.unlocked ?? [];
-  const [shown, setShown] = useState(incoming);
 
-  useEffect(() => {
-    if (incoming.length > 0) setShown(incoming);
-    // The identity of the array changes on every snapshot, so the length and
-    // the first id are what actually mark a new batch.
-  }, [incoming.length, incoming[0]?.id]);
+  /*
+   * A latch, not a mirror: the batch stays up after the snapshot that carried
+   * it has moved on, which is the whole reason this is state and not a prop
+   * read straight through.
+   *
+   * The identity of the array changes on every heartbeat, so a batch is
+   * marked by its length and its first id rather than by the array itself.
+   * Adjusting during render is React's documented answer to "some state has
+   * to change when a prop changes" — it re-renders before committing, so the
+   * old batch is never painted, where the effect this replaces showed the
+   * stale one for a frame first.
+   */
+  const batch = `${incoming.length}:${incoming[0]?.id ?? ""}`;
+  const [shown, setShown] = useState(incoming);
+  const [shownBatch, setShownBatch] = useState(batch);
+  if (incoming.length > 0 && batch !== shownBatch) {
+    setShownBatch(batch);
+    setShown(incoming);
+  }
 
   if (shown.length === 0) return null;
 

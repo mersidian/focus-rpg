@@ -27,6 +27,13 @@ import type { ResolutionSummary } from "@/lib/game-types";
  * No Fraunces (§8), no cards, no shadows. Hairlines, one accent, and the
  * motion the app already owns.
  */
+/**
+ * Hoisted, because it is a dependency. Written inline, this was a new function
+ * on every render, so the Escape listener below detached and reattached every
+ * time the screen drew — which is what the dependency warning was pointing at.
+ */
+const NOTHING = () => {};
+
 export function SessionResultScreen({
   result,
   onDismiss,
@@ -37,7 +44,7 @@ export function SessionResultScreen({
   // Same shape as the toasts: the provider when there is one, a prop when there
   // is not, so the screen can be rendered and looked at on its own.
   const game = useGameOptional();
-  const dismissGameResult = onDismiss ?? game?.dismissGameResult ?? (() => {});
+  const dismissGameResult = onDismiss ?? game?.dismissGameResult ?? NOTHING;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && dismissGameResult();

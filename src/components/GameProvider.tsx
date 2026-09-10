@@ -23,6 +23,7 @@ import { HEARTBEAT_INTERVAL_MS } from "@/lib/constants";
 import { describeLevel } from "@/lib/levels";
 import { tierAccent, tierAction } from "@/lib/format";
 import { deviceId as readDeviceId, detectRuleset } from "@/lib/client/device";
+import { useClientValue } from "@/lib/client/use-client-value";
 import { playChime } from "@/lib/client/chime";
 import { notifySessionEnd } from "@/lib/client/notify";
 import type { LevelChange, SettleEvent, Snapshot,
@@ -123,7 +124,12 @@ export function GameProvider({
   );
   const [pending, startTransition] = useTransition();
 
-  const [ruleset, setRuleset] = useState<"desktop" | "mobile">("desktop");
+  /*
+   * A fact about the device, read the same way the notification prompt reads
+   * its own: `detectRuleset` already answers "desktop" where there is no
+   * window, so that is both the server snapshot and the safe default.
+   */
+  const ruleset = useClientValue(detectRuleset, "desktop" as const);
   const [mounted, setMounted] = useState(false);
   const device = useRef<string>("server");
   const offset = useRef<number>(0);
@@ -182,8 +188,16 @@ export function GameProvider({
 
   useEffect(() => {
     device.current = readDeviceId();
-    setRuleset(detectRuleset());
     offset.current = initial.serverNow - Date.now();
+    /*
+     * The one setState in an effect this file keeps, and the reason is the
+     * clock. `mounted` gates `serverNow` from the timestamp baked into the
+     * HTML over to this device's corrected clock, and it may only flip once
+     * `offset` above is set — a hydration-safe store would flip it in its own
+     * effect, which is not guaranteed to run after this one. Reading a wrong
+     * clock for a frame is worse than a second render on start-up.
+     */
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
 
     writeCache(initial);

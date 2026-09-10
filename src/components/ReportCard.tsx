@@ -24,12 +24,20 @@ export function ReportCard() {
   const [creating, setCreating] = useState(projects.length === 0);
   const nameInput = useRef<HTMLInputElement>(null);
 
-  // The draft survives a refresh mid-report.
+  /*
+   * The draft survives a refresh mid-report, and it can only be read after
+   * hydration. sessionStorage does not exist on the server, so a lazy
+   * initialiser would render the defaults there and the restored draft here —
+   * four inputs whose markup disagrees with what was sent. The effect is the
+   * correct shape for this one: the state is editable, so a read-only store
+   * cannot hold it, and the read has to happen after the first paint.
+   */
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem(`${DRAFT_KEY}:${session.id}`);
       if (!raw) return;
       const d = JSON.parse(raw) as Draft;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setProjectId(d.projectId);
       setNewProjectName(d.newProjectName);
       setNote(d.note);

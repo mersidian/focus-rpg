@@ -16,6 +16,28 @@ export function notificationState(): NotifyState {
   return Notification.permission;
 }
 
+/**
+ * The permission is state the browser owns, and asking for it changes it. The
+ * prompt used to keep its own copy and set that copy from an effect on mount
+ * and from a promise on click — two mirrors of one value that could disagree
+ * with the browser after a permission change made anywhere else.
+ *
+ * There is no event for a permission change that works everywhere, so this is
+ * a hand-rung bell: whoever asks tells everyone reading to look again.
+ */
+const watchers = new Set<() => void>();
+
+export function subscribeNotificationState(onChange: () => void): () => void {
+  watchers.add(onChange);
+  return () => {
+    watchers.delete(onChange);
+  };
+}
+
+function announcePermission(): void {
+  for (const w of watchers) w();
+}
+
 /** True once the app is running from the home screen rather than a browser tab. */
 export function isInstalled(): boolean {
   if (typeof window === "undefined") return false;
@@ -50,6 +72,7 @@ export async function askForNotifications(): Promise<NotifyState> {
       : await Notification.requestPermission();
 
   if (result === "granted") await registerServiceWorker();
+  announcePermission();
   return result;
 }
 

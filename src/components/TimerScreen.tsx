@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useGame } from "./GameProvider";
 import { ReportCard } from "./ReportCard";
 import { LevelUpOverlay } from "./LevelUpOverlay";
@@ -12,7 +12,10 @@ import {
   needsInstallFirst,
   notificationState,
   registerServiceWorker,
+  subscribeNotificationState,
+  type NotifyState,
 } from "@/lib/client/notify";
+import { useClientValue } from "@/lib/client/use-client-value";
 import {
   ABANDON_REASON_LABEL,
   MAX_PAUSES,
@@ -505,12 +508,20 @@ function RulesetNote({
 }
 
 function NotificationPrompt() {
-  const [state, setState] = useState<NotificationPermission | "unsupported" | null>(null);
-  const [installFirst, setInstallFirst] = useState(false);
+  /*
+   * Both are facts about the browser, not state this component owns, and
+   * neither changes without a user gesture that re-renders anyway. Reading
+   * them through the store keeps the server render — which knows neither —
+   * matching the markup, without the mount-and-set-state round trip.
+   */
+  const state = useSyncExternalStore<NotifyState | null>(
+    subscribeNotificationState,
+    notificationState,
+    () => null,
+  );
+  const installFirst = useClientValue(needsInstallFirst, false);
 
   useEffect(() => {
-    setState(notificationState());
-    setInstallFirst(needsInstallFirst());
     // Registering early means the worker is ready before a session ends.
     if (notificationState() === "granted") void registerServiceWorker();
   }, []);
@@ -536,7 +547,7 @@ function NotificationPrompt() {
       Sessions end quietly unless you allow notifications.{" "}
       <button
         type="button"
-        onClick={() => void askForNotifications().then(setState)}
+        onClick={() => void askForNotifications()}
         className="text-dim underline underline-offset-4 hover:text-text"
       >
         Allow notifications

@@ -64,24 +64,23 @@ export default [
       "react/no-unescaped-entities": ["error", { forbid: [">", "}"] }],
 
       /*
-        A warning, and the one place that is not a contradiction of the rule
-        above it. `no-unused-vars` is an error because every violation it found
-        was a safe deletion. This one is a real signal — cascading renders —
-        but each of its five existing sites is a separate decision, not a
-        deletion:
+        An error now. It was a warning while five sites predated it, and the
+        note here listed them; four are gone and two disables are left where
+        the rule is wrong about this codebase, each with its reason at the
+        site rather than here:
 
-          CountUp          setState inside a reduced-motion branch
-          GameProvider     a sync from the snapshot
-          ReportCard       hydrating a draft out of sessionStorage on mount
-          TimerScreen      a service-worker registration guard
-          UnlockToast      holding a batch on screen after the prop empties
+          GameProvider  `mounted` may only flip once the clock offset beside
+                        it is set, and a store would flip it from its own
+                        effect with no guarantee of running second
+          ReportCard    the draft lives in sessionStorage, which the server
+                        cannot read, so a lazy initialiser would send one
+                        markup and hydrate another
 
-        Three of those want a lazy `useState` initialiser and two want their
-        semantics rethought. Making the rule an error would have meant five
-        refactors of the timer's own components, blind, as part of installing
-        a linter. It is a warning until they are made, and then it is an error.
+        The three that were fixed all turned out to be the same mistake —
+        a component keeping its own copy of something the browser already
+        knew — and `useClientValue` is what they became.
       */
-      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/set-state-in-effect": "error",
     },
   },
 
