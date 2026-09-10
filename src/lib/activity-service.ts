@@ -768,13 +768,13 @@ export async function resolveActivity(
       rng: rng(sessionSeed(sessionId, "yield")),
     });
     const itemId = gatheredItemId(row.skill, row.tier);
-    const gemId = `raw:${BYPRODUCT[row.skill]}:${tierAt(row.tier).tier}`;
+    const extraId = `raw:${BYPRODUCT[row.skill]?.line}:${tierAt(row.tier).tier}`;
     await append(userId, [
       { itemId, delta: result.units, reason: "session_yield", sessionId },
-      // Mining's byproduct, and the only source of gems in the game. Without it
-      // runecrafting has no input and cannot be started at all.
-      ...(result.gems > 0
-        ? [{ itemId: gemId, delta: result.gems, reason: "session_yield" as const, sessionId }]
+      // The second line: gems from mining, meat from hunting. Both were named
+      // in the catalogue and consumed by a recipe before anything produced them.
+      ...(result.byproduct > 0
+        ? [{ itemId: extraId, delta: result.byproduct, reason: "session_yield" as const, sessionId }]
         : []),
     ]);
     summary.milestones.push(...(await addSkillXp(userId, row.skill, result.skillXp)));
@@ -784,7 +784,9 @@ export async function resolveActivity(
     // would have read literally "raw:Ore:12" — combat already used the name.
     summary.items = [
       { name: itemName(itemId), qty: result.units },
-      ...(result.gems > 0 ? [{ name: itemName(gemId), qty: result.gems }] : []),
+      ...(result.byproduct > 0
+        ? [{ name: itemName(extraId), qty: result.byproduct }]
+        : []),
     ];
     summary.where = itemName(itemId);
     summary.yieldParts = result.parts;

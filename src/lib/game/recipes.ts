@@ -20,6 +20,7 @@ import {
   POTION_ROMAN,
   POTION_TIERS,
   SLOT_NOUN,
+  STONE_KINDS,
   materialFor,
 } from "./items";
 import type { Slot } from "./power";
@@ -163,19 +164,34 @@ export function equipmentRecipes(): Recipe[] {
 /** Rations, ammunition and potions: the upkeep the styles are priced around. */
 export function upkeepRecipes(): Recipe[] {
   const out: Recipe[] = [];
-  for (const t of TIERS) {
-    out.push({
-      id: `recipe:cooking:ration:${t.tier}`,
-      skill: "cooking",
-      outputId: `ration:${t.tier}`,
-      outputName: `${t.metal} Ration`,
-      outputQty: 4,
-      tier: t.tier,
-      inputs: [{ itemId: raw("Catch", t.tier), qty: 2 }],
-      fuel: processFuelCost(t.tier),
-      level: tierSkillRequirement(t.tier),
-      xp: processingXp(t.tier),
-    });
+  /*
+   * Two ways to feed yourself, which is what "fish and meat to rations" said
+   * from the start while only fish existed. They make the same ration — the
+   * table tells them apart by what they need, which is the choice.
+   *
+   * Meat pays better per unit and there is far less of it: fishing is a whole
+   * skill pointed at food, and meat is a quarter-rate byproduct of hunting. So
+   * a hunter eats without fishing, and a fisher still feeds an army.
+   */
+  const FOOD: { from: string; qty: number; makes: number }[] = [
+    { from: "Catch", qty: 2, makes: 4 },
+    { from: "Meat", qty: 2, makes: 6 },
+  ];
+  for (const food of FOOD) {
+    for (const t of TIERS) {
+      out.push({
+        id: `recipe:cooking:${food.from}:${t.tier}`,
+        skill: "cooking",
+        outputId: `ration:${t.tier}`,
+        outputName: `${t.metal} Ration`,
+        outputQty: food.makes,
+        tier: t.tier,
+        inputs: [{ itemId: raw(food.from, t.tier), qty: food.qty }],
+        fuel: processFuelCost(t.tier),
+        level: tierSkillRequirement(t.tier),
+        xp: processingXp(t.tier),
+      });
+    }
   }
   const AMMO: { name: string; skill: string; style: Style; from: string; qty: number }[] = [
     { name: "Arrow", skill: "fletching", style: "ranged", from: "Plank", qty: 20 },
@@ -287,12 +303,50 @@ export function alchemyRecipes(): Recipe[] {
   return out;
 }
 
+/**
+ * Relics broken down into the stones that refine gear.
+ *
+ * Excavation was the last gathering skill whose output nothing consumed: you
+ * dug up relics and they filled a limited bank forever. This is the third
+ * faucet for upgrade stones, and the point is what it is paid in — the shop
+ * charges coins, auto-salvage pays out on luck, and this costs time and nothing
+ * else. So "I want to refine something" finally has an activity attached to it
+ * rather than a balance.
+ *
+ * The jeweller does the work because the jeweller already handles what comes
+ * out of the ground looking valuable, and because Setting Flux is a jeweller's
+ * material by name. Nothing converts upward: a relic makes stones at its own
+ * tier, so shallow digging can never fund deep refinement — which is the same
+ * rule the downward-only stone exchange at the shop exists to protect.
+ */
+export function relicRecipes(): Recipe[] {
+  const out: Recipe[] = [];
+  for (const kind of STONE_KINDS) {
+    for (const t of TIERS) {
+      out.push({
+        id: `recipe:jewelcrafting:${kind}:${t.tier}`,
+        skill: "jewelcrafting",
+        outputId: `stone:${kind}:${t.tier}`,
+        outputName: `${t.metal} ${kind}`,
+        outputQty: 3,
+        tier: t.tier,
+        inputs: [{ itemId: raw("Relic", t.tier), qty: 2 }],
+        fuel: processFuelCost(t.tier),
+        level: tierSkillRequirement(t.tier),
+        xp: processingXp(t.tier),
+      });
+    }
+  }
+  return out;
+}
+
 /** Every recipe in the game. */
 export function allRecipes(): Recipe[] {
   return [
     ...refiningRecipes(),
     ...equipmentRecipes(),
     ...jewelleryRecipes(),
+    ...relicRecipes(),
     ...alchemyRecipes(),
     ...upkeepRecipes(),
   ];

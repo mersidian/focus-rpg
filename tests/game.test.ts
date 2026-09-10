@@ -31,6 +31,7 @@ import {
   equipmentRecipes,
   jewelleryRecipes,
   refiningRecipes,
+  relicRecipes,
   upkeepRecipes,
 } from "../src/lib/game/recipes.ts";
 import { UNIQUES } from "../src/lib/game/uniques.ts";
@@ -745,6 +746,7 @@ test("recipes generate, with unique ids and a level gate on every one", () => {
     refining: refiningRecipes().length,
     equipment: equipmentRecipes().length,
     jewellery: jewelleryRecipes().length,
+    relics: relicRecipes().length,
     alchemy: alchemyRecipes().length,
     upkeep: upkeepRecipes().length,
   };
@@ -756,7 +758,7 @@ test("recipes generate, with unique ids and a level gate on every one", () => {
   for (const [name, n] of Object.entries(parts)) {
     assert.ok(n > 0, `${name} generates nothing`);
   }
-  assert.equal(recipes.length, 1890);
+  assert.equal(recipes.length, 1986);
   assert.equal(new Set(recipes.map((r) => r.id)).size, recipes.length, "duplicate recipe id");
   for (const r of recipes) {
     assert.ok(r.inputs.length > 0, `${r.id} takes nothing`);
@@ -1801,7 +1803,7 @@ function obtainable(): Set<string> {
   for (const skill of Object.keys(GATHERED_LINE)) {
     for (const t of TIERS) out.add(gatheredItemId(skill, t.tier));
   }
-  for (const [, line] of Object.entries(BYPRODUCT)) {
+  for (const { line } of Object.values(BYPRODUCT)) {
     for (const t of TIERS) out.add(`raw:${line}:${t.tier}`);
   }
   for (const crop of CROP_LINES) {
@@ -1850,15 +1852,11 @@ test("every recipe input can actually be obtained", () => {
 
 test("every gathering skill's output is worth something", () => {
   // A gathering skill whose product nothing consumes fills a limited bank with
-  // nothing. Excavation is the one exception the author has not settled yet, so
-  // it is exempted BY NAME rather than by loosening the rule.
-  const UNSPENT: Record<string, string> = {
-    excavation: "relics have no sink yet — awaiting a decision on what reads them",
-  };
+  // nothing. Excavation used to be exempted here by name; relics refine into
+  // upgrade stones now, so the exemption is gone and the rule is absolute.
   const all = allRecipes();
   for (const skill of SKILLS.filter((s) => s.kind === "gathering")) {
-    if (skill.key in UNSPENT) continue;
-    const lines = [GATHERED_LINE[skill.key], BYPRODUCT[skill.key]].filter(Boolean);
+    const lines = [GATHERED_LINE[skill.key], BYPRODUCT[skill.key]?.line].filter(Boolean);
     const consumed = lines.some((line) =>
       all.some((r) => r.inputs.some((i) => i.itemId.startsWith(`raw:${line}:`))),
     );
@@ -1896,7 +1894,7 @@ test("moving rings to the jeweller changed who makes them, not what they are", (
   }
 });
 
-test("mining turns up gems, and only mining does", () => {
+test("mining turns up gems and hunting turns up meat", () => {
   const dig = (skill: string) =>
     resolveYield({
       focusedMs: 50 * 60_000,
@@ -1909,14 +1907,16 @@ test("mining turns up gems, and only mining does", () => {
     });
 
   const mined = dig("mining");
-  assert.ok(mined.gems > 0, "a fifty-minute mine turned up no gems at all");
+  assert.ok(mined.byproduct > 0, "a fifty-minute mine turned up no gems at all");
   assert.ok(
-    mined.gems <= mined.units,
-    `${mined.gems} gems from ${mined.units} ore is more than one apiece`,
+    mined.byproduct <= mined.units,
+    `${mined.byproduct} gems from ${mined.units} ore is more than one apiece`,
   );
-  for (const other of ["woodcutting", "fishing", "foraging", "hunting", "excavation"]) {
-    assert.equal(dig(other).gems, 0, `${other} produced a gem`);
+  // Hunting has a byproduct of its own; the rest have none.
+  for (const other of ["woodcutting", "fishing", "foraging", "excavation"]) {
+    assert.equal(dig(other).byproduct, 0, `${other} produced something extra`);
   }
+  assert.ok(dig("hunting").byproduct > 0, "a fifty-minute hunt turned up no meat");
 });
 
 test("a mined seed reproduces its gems exactly", () => {

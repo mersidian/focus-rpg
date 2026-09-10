@@ -43,16 +43,26 @@ export const MAX_SKILL_BONUS = 0.4;
  * prints the rate, because a number that decides an economy should not live
  * only in a comment.
  */
-export const GEM_PER_UNIT = 0.25;
+export const BYPRODUCT_PER_UNIT = 0.25;
 
 /**
- * What a gathering session turns up besides its main line.
+ * What a gathering session turns up besides its main line, and how often.
  *
  * Declared here rather than inside the resolver so a test can ask the question
  * "is every recipe input obtainable" without importing a database module — the
  * question that would have caught runecrafting before it shipped.
+ *
+ * Both lines existed in the catalogue and in a recipe before anything produced
+ * them. Mining's note has always read "ore, gems, essence, sulphur" and mining
+ * gave ore; Cooking's has always read "fish and meat to rations" and there was
+ * no meat in the game at all. The rate is per unit of the main line, so a
+ * better tool digs more ore and therefore more chances at a gem — the tool
+ * bonus compounding once rather than squared.
  */
-export const BYPRODUCT: Record<string, string> = { mining: "Gem" };
+export const BYPRODUCT: Record<string, { line: string; per: number }> = {
+  mining: { line: "Gem", per: BYPRODUCT_PER_UNIT },
+  hunting: { line: "Meat", per: BYPRODUCT_PER_UNIT },
+};
 
 export type YieldInput = {
   focusedMs: number;
@@ -87,8 +97,11 @@ export type YieldResult = {
   parts: { label: string; factor: number }[];
   /** The units before the roll, so a lucky one reads as luck. */
   expected: number;
-  /** Mining's byproduct. Zero for every other skill. */
-  gems: number;
+  /**
+   * The second line this session turned up — gems from mining, meat from
+   * hunting. Zero for the skills that have none.
+   */
+  byproduct: number;
 };
 
 export function resolveYield(input: YieldInput): YieldResult {
@@ -123,9 +136,10 @@ export function resolveYield(input: YieldInput): YieldResult {
    * a gem, which is the bonus compounding once rather than squared.
    */
   let gems = 0;
-  if (input.skill === "mining") {
+  const byproduct = input.skill ? BYPRODUCT[input.skill] : undefined;
+  if (byproduct) {
     for (let i = 0; i < units; i++) {
-      if (input.rng.next() < GEM_PER_UNIT) gems += 1;
+      if (input.rng.next() < byproduct.per) gems += 1;
     }
   }
 
@@ -136,6 +150,6 @@ export function resolveYield(input: YieldInput): YieldResult {
     multiplier,
     parts,
     expected,
-    gems,
+    byproduct: gems,
   };
 }

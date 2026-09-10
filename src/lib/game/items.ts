@@ -201,6 +201,10 @@ export const RAW_LINES: { name: string; skill: string; family: "metal" | "hide" 
   { name: "Gem", skill: "mining", family: "metal" },
   { name: "Herb", skill: "foraging", family: "cloth" },
   { name: "Hide", skill: "hunting", family: "hide" },
+  // The hide family names the animal, so this reads "Hare Meat", "Boar Meat",
+  // "Wolf Meat" — which is what Cooking's note has always promised and what the
+  // game has never had.
+  { name: "Meat", skill: "hunting", family: "hide" },
   { name: "Fibre", skill: "foraging", family: "cloth" },
   { name: "Relic", skill: "excavation", family: "metal" },
 ];

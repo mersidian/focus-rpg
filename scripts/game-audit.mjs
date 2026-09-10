@@ -16,7 +16,7 @@ import { BIOMES } from "../src/lib/game/biomes.ts";
 import { SKILL_XP, tierSkillRequirement } from "../src/lib/game/skills.ts";
 import { refineTotal, bankSlotsTotalCost, tierValue, ammoUnitPrice, sellPrice, rationPrice } from "../src/lib/game/economy.ts";
 import { rng } from "../src/lib/game/rng.ts";
-import { resolveYield } from "../src/lib/game/yield.ts";
+import { BYPRODUCT, resolveYield } from "../src/lib/game/yield.ts";
 
 const line = (s) => console.log(s);
 
@@ -145,17 +145,37 @@ for (const [len, t] of [[25, 1], [25, 12], [50, 12], [25, 24]]) {
 // Gems are the only source of essence, and essence is the only source of runes,
 // so this rate decides whether a mage can supply their own ammunition. It is an
 // average over many seeds because a single session is a roll.
-line("\n=== MINING'S GEM LINE ===");
+line("\n=== BYPRODUCT LINES ===");
 line("  Gems -> essence 1:1 -> runes 1:10, and magic spends one rune a kill.");
-for (const [len, t] of [[25, 12], [50, 12], [50, 24]]) {
-  let ore = 0, gems = 0;
-  const runs = 400;
-  for (let i = 0; i < runs; i++) {
-    const y = resolveYield({ focusedMs: len * 60_000, skill: "mining", tier: t, toolTier: t, skillLevel: tierSkillRequirement(t), chainMultiplier: 1, rng: rng(`g:${len}:${t}:${i}`) });
-    ore += y.units; gems += y.gems;
+line("  Meat -> 3 rations a unit, against ~2-10 rations a fight.");
+for (const skill of Object.keys(BYPRODUCT)) {
+  for (const [len, t] of [[25, 12], [50, 12]]) {
+    let main = 0, extra = 0;
+    const runs = 400;
+    for (let i = 0; i < runs; i++) {
+      const y = resolveYield({ focusedMs: len * 60_000, skill, tier: t, toolTier: t, skillLevel: tierSkillRequirement(t), chainMultiplier: 1, rng: rng(`b:${skill}:${len}:${t}:${i}`) });
+      main += y.units; extra += y.byproduct;
+    }
+    const e = extra / runs;
+    const into = skill === "mining" ? `${Math.round(e * 10)} runes` : `${Math.round(e * 3)} rations`;
+    line(`  ${skill.padEnd(8)} ${len}min at tier ${t}: ${(main / runs).toFixed(1)} main, ${e.toFixed(1)} ${BYPRODUCT[skill].line} -> ${into}`);
   }
-  const g = gems / runs;
-  line(`  ${len}min at tier ${t}: ${(ore / runs).toFixed(1)} ore, ${g.toFixed(1)} gems -> ${Math.round(g * 10)} runes`);
+}
+
+// Excavation was the last gathering skill with no sink at all. Relics are the
+// third faucet for the stones that refine gear, and the only one paid in time
+// rather than coins or luck.
+line("\n=== RELICS INTO REFINEMENT ===");
+for (const t of [6, 12, 24]) {
+  let relics = 0;
+  const runs = 200;
+  for (let i = 0; i < runs; i++) {
+    relics += resolveYield({ focusedMs: 50 * 60_000, skill: "excavation", tier: t, toolTier: t, skillLevel: tierSkillRequirement(t), chainMultiplier: 1, rng: rng(`r:${t}:${i}`) }).units;
+  }
+  const per = relics / runs;
+  const stones = Math.floor(per / 2) * 3;
+  const need = refineTotal(t).stones;
+  line(`  50min at tier ${t}: ${per.toFixed(1)} relics -> ${stones} stones, and a full +10 wants ${need} (${(need / Math.max(1, stones)).toFixed(1)} sessions)`);
 }
 
 line("\n=== CURVES ===");

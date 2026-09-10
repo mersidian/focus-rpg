@@ -282,7 +282,8 @@ await sql`insert into focus_session
   (id, user_id, planned_minutes, ruleset, device_id, status, started_at, ended_at, last_heartbeat_at, paused_ms, xp_awarded)
   values (${mineId}, ${userId}, 50, 'desktop', 'probe', 'completed',
           ${new Date(Date.now() - 50 * 60_000)}, ${new Date()}, ${new Date()}, 0, 60)`;
-const mining = (await offers(userId, 50)).find(
+const open50 = await offers(userId, 50);
+const mining = open50.find(
   (o) => o.open && o.activity.kind === "gathering" && o.activity.skill === "mining",
 );
 check("mining is something a fresh account can do", Boolean(mining));
@@ -297,6 +298,27 @@ if (mining) {
         `${banked} gem(s)`);
   check("the result names both lines", (mined?.items.length ?? 0) === (banked > 0 ? 2 : 1),
         (mined?.items ?? []).map((i) => `${i.qty} ${i.name}`).join(" + "));
+}
+
+// Hunting's byproduct, which is the only meat in the game and the reason
+// Cooking's note about "fish and meat" is finally true.
+const huntId = crypto.randomUUID();
+await sql`insert into focus_session
+  (id, user_id, planned_minutes, ruleset, device_id, status, started_at, ended_at, last_heartbeat_at, paused_ms, xp_awarded)
+  values (${huntId}, ${userId}, 50, 'desktop', 'probe', 'completed',
+          ${new Date(Date.now() - 50 * 60_000)}, ${new Date()}, ${new Date()}, 0, 60)`;
+const hunting = open50.find(
+  (o) => o.open && o.activity.kind === "gathering" && o.activity.skill === "hunting",
+);
+if (hunting) {
+  await chooseActivity(userId, huntId, hunting.activity, null);
+  const hunted = await resolveActivity(userId, huntId);
+  check("a hunt banks hides", (hunted?.units ?? 0) > 0, `${hunted?.units} hide`);
+  const meat = await sql`select qty from inventory_balance
+    where user_id = ${userId} and item_id like 'raw:Meat:%'`;
+  check("and turns up meat, which cooking has always claimed to use",
+        meat.reduce((n, r) => n + r.qty, 0) > 0,
+        `${meat.reduce((n, r) => n + r.qty, 0)} meat`);
 }
 
 console.log("\n11. XP can never go negative");

@@ -49,7 +49,7 @@ export const SKILLS: Skill[] = [
   { key: "cooking", label: "Cooking", kind: "processing", note: "fish and meat to rations" },
   { key: "alchemy", label: "Alchemy", kind: "processing", note: "herbs to potions" },
   { key: "runecrafting", label: "Runecrafting", kind: "processing", note: "essence to runes" },
-  { key: "jewelcrafting", label: "Jewelcrafting", kind: "processing", note: "gems to rings and amulets" },
+  { key: "jewelcrafting", label: "Jewelcrafting", kind: "processing", note: "gems to rings and amulets, relics to stones" },
   { key: "gunsmithing", label: "Gunsmithing", kind: "processing", note: "gunpowder to cartridges and firearms" },
 ];
 

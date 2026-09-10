@@ -13,7 +13,7 @@ checks below before pushing anything.
 ```bash
 npm test                   # 349 unit tests, no database needed
 node --env-file=.env.local scripts/schema-check.mjs   # the live schema matches the code
-npm run test:integration   # 52 probes against the real database
+npm run test:integration   # 54 probes against the real database
 npx tsc --noEmit
 npm run build
 ```
@@ -138,8 +138,8 @@ before `git push`, and this says whether it took.
   that could not be started was the one whose input nothing made. `tests/game.test.ts` now
   asserts every processing skill has recipes, every recipe input is obtainable from gathering,
   farming or another recipe, and every gathering skill's output is consumed by something —
-  Excavation is exempted BY NAME, because relics still have no sink and that is a decision
-  nobody has taken rather than an oversight.
+  and it has no exemptions left: excavation was the last one, and relics refine into upgrade
+  stones now.
 - **Milestone XP stays a garnish.** The ladder is ~600,000 XP; V1's achievements are ~27,000 and
   the milestones are ~37,000, both under 8%, and a test holds the line. Anything that pays into
   the ladder competes with focused minutes for the meaning of a level.
