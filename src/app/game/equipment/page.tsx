@@ -1,19 +1,14 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { Screen, Block, Rows, Empty } from "@/components/GameUi";
+import { SpareGear } from "@/components/SpareGear";
 import { instances } from "@/lib/game-view-service";
 import { loadEquipped } from "@/lib/activity-service";
 import { loadoutPower, SLOTS, MAX_REFINE } from "@/lib/game/power";
 import { BEATS } from "@/lib/game/archetypes";
 import { refineStoneCost, refineCoinCost } from "@/lib/game/economy";
 import { groupNumber } from "@/lib/format";
-import {
-  EquipButton,
-  RefineButton,
-  RepairButton,
-  SellInstanceButton,
-  UnequipButton,
-} from "@/components/GameActions";
+import { RefineButton, RepairButton, UnequipButton } from "@/components/GameActions";
 
 export const dynamic = "force-dynamic";
 
@@ -91,29 +86,16 @@ export default async function EquipmentPage() {
         </div>
       </Block>
 
-      <Block title="In the bank" aside={`${spare.length} pieces`}>
+      {/*
+        `instances` comes back ordered by tier descending, so a truncated view
+        keeps the pieces worth looking at. The heading says so, because
+        "showing 60 of 340" otherwise invites the question of which sixty.
+      */}
+      <Block title="In the bank" aside={`${spare.length} pieces, highest tier first`}>
         {spare.length === 0 ? (
           <Empty>No spare gear. Equipment only drops from things worth fighting.</Empty>
         ) : (
-          <Rows
-            head={["Item", "Slot", "Tier", "Roll", ""]}
-            rows={spare.slice(0, 60).map((i) => [
-              <span key="n" className="text-dim">
-                {i.name}
-                {i.refine > 0 && <span style={{ color: "var(--tier)" }}> +{i.refine}</span>}
-              </span>,
-              i.slot,
-              String(i.tier),
-              `${Math.round(i.percentile * 100)}%`,
-              <span key="a" className="inline-flex flex-wrap gap-x-3">
-                <EquipButton instanceId={i.id} />
-                {i.refine < MAX_REFINE && (
-                  <RefineButton instanceId={i.id} step={i.refine + 1} />
-                )}
-                <SellInstanceButton instanceId={i.id} />
-              </span>,
-            ])}
-          />
+          <SpareGear spare={spare} />
         )}
       </Block>
 
