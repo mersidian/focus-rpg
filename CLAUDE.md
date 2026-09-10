@@ -11,9 +11,9 @@ checks below before pushing anything.
 ## Before pushing
 
 ```bash
-npm test                   # 342 unit tests, no database needed
+npm test                   # 349 unit tests, no database needed
 node --env-file=.env.local scripts/schema-check.mjs   # the live schema matches the code
-npm run test:integration   # 48 probes against the real database
+npm run test:integration   # 52 probes against the real database
 npx tsc --noEmit
 npm run build
 ```
@@ -131,6 +131,15 @@ before `git push`, and this says whether it took.
   id precisely so a roll is reproducible. Re-deriving it from the ledger is impossible anyway —
   coins and fuel go through the wallet, skill XP to `skill_state`, a milestone is a
   `world_progress` marker with no session on it, and salvaged gear leaves no trace at all.
+- **A skill with no recipes is a skill written down, not built.** Alchemy and Jewelcrafting
+  shipped with a note, a fuel cost, a level curve and zero recipes — the same shape as
+  `AMMO_COST` existing while nothing spent ammunition. And Gem was declared as a mining line in
+  the catalogue and consumed by runecrafting while no session produced one, so the only skill
+  that could not be started was the one whose input nothing made. `tests/game.test.ts` now
+  asserts every processing skill has recipes, every recipe input is obtainable from gathering,
+  farming or another recipe, and every gathering skill's output is consumed by something —
+  Excavation is exempted BY NAME, because relics still have no sink and that is a decision
+  nobody has taken rather than an oversight.
 - **Milestone XP stays a garnish.** The ladder is ~600,000 XP; V1's achievements are ~27,000 and
   the milestones are ~37,000, both under 8%, and a test holds the line. Anything that pays into
   the ladder competes with focused minutes for the meaning of a level.

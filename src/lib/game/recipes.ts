@@ -14,7 +14,15 @@ import { GUN_ENTRY_TIER, MAX_TIER, TIERS, tier as tierAt } from "./tiers";
 import { CRAFTED_QUALITY } from "./quality";
 import { STYLES, type Style } from "./archetypes";
 import { ARCHETYPES } from "./archetypes";
-import { ARMOUR_SLOTS, SLOT_NOUN, materialFor } from "./items";
+import {
+  ARMOUR_SLOTS,
+  POTION_EFFECTS,
+  POTION_ROMAN,
+  POTION_TIERS,
+  SLOT_NOUN,
+  materialFor,
+} from "./items";
+import type { Slot } from "./power";
 import { processingXp, tierSkillRequirement } from "./skills";
 
 export type Ingredient = { itemId: string; qty: number };
@@ -91,6 +99,9 @@ export function refiningRecipes(): Recipe[] {
 }
 
 /** Which refined good and which skill each style's armour is made from. */
+/** The two slots a jeweller makes, in every style. */
+export const JEWELLERY_SLOTS: Slot[] = ["amulet", "ring"];
+
 const ARMOUR_SOURCE: Record<Style, { skill: string; from: string }> = {
   melee: { skill: "smithing", from: "Bar" },
   ranged: { skill: "leatherworking", from: "Leather" },
@@ -109,7 +120,9 @@ export function equipmentRecipes(): Recipe[] {
     const source = ARMOUR_SOURCE[style];
     const from = style === "gun" ? GUN_ENTRY_TIER : 1;
     for (const t of TIERS.filter((x) => x.tier >= from)) {
-      for (const slot of ARMOUR_SLOTS) {
+      // Rings and amulets are the jeweller's, not the smith's — see
+      // `jewelleryRecipes`. The ITEMS are unchanged; only who makes them moved.
+      for (const slot of ARMOUR_SLOTS.filter((sl) => !JEWELLERY_SLOTS.includes(sl))) {
         const noun = SLOT_NOUN[style][slot];
         const material = materialFor(style, t.tier);
         out.push({
@@ -192,9 +205,97 @@ export function upkeepRecipes(): Recipe[] {
   return out;
 }
 
+/**
+ * Gems to rings and amulets, which is what Jewelcrafting always said it did.
+ *
+ * The skill shipped with a note, a fuel cost, a level curve and zero recipes,
+ * while `equipmentRecipes` quietly made every ring and amulet out of bars and
+ * cloth along with the rest of the armour. So this is not new content so much
+ * as a job handed to the skill whose name is on it.
+ *
+ * The output ids, names, tiers and quality are untouched — a requirement gate
+ * asks for a tier and never for a maker, so nothing about what a set counts for
+ * changes. What changes is the input: a jeweller needs a gem, which gives
+ * mining's byproduct a second customer beside runecrafting.
+ */
+export function jewelleryRecipes(): Recipe[] {
+  const out: Recipe[] = [];
+  for (const style of STYLES) {
+    const source = ARMOUR_SOURCE[style];
+    const from = style === "gun" ? GUN_ENTRY_TIER : 1;
+    for (const t of TIERS.filter((x) => x.tier >= from)) {
+      for (const slot of JEWELLERY_SLOTS) {
+        const noun = SLOT_NOUN[style][slot];
+        const material = materialFor(style, t.tier);
+        out.push({
+          id: `recipe:jewelcrafting:${style}:${slot}:${t.tier}`,
+          skill: "jewelcrafting",
+          outputId: `armour:${style}:${slot}:${t.tier}:${CRAFTED_QUALITY}`,
+          outputName: style === "ranged" ? `${material} Hide ${noun}` : `${material} ${noun}`,
+          outputQty: 1,
+          tier: t.tier,
+          // A gem and a little of the style's own material, so a mage's talisman
+          // still reads as cloth and a gunslinger's seal as leather.
+          inputs: [
+            { itemId: raw("Gem", t.tier), qty: 1 },
+            { itemId: refined(source.from, t.tier), qty: 1 },
+          ],
+          fuel: processFuelCost(t.tier) * 2,
+          level: tierSkillRequirement(t.tier),
+          xp: processingXp(t.tier) * 2,
+        });
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Herbs to potions, which is what Alchemy always said it did.
+ *
+ * `potions.ts` opens by recording the hole this fills: "Alchemy was a full
+ * processing skill with a fuel cost and no customer anywhere in the design".
+ * The effects were then written, typed and read by the engine — and the only
+ * way to get one remained the shop. A ward is a toll you cannot craft and a
+ * tonic is a session buff you cannot make is not an economy, it is a shop.
+ *
+ * Every potion in the catalogue gets exactly one recipe, so the list cannot
+ * drift from the items: both walk POTION_EFFECTS × POTION_TIERS.
+ */
+export function alchemyRecipes(): Recipe[] {
+  const out: Recipe[] = [];
+  for (const effect of POTION_EFFECTS) {
+    for (let n = 0; n < POTION_TIERS; n++) {
+      // The same tier the item itself is generated at, read from the same
+      // expression, so a potion and its recipe can never land on different
+      // rungs of the spine.
+      const t = Math.min(MAX_TIER, 1 + n * 4);
+      out.push({
+        id: `recipe:alchemy:${effect}:${n + 1}`,
+        skill: "alchemy",
+        outputId: `potion:${effect}:${n + 1}`,
+        outputName: `${effect} Tonic ${POTION_ROMAN[n]}`,
+        outputQty: 2,
+        tier: t,
+        inputs: [{ itemId: raw("Herb", t), qty: 3 }],
+        fuel: processFuelCost(t),
+        level: tierSkillRequirement(t),
+        xp: processingXp(t),
+      });
+    }
+  }
+  return out;
+}
+
 /** Every recipe in the game. */
 export function allRecipes(): Recipe[] {
-  return [...refiningRecipes(), ...equipmentRecipes(), ...upkeepRecipes()];
+  return [
+    ...refiningRecipes(),
+    ...equipmentRecipes(),
+    ...jewelleryRecipes(),
+    ...alchemyRecipes(),
+    ...upkeepRecipes(),
+  ];
 }
 
 export type CraftCheck =

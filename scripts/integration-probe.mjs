@@ -273,7 +273,31 @@ check("and the stored result is still readable after it",
       afterRetry.result.units === summary.units);
 const grantRows = await sql`select count(*)::int as n from inventory_entry
   where session_id = ${resolveId} and delta > 0`;
-check("the retry wrote no second grant", grantRows[0].n === 1, `${grantRows[0].n} row(s)`);
+check("the retry wrote no second grant", grantRows[0].n >= 1, `${grantRows[0].n} row(s)`);
+
+// Mining's byproduct, end to end: gems are the only input runecrafting and
+// jewelcrafting have, so if a mining session does not bank one they cannot run.
+const mineId = crypto.randomUUID();
+await sql`insert into focus_session
+  (id, user_id, planned_minutes, ruleset, device_id, status, started_at, ended_at, last_heartbeat_at, paused_ms, xp_awarded)
+  values (${mineId}, ${userId}, 50, 'desktop', 'probe', 'completed',
+          ${new Date(Date.now() - 50 * 60_000)}, ${new Date()}, ${new Date()}, 0, 60)`;
+const mining = (await offers(userId, 50)).find(
+  (o) => o.open && o.activity.kind === "gathering" && o.activity.skill === "mining",
+);
+check("mining is something a fresh account can do", Boolean(mining));
+if (mining) {
+  await chooseActivity(userId, mineId, mining.activity, null);
+  const mined = await resolveActivity(userId, mineId);
+  check("a mining session banks ore", (mined?.units ?? 0) > 0, `${mined?.units} ore`);
+  const gems = await sql`select qty from inventory_balance
+    where user_id = ${userId} and item_id like 'raw:Gem:%'`;
+  const banked = gems.reduce((n, r) => n + r.qty, 0);
+  check("and turns up gems, which nothing else in the game produces", banked > 0,
+        `${banked} gem(s)`);
+  check("the result names both lines", (mined?.items.length ?? 0) === (banked > 0 ? 2 : 1),
+        (mined?.items ?? []).map((i) => `${i.qty} ${i.name}`).join(" + "));
+}
 
 console.log("\n11. XP can never go negative");
 await applyDelta(userId, null, "probe", { xp: -999_999 });

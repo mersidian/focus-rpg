@@ -284,7 +284,8 @@ export const POTION_EFFECTS = [
 ];
 
 export const POTION_TIERS = 6;
-const ROMAN = ["I", "II", "III", "IV", "V", "VI"];
+/** Exported so a potion's recipe cannot name it differently from its item. */
+export const POTION_ROMAN = ["I", "II", "III", "IV", "V", "VI"];
 
 export function generateConsumables(): ItemDef[] {
   const out: ItemDef[] = [];
@@ -292,7 +293,7 @@ export function generateConsumables(): ItemDef[] {
     for (let n = 0; n < POTION_TIERS; n++) {
       out.push({
         id: id("potion", effect, n + 1),
-        name: `${effect} Tonic ${ROMAN[n]}`,
+        name: `${effect} Tonic ${POTION_ROMAN[n]}`,
         cls: "consumable",
         tier: Math.min(MAX_TIER, 1 + n * 4),
         skill: "alchemy",
@@ -392,4 +393,25 @@ export function itemName(itemId: string): string {
   // are generated from tables the catalogue reads rather than from the spine.
   const [, ...rest] = itemId.split(":");
   return rest.join(" ") || itemId;
+}
+
+/**
+ * The raw line a gathering session produces.
+ *
+ * Pure, and here rather than in `activity-service`, for the same reason
+ * `itemName` moved: a database module is not a place a test can reach, and the
+ * one question worth asking about the recipe graph — can every input actually
+ * be obtained — needs to know what a session yields.
+ */
+export const GATHERED_LINE: Record<string, string> = {
+  woodcutting: "Log",
+  fishing: "Catch",
+  mining: "Ore",
+  foraging: "Herb",
+  hunting: "Hide",
+  excavation: "Relic",
+};
+
+export function gatheredItemId(skill: string, t: number): string {
+  return id("raw", GATHERED_LINE[skill] ?? "Ore", tierAt(t).tier);
 }

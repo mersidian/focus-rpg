@@ -24,7 +24,15 @@ import {
 } from "../src/lib/game/economy.ts";
 import { generateCatalogue, catalogueBreakdown, tiersFor } from "../src/lib/game/items.ts";
 import { rollDrops, foldDrops, salvageDecision, salvageValue } from "../src/lib/game/drops.ts";
-import { allRecipes, canCraft } from "../src/lib/game/recipes.ts";
+import {
+  allRecipes,
+  alchemyRecipes,
+  canCraft,
+  equipmentRecipes,
+  jewelleryRecipes,
+  refiningRecipes,
+  upkeepRecipes,
+} from "../src/lib/game/recipes.ts";
 import { UNIQUES } from "../src/lib/game/uniques.ts";
 import { BOSSES, bossesIn } from "../src/lib/game/bosses.ts";
 import { resolveBoss } from "../src/lib/game/combat.ts";
@@ -68,6 +76,9 @@ import { AMMO_PER_KILL, WHEEL_DISADVANTAGE } from "../src/lib/game/combat.ts";
 import { ammoUnitPrice, salvageStoneYield, salvageStones } from "../src/lib/game/economy.ts";
 import { CROP_LINES } from "../src/lib/game/items.ts";
 import { shopStock, shopGroups, SHOP_CLASS_ORDER } from "../src/lib/shop-service.ts";
+import { JEWELLERY_SLOTS } from "../src/lib/game/recipes.ts";
+import { BYPRODUCT } from "../src/lib/game/yield.ts";
+import { GATHERED_LINE, gatheredItemId } from "../src/lib/game/items.ts";
 
 /**
  * A zeroed V1 Stats, so a V2 predicate can be exercised without a session
@@ -723,9 +734,29 @@ test("auto-salvage keeps the good rolls and never eats a great one", () => {
 
 test("recipes generate, with unique ids and a level gate on every one", () => {
   const recipes = allRecipes();
-  // 1,710: 187 refining lines, 1,365 equipment, 158 upkeep. All generated from
-  // the spine, so adding a tier adds ~40 of them and costs one line of config.
-  assert.equal(recipes.length, 1710);
+  /*
+   * All generated from the spine, so adding a tier adds ~40 of them and costs
+   * one line of config. The breakdown is asserted rather than written in a
+   * comment: the old note said "187 refining, 1,365 equipment, 158 upkeep"
+   * beside a frozen 1,710, and a hand-tallied figure beside a generated one is
+   * the drift this repo has been bitten by twice.
+   */
+  const parts = {
+    refining: refiningRecipes().length,
+    equipment: equipmentRecipes().length,
+    jewellery: jewelleryRecipes().length,
+    alchemy: alchemyRecipes().length,
+    upkeep: upkeepRecipes().length,
+  };
+  assert.equal(
+    Object.values(parts).reduce((n, x) => n + x, 0),
+    recipes.length,
+    "allRecipes is not the sum of its generators",
+  );
+  for (const [name, n] of Object.entries(parts)) {
+    assert.ok(n > 0, `${name} generates nothing`);
+  }
+  assert.equal(recipes.length, 1890);
   assert.equal(new Set(recipes.map((r) => r.id)).size, recipes.length, "duplicate recipe id");
   for (const r of recipes) {
     assert.ok(r.inputs.length > 0, `${r.id} takes nothing`);
@@ -1758,4 +1789,148 @@ test("a fight reports the seconds it actually used", () => {
     full.secondsFought <= 50 * 60,
     "it fought for longer than the session lasted",
   );
+});
+
+/* -------------------------------------------------------------------------- */
+/*  A skill written down is not a skill built                                  */
+/* -------------------------------------------------------------------------- */
+
+/** Everything a player can end up holding without buying it. */
+function obtainable(): Set<string> {
+  const out = new Set<string>();
+  for (const skill of Object.keys(GATHERED_LINE)) {
+    for (const t of TIERS) out.add(gatheredItemId(skill, t.tier));
+  }
+  for (const [, line] of Object.entries(BYPRODUCT)) {
+    for (const t of TIERS) out.add(`raw:${line}:${t.tier}`);
+  }
+  for (const crop of CROP_LINES) {
+    for (const t of TIERS) out.add(`raw:${crop}:${t.tier}`);
+  }
+  for (const r of allRecipes()) out.add(r.outputId);
+  return out;
+}
+
+test("every processing skill has something to make", () => {
+  // Alchemy and Jewelcrafting shipped with a note, a fuel cost, a level curve
+  // and no recipes at all — the same shape as `AMMO_COST` existing while
+  // nothing spent ammunition. A skill nothing can be made with is a skill
+  // written down rather than built.
+  const all = allRecipes();
+  for (const skill of SKILLS.filter((s) => s.kind === "processing")) {
+    const mine = all.filter((r) => r.skill === skill.key);
+    assert.ok(
+      mine.length > 0,
+      `${skill.label} promises "${skill.note}" and has no recipes`,
+    );
+  }
+});
+
+test("every recipe input can actually be obtained", () => {
+  // Gem was declared as a mining line in the catalogue and consumed by
+  // runecrafting, and no session produced one — so the only skill that could
+  // not be started was the one whose input nothing made, and the twenty-four
+  // rune recipes downstream of it went with it.
+  const have = obtainable();
+  const orphans = new Map<string, Set<string>>();
+  for (const r of allRecipes()) {
+    for (const i of r.inputs) {
+      if (have.has(i.itemId)) continue;
+      const line = i.itemId.split(":").slice(0, 2).join(":");
+      if (!orphans.has(line)) orphans.set(line, new Set());
+      orphans.get(line)!.add(r.skill);
+    }
+  }
+  assert.deepEqual(
+    [...orphans].map(([line, skills]) => `${line} (blocks ${[...skills].join(", ")})`),
+    [],
+    "these inputs exist in recipes and nowhere else",
+  );
+});
+
+test("every gathering skill's output is worth something", () => {
+  // A gathering skill whose product nothing consumes fills a limited bank with
+  // nothing. Excavation is the one exception the author has not settled yet, so
+  // it is exempted BY NAME rather than by loosening the rule.
+  const UNSPENT: Record<string, string> = {
+    excavation: "relics have no sink yet — awaiting a decision on what reads them",
+  };
+  const all = allRecipes();
+  for (const skill of SKILLS.filter((s) => s.kind === "gathering")) {
+    if (skill.key in UNSPENT) continue;
+    const lines = [GATHERED_LINE[skill.key], BYPRODUCT[skill.key]].filter(Boolean);
+    const consumed = lines.some((line) =>
+      all.some((r) => r.inputs.some((i) => i.itemId.startsWith(`raw:${line}:`))),
+    );
+    assert.ok(consumed, `nothing consumes what ${skill.label} gathers`);
+  }
+});
+
+test("every potion has exactly one way to make it", () => {
+  // The items and the recipes both walk POTION_EFFECTS x POTION_TIERS, so a
+  // potion without a recipe would mean the two lists had drifted.
+  const alchemy = allRecipes().filter((r) => r.skill === "alchemy");
+  const potions = generateCatalogue().filter((i) => i.id.startsWith("potion:"));
+  assert.equal(alchemy.length, potions.length, "potions and their recipes disagree");
+  const made = new Set(alchemy.map((r) => r.outputId));
+  for (const p of potions) {
+    assert.ok(made.has(p.id), `${p.name} cannot be made`);
+  }
+});
+
+test("moving rings to the jeweller changed who makes them, not what they are", () => {
+  // A requirement gate asks for a tier and never for a maker, so reassigning a
+  // slot must not change a single output id — otherwise a full set would stop
+  // counting as one.
+  const all = allRecipes();
+  for (const slot of JEWELLERY_SLOTS) {
+    const rows = all.filter((r) => r.outputId.includes(`:${slot}:`));
+    assert.ok(rows.length > 0, `nothing makes a ${slot}`);
+    for (const r of rows) {
+      assert.equal(r.skill, "jewelcrafting", `${r.outputName} is not made by the jeweller`);
+      assert.ok(
+        r.inputs.some((i) => i.itemId.startsWith("raw:Gem:")),
+        `${r.outputName} is jewellery made without a gem`,
+      );
+    }
+  }
+});
+
+test("mining turns up gems, and only mining does", () => {
+  const dig = (skill: string) =>
+    resolveYield({
+      focusedMs: 50 * 60_000,
+      skill,
+      tier: 4,
+      toolTier: 4,
+      skillLevel: 20,
+      chainMultiplier: 1,
+      rng: rng(sessionSeed(`${skill}-gems`, "yield")),
+    });
+
+  const mined = dig("mining");
+  assert.ok(mined.gems > 0, "a fifty-minute mine turned up no gems at all");
+  assert.ok(
+    mined.gems <= mined.units,
+    `${mined.gems} gems from ${mined.units} ore is more than one apiece`,
+  );
+  for (const other of ["woodcutting", "fishing", "foraging", "hunting", "excavation"]) {
+    assert.equal(dig(other).gems, 0, `${other} produced a gem`);
+  }
+});
+
+test("a mined seed reproduces its gems exactly", () => {
+  // The whole ledger rests on a resolution being replayable. A byproduct rolled
+  // off an unseeded stream would make a recompute disagree with what was paid.
+  const once = () =>
+    resolveYield({
+      focusedMs: 50 * 60_000,
+      skill: "mining",
+      tier: 6,
+      toolTier: 7,
+      skillLevel: 30,
+      chainMultiplier: 1.2,
+      rng: rng(sessionSeed("replay", "yield")),
+    });
+  assert.deepEqual(once(), once());
 });

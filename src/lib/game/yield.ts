@@ -22,8 +22,42 @@ export const TOOL_TIER_BONUS = 0.08;
 export const SKILL_LEVEL_BONUS = 0.004;
 export const MAX_SKILL_BONUS = 0.4;
 
+/**
+ * Gems per unit of ore, as a chance rolled per unit.
+ *
+ * Mining's note has always said "ore, gems, essence, sulphur" and a mining
+ * session produced ore. Gem was declared as a mining line in the catalogue and
+ * runecrafting was written to consume it, so the only skill that could not be
+ * started was the one whose input nothing produced — twenty-four refining
+ * recipes and the twenty-four rune recipes downstream of them, unreachable.
+ *
+ * A quarter is not arbitrary, and the figure is measured rather than guessed: a
+ * fifty-minute mine at tier 12 turns up 25 ore and 6.1 gems, which refine to
+ * 6.1 essence and make 61 runes — and magic spends one rune a kill against the
+ * ~104 kills a fifty-minute fight lands. So mining your own ammunition covers
+ * about six tenths of your fighting.
+ *
+ * That is deliberately short of self-sufficiency. Runes can also be bought, so
+ * the gem line is the cheaper-but-slower path rather than the only one, which
+ * is the shape every other upkeep line in the game already has. `game-audit`
+ * prints the rate, because a number that decides an economy should not live
+ * only in a comment.
+ */
+export const GEM_PER_UNIT = 0.25;
+
+/**
+ * What a gathering session turns up besides its main line.
+ *
+ * Declared here rather than inside the resolver so a test can ask the question
+ * "is every recipe input obtainable" without importing a database module — the
+ * question that would have caught runecrafting before it shipped.
+ */
+export const BYPRODUCT: Record<string, string> = { mining: "Gem" };
+
 export type YieldInput = {
   focusedMs: number;
+  /** Which gathering skill is working; only mining has a byproduct. */
+  skill?: string;
   /** The resource's tier. */
   tier: number;
   toolTier: number;
@@ -53,6 +87,8 @@ export type YieldResult = {
   parts: { label: string; factor: number }[];
   /** The units before the roll, so a lucky one reads as luck. */
   expected: number;
+  /** Mining's byproduct. Zero for every other skill. */
+  gems: number;
 };
 
 export function resolveYield(input: YieldInput): YieldResult {
@@ -80,6 +116,19 @@ export function resolveYield(input: YieldInput): YieldResult {
   const whole = Math.floor(expected);
   const units = whole + (input.rng.next() < expected - whole ? 1 : 0);
 
+  /*
+   * Rolled per unit off the same seeded stream, so a recompute reproduces the
+   * gems exactly as it reproduces the ore. The multiplier is deliberately not
+   * applied twice: a better tool digs more ore, and more ore is more chances at
+   * a gem, which is the bonus compounding once rather than squared.
+   */
+  let gems = 0;
+  if (input.skill === "mining") {
+    for (let i = 0; i < units; i++) {
+      if (input.rng.next() < GEM_PER_UNIT) gems += 1;
+    }
+  }
+
   return {
     units,
     skillXp: Math.round(minutes * (1 + mods.skillXpPct / 100)),
@@ -87,5 +136,6 @@ export function resolveYield(input: YieldInput): YieldResult {
     multiplier,
     parts,
     expected,
+    gems,
   };
 }

@@ -35,8 +35,8 @@ import { BOSS_POWER_MULTIPLIER, bossKillSeconds, bossMarker, bossesIn } from "./
 import { resolveBoss } from "./game/combat";
 import { UNIQUE_BY_NAME, uniqueItemId, type Unique } from "./game/uniques";
 import { describeEffect, foldEffects, type Effect, type Modifiers } from "./game/effects";
-import { AMMO_LINES, STONE_KINDS, TOOL_SKILLS, itemName } from "./game/items";
-import { resolveYield } from "./game/yield";
+import { AMMO_LINES, STONE_KINDS, TOOL_SKILLS, gatheredItemId, itemName } from "./game/items";
+import { BYPRODUCT, resolveYield } from "./game/yield";
 import type { Activity } from "./game/activity";
 import { chainMultiplier, linksBefore, type ChainSession } from "./chain";
 import type { MilestonePaid, ResolutionSummary } from "./game-types";
@@ -755,6 +755,7 @@ export async function resolveActivity(
     const mods = await loadModifiers(userId, row.skill, tonicEffectOf(row.tonicItemId));
     const result = resolveYield({
       focusedMs,
+      skill: row.skill,
       tier: row.tier,
       toolTier: Math.max(
         gate.toolTier[row.skill] ?? row.tier,
@@ -767,15 +768,24 @@ export async function resolveActivity(
       rng: rng(sessionSeed(sessionId, "yield")),
     });
     const itemId = gatheredItemId(row.skill, row.tier);
+    const gemId = `raw:${BYPRODUCT[row.skill]}:${tierAt(row.tier).tier}`;
     await append(userId, [
       { itemId, delta: result.units, reason: "session_yield", sessionId },
+      // Mining's byproduct, and the only source of gems in the game. Without it
+      // runecrafting has no input and cannot be started at all.
+      ...(result.gems > 0
+        ? [{ itemId: gemId, delta: result.gems, reason: "session_yield" as const, sessionId }]
+        : []),
     ]);
     summary.milestones.push(...(await addSkillXp(userId, row.skill, result.skillXp)));
     summary.units = result.units;
     summary.skillXp = result.skillXp;
     // The NAME, not the id. This was `name: itemId`, so a gathering result
     // would have read literally "raw:Ore:12" — combat already used the name.
-    summary.items = [{ name: itemName(itemId), qty: result.units }];
+    summary.items = [
+      { name: itemName(itemId), qty: result.units },
+      ...(result.gems > 0 ? [{ name: itemName(gemId), qty: result.gems }] : []),
+    ];
     summary.where = itemName(itemId);
     summary.yieldParts = result.parts;
     summary.unitsExpected = result.expected;
@@ -1015,18 +1025,12 @@ export async function resolveActivity(
   return summary;
 }
 
-/** Which raw item a gathering skill produces at a tier. */
-export function gatheredItemId(skill: string, t: number): string {
-  const line: Record<string, string> = {
-    woodcutting: "Log",
-    fishing: "Catch",
-    mining: "Ore",
-    foraging: "Herb",
-    hunting: "Hide",
-    excavation: "Relic",
-  };
-  return `raw:${line[skill] ?? "Ore"}:${tierAt(t).tier}`;
-}
+/*
+ * `gatheredItemId` moved to `game/items`, where the purity rule puts it: it has
+ * no clock and no database, and a test cannot reach a `server-only` module to
+ * ask what a session yields. Re-exported so its callers do not have to care.
+ */
+export { gatheredItemId } from "./game/items";
 
 /**
  * Farming advances one stage per COMPLETED SESSION, whatever the session was

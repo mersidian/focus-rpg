@@ -142,6 +142,22 @@ for (const [len, t] of [[25, 1], [25, 12], [50, 12], [25, 24]]) {
   line(`  ${len}min at tier ${t}: ${y.units} units worth ${y.coinValue} coins (x${y.multiplier.toFixed(2)})`);
 }
 
+// Gems are the only source of essence, and essence is the only source of runes,
+// so this rate decides whether a mage can supply their own ammunition. It is an
+// average over many seeds because a single session is a roll.
+line("\n=== MINING'S GEM LINE ===");
+line("  Gems -> essence 1:1 -> runes 1:10, and magic spends one rune a kill.");
+for (const [len, t] of [[25, 12], [50, 12], [50, 24]]) {
+  let ore = 0, gems = 0;
+  const runs = 400;
+  for (let i = 0; i < runs; i++) {
+    const y = resolveYield({ focusedMs: len * 60_000, skill: "mining", tier: t, toolTier: t, skillLevel: tierSkillRequirement(t), chainMultiplier: 1, rng: rng(`g:${len}:${t}:${i}`) });
+    ore += y.units; gems += y.gems;
+  }
+  const g = gems / runs;
+  line(`  ${len}min at tier ${t}: ${(ore / runs).toFixed(1)} ore, ${g.toFixed(1)} gems -> ${Math.round(g * 10)} runes`);
+}
+
 line("\n=== CURVES ===");
 line(`skill 99 costs ${SKILL_XP[98]} xp = ${(SKILL_XP[98] / 60).toFixed(0)} focused hours on that skill`);
 line(`skill 50 costs ${SKILL_XP[49]} xp = ${(SKILL_XP[49] / 60).toFixed(0)} h`);
