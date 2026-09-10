@@ -31,8 +31,9 @@ export default async function CraftingPage() {
       title="Crafting"
       lead={
         <>
-          Ten processing skills, {groupNumber(recipes.length)} recipes, all generated from the tier
-          spine — adding a tier adds about forty of them. Fuel pays for every one, which is fuel's
+          {PROCESSING.length} processing skills, {groupNumber(recipes.length)} recipes, all
+          generated from the tier spine — adding a tier adds about forty of them. Fuel pays for
+          every one, which is fuel's
           entire job: every <em>meaningful</em> action is a session, and fuel covers the trivia
           that should never cost twenty-five real minutes.
         </>
@@ -47,13 +48,20 @@ export default async function CraftingPage() {
         const mine = recipes.filter((r) => r.skill === skill.key);
         const level = skills[skill.key] ?? 1;
         // Only what is reachable: a page listing 200 locked recipes is a wall.
-        const reachable = mine
-          .filter((r) => r.level <= level + 8)
-          .sort((a, b) => a.tier - b.tier)
-          .slice(0, 24);
+        // Only what is within reach, and then only the shallowest 24 of those:
+        // a page listing 384 locked recipes is a wall. `reachable` is the
+        // honest denominator — the aside used to quote `mine.length`, so a
+        // level-1 smith read "384 recipes" above a table of 24.
+        const withinReach = mine.filter((r) => r.level <= level + 8);
+        const reachable = withinReach.sort((a, b) => a.tier - b.tier).slice(0, 24);
         return (
-          <Block key={skill.key} title={skill.label} aside={`level ${level} · ${mine.length} recipes`}>
+          <Block
+            key={skill.key}
+            title={skill.label}
+            aside={`level ${level} · ${withinReach.length} within reach of ${mine.length}`}
+          >
             <Rows
+              total={withinReach.length}
               head={["Makes", "Needs", "Fuel", "Level", ""]}
               rows={reachable.map((r) => {
                 const check = canCraft(r, have, wallet.fuel, level, itemName);
