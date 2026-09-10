@@ -7,6 +7,7 @@ import { itemName } from "@/lib/game-view-service";
 import { ensurePlots, seedsHeld } from "@/lib/farm-service";
 import { plotCost, MAX_PLOTS, growthStages } from "@/lib/game/farm";
 import { CROP_LINES } from "@/lib/game/items";
+import { CROP_OUTPUT } from "@/lib/game/farm";
 import { BuyPlotButton, HarvestButton, SowButton } from "@/components/GameActions";
 import { groupNumber } from "@/lib/format";
 
@@ -87,19 +88,24 @@ export default async function FarmPage() {
         )}
       </Block>
 
-      <Block title="What it grows" aside="four lines">
+      {/*
+        Rendered from CROP_OUTPUT rather than retyped beside it. The hand-typed
+        version had "Guaranteed-tier hides, where Hunting's roll" — a sentence
+        that stops mid-clause — and an aside reading "four lines" above a
+        paragraph that counted them properly. Prose says what a thing is about;
+        the page prints the facts.
+      */}
+      <Block title="What it grows" aside={`${CROP_LINES.length} lines`}>
         <Rows
-          head={["Line", "Why it cannot be gathered instead"]}
-          rows={[
-            ["Herb", "Foraging finds them, but only in the biome you happen to be in"],
-            ["Fibre", "Above tier 8 cloth is farm-only — Magic's armour has no other source"],
-            ["Sapling", "Hardwood yields one tier above anything choppable in the wild"],
-            ["Stock", "Guaranteed-tier hides, where Hunting's roll"],
-          ]}
+          head={["Line", "Grows", "Why the wild will not do"]}
+          rows={CROP_LINES.map((line) => [
+            line,
+            itemName(`${CROP_OUTPUT[line].itemLine}:1`),
+            CROP_OUTPUT[line].note,
+          ])}
         />
         <p className="mt-4 text-body text-faint">
-          {CROP_LINES.length} lines across the spine. Nothing spoils — this app does not punish
-          absence.
+          Nothing spoils — this app does not punish absence.
         </p>
       </Block>
     </Screen>

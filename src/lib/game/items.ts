@@ -57,12 +57,26 @@ export function materialFor(style: Style, t: number): string {
   return tierAt(t)[family] ?? tierAt(t).metal;
 }
 
-/** Hide armour inserts the word, so the family reads as itself. */
-function armourName(style: Style, t: number, slot: Slot): string {
+/**
+ * What a piece of armour is called.
+ *
+ * Hide armour inserts the word so the family reads as itself — a "Hare Hide
+ * Jerkin" rather than a "Hare Jerkin". Jewellery does not: a pendant is not
+ * made of hide, and inserting it there produced "Hare Hide Pendant".
+ *
+ * Exported because the recipes used to repeat this expression inline, and two
+ * expressions that have to agree about a string is the drift that had one arrow
+ * called two things.
+ */
+export function armourName(style: Style, t: number, slot: Slot): string {
   const material = materialFor(style, t);
   const noun = SLOT_NOUN[style][slot];
-  return style === "ranged" ? `${material} Hide ${noun}` : `${material} ${noun}`;
+  const hide = style === "ranged" && !JEWELLERY.has(slot);
+  return hide ? `${material} Hide ${noun}` : `${material} ${noun}`;
 }
+
+/** The slots a jeweller makes; they take no material word of their own. */
+const JEWELLERY = new Set<Slot>(["amulet", "ring"]);
 
 /** One noun per slot per style, so a set reads as a set. */
 export const SLOT_NOUN: Record<Style, Record<Slot, string>> = {
@@ -393,6 +407,28 @@ export function generateStones(): ItemDef[] {
 
 export const CROP_LINES = ["Herb", "Fibre", "Sapling", "Stock"];
 
+/**
+ * What a crop is called, per line.
+ *
+ * All four used the cloth word, so a plot of herbs was a "Wool Herb Seed" and a
+ * tree was a "Wool Sapling Seed" — the same fallback that made a fish a Copper
+ * Catch. Each line now takes the vocabulary of the thing it actually grows, and
+ * two of them are not seeds at all: a sapling is a young tree and stock is
+ * livestock, so neither wants the word.
+ */
+const CROP_NAME: Record<string, { vocab: string; noun: string }> = {
+  Herb: { vocab: "herb", noun: "Seed" },
+  Fibre: { vocab: "cloth", noun: "Seed" },
+  Sapling: { vocab: "wood", noun: "Sapling" },
+  Stock: { vocab: "hide", noun: "Stock" },
+};
+
+export function cropName(line: string, t: number): string {
+  const shape = CROP_NAME[line];
+  if (!shape) return `${materialWord(t, "cloth")} ${line} Seed`;
+  return `${materialWord(t, shape.vocab)} ${shape.noun}`;
+}
+
 export function generateSeeds(): ItemDef[] {
   const out: ItemDef[] = [];
   for (const line of CROP_LINES) {
@@ -400,7 +436,7 @@ export function generateSeeds(): ItemDef[] {
       const t = Math.min(MAX_TIER, 1 + n * 2);
       out.push({
         id: id("seed", line, t),
-        name: `${tierAt(t).cloth} ${line} Seed`,
+        name: cropName(line, t),
         cls: "seed",
         tier: t,
         skill: "farming",
