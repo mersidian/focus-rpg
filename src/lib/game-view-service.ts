@@ -13,7 +13,6 @@ import {
 import { loadWallet, bankUsage } from "./inventory-service";
 import type { ResolutionSummary } from "./game-types";
 import { loadEquipped, loadSkillXp, loadGateState } from "./activity-service";
-import { generateCatalogue, type ItemDef } from "./game/items";
 import { loadoutPower, percentile, type Equipped } from "./game/power";
 import { SKILLS, skillLevel, skillFloorXp, skillNextXp } from "./game/skills";
 import { BIOME_BY_INDEX } from "./game/biomes";
@@ -29,8 +28,6 @@ const SKILL_LABELS = new Map(SKILLS.map((s) => [s.key, s.label]));
  * settles a session is a service where that becomes possible.
  */
 
-/** The catalogue, indexed once per request rather than per lookup. */
-let INDEX: Map<string, ItemDef> | null = null;
 /*
  * Moved to `game/items`, where the purity rule says they belong: they take no
  * clock and touch no database. Re-exported so this module's callers — and there

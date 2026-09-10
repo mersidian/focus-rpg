@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { Screen, Block, Rows, Rail, Empty } from "@/components/GameUi";
+import { Screen, Block, Rows, Rail } from "@/components/GameUi";
 import { overview } from "@/lib/game-view-service";
 import { itemName } from "@/lib/game-view-service";
 import { ensurePlots, seedsHeld } from "@/lib/farm-service";

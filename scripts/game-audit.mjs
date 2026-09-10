@@ -7,14 +7,13 @@
  * stay a bad idea, and does tier 24 sit where Mythic V sits.
  */
 import { generateCatalogue, catalogueBreakdown } from "../src/lib/game/items.ts";
-import { TIERS, tier } from "../src/lib/game/tiers.ts";
+import { tier } from "../src/lib/game/tiers.ts";
 import { ARCHETYPES, STYLES } from "../src/lib/game/archetypes.ts";
-import { SLOTS, SLOT_BASE, affinity, band, refineMultiplier, loadoutPower } from "../src/lib/game/power.ts";
-import { QUALITIES } from "../src/lib/game/quality.ts";
-import { RARITIES, spawnPower, successChance, wheelFactor, resolveCombat, rationsPerFailure, SPAWN_BASE } from "../src/lib/game/combat.ts";
+import { SLOTS, band, loadoutPower } from "../src/lib/game/power.ts";
+import { RARITIES, spawnPower, successChance, wheelFactor, resolveCombat, rationsPerFailure } from "../src/lib/game/combat.ts";
 import { allVariants, allAreas, areasIn } from "../src/lib/game/variants.ts";
 import { BIOMES } from "../src/lib/game/biomes.ts";
-import { SKILL_XP, skillLevel, tierSkillRequirement } from "../src/lib/game/skills.ts";
+import { SKILL_XP, tierSkillRequirement } from "../src/lib/game/skills.ts";
 import { refineTotal, bankSlotsTotalCost, tierValue, ammoUnitPrice, sellPrice, rationPrice } from "../src/lib/game/economy.ts";
 import { rng } from "../src/lib/game/rng.ts";
 import { resolveYield } from "../src/lib/game/yield.ts";

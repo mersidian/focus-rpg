@@ -5,7 +5,6 @@ import { revalidatePath } from "next/cache";
 import { db } from "./db";
 import {
   focusSessions,
-  projects,
   sessionActivities,
   userSettings,
   vacations,
@@ -666,7 +665,7 @@ export async function setCalendarSettings(
  */
 export async function prestige(deviceId: string): Promise<Snapshot> {
   const userId = await requireUserId();
-  const result = await doPrestige(userId);
+  await doPrestige(userId);
   // A prestige earns its own achievements, and may earn "A Clean Cycle".
   const unlocked = await evaluateAchievements(userId, deviceId);
   revalidatePath("/character");

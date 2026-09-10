@@ -1,4 +1,4 @@
-import { ARCHETYPES, STYLES, STYLE_FAMILY, type Style } from "@/lib/game/archetypes";
+import { ARCHETYPES, STYLES, STYLE_FAMILY } from "@/lib/game/archetypes";
 import { BIOMES } from "@/lib/game/biomes";
 import { catalogueBreakdown } from "@/lib/game/items";
 import { referenceLoadout, MAX_REFINE, SLOTS, SLOT_BASE, affinity } from "@/lib/game/power";

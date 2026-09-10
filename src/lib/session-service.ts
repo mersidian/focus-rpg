@@ -13,7 +13,7 @@ import {
 import { evaluate, requiredMs, type EngineSession } from "./session-engine";
 import { advanceStreak } from "./streak-service";
 import { loadPrestige, loadPrestigeView, noteLevel } from "./prestige-service";
-import { applyBonus, xpMultiplier } from "./prestige";
+import { xpMultiplier } from "./prestige";
 import { chainState, linksBefore, chainMultiplier, type ChainSession } from "./chain";
 import { meterProgress } from "./streak-engine";
 import type {

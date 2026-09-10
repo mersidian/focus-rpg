@@ -22,7 +22,7 @@ import {
 import { evaluate, pauseBudgetLeftMs, type EngineSession } from "@/lib/session-engine";
 import { describeLevel } from "@/lib/levels";
 import { xpMultiplier } from "@/lib/prestige";
-import { CHAIN_WINDOW_MS, MAX_CHAIN_LINKS } from "@/lib/chain";
+import { CHAIN_WINDOW_MS } from "@/lib/chain";
 import { clock, completionRatio, groupNumber, hours } from "@/lib/format";
 import { ActivityPicker } from "./ActivityPicker";
 import type { Activity } from "@/lib/game/activity";
@@ -30,7 +30,7 @@ import { SessionResultScreen } from "./SessionResultScreen";
 
 export function TimerScreen() {
   const game = useGame();
-  const { snapshot, ruleset, serverNow, gameResult } = game;
+  const { snapshot, serverNow, gameResult } = game;
   const session = snapshot.active;
 
   useTick(1000, Boolean(session));

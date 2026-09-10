@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { Nav } from "@/components/Nav";
 import { ProjectManager } from "@/components/ProjectManager";
 import { listProjectDetails } from "@/lib/project-service";
-import { groupNumber, hours } from "@/lib/format";
+import { hours } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 

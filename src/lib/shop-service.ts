@@ -24,7 +24,7 @@ import {
 } from "./game/economy";
 import { generateCatalogue, STONE_KINDS } from "./game/items";
 import { salvageStones } from "./game/economy";
-import { percentile, band, type ItemSpec, type Slot } from "./game/power";
+import { percentile, type ItemSpec, type Slot } from "./game/power";
 import type { Style } from "./game/archetypes";
 import type { Quality } from "./game/quality";
 import { skillLevel } from "./game/skills";

@@ -13,18 +13,17 @@ import {
 import { append, adjustWallet, have, loadWallet, logCollected, type Grant } from "./inventory-service";
 import { ARCHETYPE_BY_NAME, type Style } from "./game/archetypes";
 import { BIOME_BY_INDEX } from "./game/biomes";
-import { resolveCombat, RARITIES, rationsPerFailure, spawnPower } from "./game/combat";
+import { resolveCombat } from "./game/combat";
 import { foldDrops, rollDrops, salvageDecision, salvageValue } from "./game/drops";
 import { FUEL_BY_LENGTH, salvageStoneYield } from "./game/economy";
 import { checkGate, type GateState } from "./game/gate";
 import { requirementFor } from "./game/requirements";
-import { acceptableWards, hazardOf, tonicEffect, wardTierFor, type Ward } from "./game/potions";
+import { acceptableWards, tonicEffect, type Ward } from "./game/potions";
 import { band, loadoutPower, type Equipped, type ItemSpec, type Slot } from "./game/power";
 import { rng, sessionSeed } from "./game/rng";
-import { SKILLS, processingXp, skillLevel, tierSkillRequirement } from "./game/skills";
+import { SKILLS, processingXp, skillLevel } from "./game/skills";
 import {
   BIOME_UNLOCK_XP,
-  FIRST_REFINE_TEN_XP,
   milestoneMarker,
   skillLevelXp,
   skillMilestonesCrossed,

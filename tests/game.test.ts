@@ -2,16 +2,16 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { MAX_TIER, GUN_ENTRY_TIER, TIERS, tier, tierForHours, familiesAt } from "../src/lib/game/tiers.ts";
 import { ARCHETYPES, STYLES, archetypesFor, wheel, BEATS, STYLE_FAMILY } from "../src/lib/game/archetypes.ts";
-import { SPECIES, PARTS, FAMILY_PARTS, speciesAt } from "../src/lib/game/species.ts";
+import { SPECIES, PARTS, FAMILY_PARTS } from "../src/lib/game/species.ts";
 import { BIOMES, BIOME_MATERIALS, AREAS_PER_BIOME, areaTier } from "../src/lib/game/biomes.ts";
 import { allAreas, allVariants, areasIn, variantsIn, wheelStep } from "../src/lib/game/variants.ts";
 import { QUALITIES } from "../src/lib/game/quality.ts";
 import {
-  SLOTS, SLOT_BASE, SLOT_KIND, affinity, band, centre, percentile, refineMultiplier,
+  SLOTS, SLOT_KIND, affinity, band, centre, percentile, refineMultiplier,
   loadoutPower, MAX_REFINE,
 } from "../src/lib/game/power.ts";
 import {
-  RARITIES, SPAWN_BASE, spawnPower, successChance, MIN_SUCCESS, wheelFactor,
+  RARITIES, spawnPower, successChance, MIN_SUCCESS, wheelFactor,
   rarityWeight, rationsPerFailure, resolveCombat, killSeconds,
 } from "../src/lib/game/combat.ts";
 import { checkGate } from "../src/lib/game/gate.ts";

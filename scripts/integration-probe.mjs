@@ -100,7 +100,7 @@ check("forcing a full re-walk does not re-spend freezes",
       a3.state.freezes === a1.state.freezes, `${a1.state.freezes} then ${a3.state.freezes}`);
 
 await sql`update streak_state set last_evaluated_day = null where user_id = ${userId}`;
-const [c1, c2] = await Promise.all([advanceStreak(userId), advanceStreak(userId)]);
+await Promise.all([advanceStreak(userId), advanceStreak(userId)]);
 const afterConcurrent = await loadStreakState(userId);
 check("concurrent walks do not double the streak",
       afterConcurrent.streak === a1.state.streak,

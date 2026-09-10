@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, count, desc, eq, isNull, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, ne, sql } from "drizzle-orm";
 import { db } from "./db";
 import { focusSessions, projects } from "./db/schema";
 import { rankProject, type ProjectRank } from "./projects";

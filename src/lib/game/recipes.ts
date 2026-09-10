@@ -12,7 +12,7 @@
 import { processFuelCost } from "./economy";
 import { GUN_ENTRY_TIER, MAX_TIER, TIERS, tier as tierAt } from "./tiers";
 import { CRAFTED_QUALITY } from "./quality";
-import { STYLE_FAMILY, STYLES, type Style } from "./archetypes";
+import { STYLES, type Style } from "./archetypes";
 import { ARCHETYPES } from "./archetypes";
 import { ARMOUR_SLOTS, SLOT_NOUN, materialFor } from "./items";
 import { processingXp, tierSkillRequirement } from "./skills";

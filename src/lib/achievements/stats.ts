@@ -360,7 +360,6 @@ export function buildStats(input: StatsInput): Stats {
 
   /* ------------------------------------------------- consecutive runs */
 
-  const dayKeys = days.map((d) => d.day);
   const consecutiveDayRuns = (ok: (d: DayFacts) => boolean): number => {
     let best = 0;
     let run = 0;
@@ -384,7 +383,7 @@ export function buildStats(input: StatsInput): Stats {
     );
     if (run > maxConsecutiveFifties) maxConsecutiveFifties = run;
   }
-  let honestRun = longestRun(done, (s) => s.honest === true);
+  const honestRun = longestRun(done, (s) => s.honest === true);
 
   /* --------------------------------------------------------- absences */
 

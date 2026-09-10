@@ -15,7 +15,6 @@ import {
   FREEZE_METER_TARGET,
   meterProgress,
 } from "@/lib/streak-engine";
-import { groupNumber } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 

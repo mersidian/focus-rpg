@@ -15,7 +15,6 @@ import {
   MAX_VACATION_DAYS,
   accrueMeter,
   creditDay,
-  emptyState,
   walkDays,
   type DayActivity,
   type StreakState,
