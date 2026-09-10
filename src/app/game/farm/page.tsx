@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { Screen, Block, Rows, Rail } from "@/components/GameUi";
+import { Screen, Block, Rows, Rail, Depth } from "@/components/GameUi";
+import { MAX_TIER } from "@/lib/game/tiers";
 import { overview } from "@/lib/game-view-service";
 import { itemName } from "@/lib/game-view-service";
 import { ensurePlots, seedsHeld } from "@/lib/farm-service";
@@ -35,9 +36,18 @@ export default async function FarmPage() {
               <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
                 <p className="text-dim">
                   Plot #{p.slot}{" "}
-                  <span className="text-faint">
-                    {p.seedItemId ? itemName(p.seedItemId) : "empty"}
-                  </span>
+                  {p.seedItemId ? (
+                    <span className="inline-flex items-baseline gap-1.5 text-faint">
+                      <Depth
+                        step={Number(p.seedItemId.split(":")[2] ?? 1)}
+                        steps={MAX_TIER}
+                        title={`Tier ${p.seedItemId.split(":")[2] ?? 1}`}
+                      />
+                      {itemName(p.seedItemId)}
+                    </span>
+                  ) : (
+                    <span className="text-faint">empty</span>
+                  )}
                 </p>
                 <span className="shrink-0">
                   {p.seedItemId === null ? (

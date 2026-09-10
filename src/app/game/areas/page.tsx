@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { Screen, Block, Rows, Gate } from "@/components/GameUi";
+import { Screen, Block, Rows, Gate, DepthValue, DepthRange } from "@/components/GameUi";
+import { MAX_TIER } from "@/lib/game/tiers";
 import { loadGateState } from "@/lib/game-view-service";
 import { requirementFor } from "@/lib/game/requirements";
 import { checkGate } from "@/lib/game/gate";
@@ -81,8 +82,8 @@ export default async function AreasPage({
                 >
                   {biome.index}. {biome.name}
                 </span>
-                <span className="tnum shrink-0 text-faint">
-                  t{biome.tierLo}–{biome.tierHi}
+                <span className="shrink-0 text-body">
+                  <DepthRange lo={biome.tierLo} hi={biome.tierHi} steps={MAX_TIER} />
                 </span>
                 <span
                   className="tnum w-16 shrink-0 text-right"
@@ -112,7 +113,7 @@ export default async function AreasPage({
             head={["Area", "Tier", "Monsters", "Gate"]}
             rows={selected.gates.map(({ area, gate }) => [
               area.name,
-              String(area.tier),
+              <DepthValue key="t" step={area.tier} steps={MAX_TIER} />,
               String(area.roster.length),
               <Gate key="g" open={gate.open} missing={gate.missing} />,
             ])}

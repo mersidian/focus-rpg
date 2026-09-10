@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { Screen, Block, Rows } from "@/components/GameUi";
+import { Screen, Block, Rows, DepthValue } from "@/components/GameUi";
 import { loadWallet, bankUsage } from "@/lib/inventory-service";
 import {
   bankSlotCost,
@@ -14,7 +14,7 @@ import {
   FUEL_CAP_MAX,
   FUEL_CAP_STEP,
 } from "@/lib/game/economy";
-import { TIERS } from "@/lib/game/tiers";
+import { TIERS, MAX_TIER } from "@/lib/game/tiers";
 import { groupNumber } from "@/lib/format";
 import { shopGroups } from "@/lib/shop-service";
 import { tierForHours } from "@/lib/game/tiers";
@@ -136,7 +136,7 @@ export default async function ShopPage() {
             head={["Item", "Tier", "Price", ""]}
             rows={group.items.map((i) => [
               i.name,
-              String(i.tier),
+              <DepthValue key="t" step={i.tier} steps={MAX_TIER} />,
               groupNumber(i.price),
               <BuyButton key="b" itemId={i.id} />,
             ])}
@@ -149,8 +149,9 @@ export default async function ShopPage() {
         <Rows
           head={["Tier", "Unit value", "Ration", "Repair", "Buy equipment", "Sell equipment"]}
           rows={TIERS.filter((t) => t.tier % 3 === 0 || t.tier === 1).map((t) => [
-            <span key="t" className="text-dim">
-              {t.tier} · {t.metal}
+            <span key="t" className="inline-flex items-baseline gap-1.5 text-dim">
+              <DepthValue step={t.tier} steps={MAX_TIER} />
+              <span className="text-faint">{t.metal}</span>
             </span>,
             groupNumber(tierValue(t.tier)),
             groupNumber(rationPrice(t.tier)),

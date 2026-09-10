@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { Screen, Block, Rows, Rail } from "@/components/GameUi";
+import { Screen, Block, Rows, Gauge, DepthValue } from "@/components/GameUi";
 import { collectionProgress, itemIndex } from "@/lib/game-view-service";
 import { groupNumber } from "@/lib/format";
-import { TIERS } from "@/lib/game/tiers";
+import { TIERS, MAX_TIER } from "@/lib/game/tiers";
 
 export const dynamic = "force-dynamic";
 
@@ -41,11 +41,9 @@ export default async function CollectionPage() {
         </>
       }
     >
-      <p className="mt-6 text-body text-faint">
-        <span className="tnum text-dim">{groupNumber(got)}</span> of{" "}
-        <span className="tnum">{groupNumber(total)}</span> found
-      </p>
-      <Rail progress={total === 0 ? 0 : got / total} />
+      <div className="mt-6">
+        <Gauge label="Found" value={got} cap={total} />
+      </div>
 
       <Block title="By class" aside="what you have seen">
         <Rows
@@ -67,7 +65,7 @@ export default async function CollectionPage() {
           rows={TIERS.map((t) => {
             const n = byTier.get(t.tier) ?? { total: 0, got: 0 };
             return [
-              String(t.tier),
+              <DepthValue key="t" step={t.tier} steps={MAX_TIER} />,
               <span key="m" className="text-faint">
                 {t.metal}
               </span>,

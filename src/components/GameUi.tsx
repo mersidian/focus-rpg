@@ -221,6 +221,26 @@ export function DepthValue({
   );
 }
 
+/**
+ * A span of depth, for the things that cover a range rather than sit at one.
+ *
+ * A biome is "tiers 5 to 9" and an area inside it is one tier, so the two want
+ * the same ink and different shapes — two marks with the range between them
+ * reads as a band, and a reader can see one biome starting where the last
+ * left off without comparing four digits.
+ */
+export function DepthRange({ lo, hi, steps }: { lo: number; hi: number; steps: number }) {
+  return (
+    <span className="inline-flex items-center gap-1" title={`Tiers ${lo} to ${hi}`}>
+      <Depth step={lo} steps={steps} />
+      <span className="tnum" style={{ color: depthInk(hi, steps) }}>
+        {lo}–{hi}
+      </span>
+      <Depth step={hi} steps={steps} />
+    </span>
+  );
+}
+
 /** A progress rail in the tier colour. Used for skills, plots and contracts. */
 export function Rail({ progress }: { progress: number }) {
   return (

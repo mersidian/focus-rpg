@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { Screen, Block, Rows, Rail, Empty } from "@/components/GameUi";
+import { Screen, Block, Rows, Empty, Gauge, DepthRange } from "@/components/GameUi";
+import { MAX_TIER } from "@/lib/game/tiers";
 import { overview } from "@/lib/game-view-service";
 import { skillViews } from "@/lib/game-view-service";
 import { BIOMES } from "@/lib/game/biomes";
@@ -46,13 +47,12 @@ export default async function SlayingPage() {
           </>
         ) : (
           <div className="mt-4 text-body">
-            <div className="flex items-baseline justify-between gap-4">
-              <p className="text-dim">{o.contract.variantName}</p>
-              <p className="tnum shrink-0 text-faint">
-                {o.contract.killed} / {o.contract.required}
-              </p>
-            </div>
-            <Rail progress={o.contract.killed / Math.max(1, o.contract.required)} />
+            {/* A contract is a ratio with a name on it, which is what a gauge is. */}
+            <Gauge
+              label={o.contract.variantName}
+              value={o.contract.killed}
+              cap={o.contract.required}
+            />
             <p className="mt-3 text-note text-faint">
               It never expires. <DropContractButton /> costs nothing — nothing here punishes
               changing your mind.
@@ -66,7 +66,7 @@ export default async function SlayingPage() {
           head={["Biome", "Tiers", "Targets"]}
           rows={openBiomes.map((b) => [
             b.name,
-            `${b.tierLo}–${b.tierHi}`,
+            <DepthRange key="t" lo={b.tierLo} hi={b.tierHi} steps={MAX_TIER} />,
             groupNumber(variantsIn(b).length),
           ])}
         />

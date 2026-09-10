@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { Screen, Block, Rows } from "@/components/GameUi";
+import { Screen, Block, Rows, Depth } from "@/components/GameUi";
+import { MAX_TIER } from "@/lib/game/tiers";
 import { itemName } from "@/lib/game-view-service";
 import { loadSkills } from "@/lib/activity-service";
 import { balances, loadWallet } from "@/lib/inventory-service";
@@ -57,9 +58,13 @@ export default async function CraftingPage() {
               rows={reachable.map((r) => {
                 const check = canCraft(r, have, wallet.fuel, level, itemName);
                 return [
-                  <span key="o" className="text-dim">
-                    {r.outputName}
-                    {r.outputQty > 1 && <span className="text-faint"> ×{r.outputQty}</span>}
+                  <span key="o" className="flex min-w-0 items-baseline gap-1.5 text-dim">
+                    {/* Sorted by tier, so the depth it is sorted by should show. */}
+                    {r.tier > 0 && <Depth step={r.tier} steps={MAX_TIER} title={`Tier ${r.tier}`} />}
+                    <span className="min-w-0">
+                      {r.outputName}
+                      {r.outputQty > 1 && <span className="text-faint"> ×{r.outputQty}</span>}
+                    </span>
                   </span>,
                   <span key="i" className="text-faint">
                     {r.inputs.map((i) => `${i.qty} ${itemName(i.itemId)}`).join(", ")}
