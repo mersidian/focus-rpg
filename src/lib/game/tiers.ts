@@ -66,6 +66,79 @@ export function tier(n: number): Tier {
   return found;
 }
 
+/**
+ * The word a tier lends to a material line that is not metal, hide or cloth.
+ *
+ * The four equipment families name armour and weapons, and everything else in
+ * the game borrowed `metal` because it was the default — so a fish was a
+ * "Copper Catch", a log was a "Copper Log", a gemstone was a "Copper Gem" and a
+ * dug-up artefact was a "Copper Relic". The tier was doing the naming and the
+ * thing itself was not.
+ *
+ * Each list is 24 long and climbs the same arc the metals do: mundane at the
+ * bottom, regional in the middle, cosmic at the top, taking its cue from the
+ * tier's own creature — tier 7 is Cinderhound and Ashsteel, so its wood is
+ * Cinderpine and its fish a Cinderfin.
+ */
+export const LINE_WORDS: Record<string, readonly string[]> = {
+  wood: [
+    "Pine", "Birch", "Oak", "Ash", "Yew", "Mangrove", "Cinderpine", "Driftoak",
+    "Seamcedar", "Thornwood", "Hoarbirch", "Glasswillow", "Sporebeech", "Cryptcedar",
+    "Slagoak", "Galepine", "Fenelm", "Rimewood", "Sablewood", "Barrowyew",
+    "Voidwood", "Cometash", "Sunbough", "Dawnwood",
+  ],
+  fish: [
+    "Minnow", "Perch", "Trout", "Pike", "Salmon", "Brinecarp", "Cinderfin", "Reefbass",
+    "Seamling", "Thornray", "Hoarcod", "Glasseel", "Sporegill", "Cryptfish",
+    "Slagmouth", "Galetail", "Fenlurker", "Rimeperch", "Sableshade", "Gravecarp",
+    "Voidmaw", "Cometfin", "Pyrescale", "Dawnfish",
+  ],
+  gem: [
+    "Quartz", "Agate", "Jasper", "Amethyst", "Garnet", "Brinestone", "Ember Opal",
+    "Reef Pearl", "Seam Beryl", "Thorn Tourmaline", "Marrow Onyx", "Glass Diamond",
+    "Spore Peridot", "Crypt Sapphire", "Slag Ruby", "Storm Topaz", "Pale Moonstone",
+    "Rime Aquamarine", "Night Spinel", "Barrow Jet", "Void Obsidian", "Comet Zircon",
+    "Sun Citrine", "Firstlight Star",
+  ],
+  herb: [
+    "Marigold", "Comfrey", "Yarrow", "Foxglove", "Nightshade", "Saltwort", "Emberleaf",
+    "Kelpflower", "Seamroot", "Briarbloom", "Frostbell", "Glassvine", "Sporecap",
+    "Cryptmoss", "Slagthistle", "Stormpetal", "Blightweed", "Rimeflower", "Sableleaf",
+    "Gravebloom", "Voidlily", "Starblossom", "Sunwort", "Dawnbloom",
+  ],
+  relic: [
+    "Potsherd", "Bone Charm", "Clay Tablet", "Carved Seal", "Burial Mask",
+    "Salt-crusted Idol", "Ash-glazed Urn", "Barnacled Reliquary", "Seam-cut Obelisk",
+    "Thorn-wound Effigy", "Marrow Fetish", "Glass Astrolabe", "Spore-sealed Codex",
+    "Crypt Diadem", "Slag Reliquary", "Storm-etched Bell", "Pale Sarcophagus",
+    "Rime-locked Coffer", "Night-inked Scroll", "Barrow Crown", "Void Sigil",
+    "Comet Fragment", "Solar Disc", "Firstlight Ark",
+  ],
+  food: [
+    "Dried", "Salted", "Smoked", "Cured", "Honeyed", "Brined", "Ash-baked",
+    "Sea-salted", "Deep-cured", "Spiced", "Frost-packed", "Glass-sealed",
+    "Spore-wrapped", "Crypt-sealed", "Smoke-cured", "Storm-dried", "Fen-pickled",
+    "Rime-packed", "Night-cured", "Barrow-sealed", "Void-sealed", "Star-cured",
+    "Sun-dried", "Dawn-blessed",
+  ],
+};
+
+/** A vocabulary is one of the four equipment families or one of the lists above. */
+export type Vocab = Family | keyof typeof LINE_WORDS;
+
+/**
+ * The word tier `n` lends to vocabulary `v`.
+ *
+ * One lookup for both kinds, so nothing has to know whether a word comes from
+ * the spine or from a line's own list.
+ */
+export function materialWord(n: number, v: string): string {
+  const t = tier(n);
+  const words = LINE_WORDS[v];
+  if (words) return words[Math.min(Math.max(Math.trunc(n), 1), MAX_TIER) - 1];
+  return (t[v as Family] as string | null) ?? t.metal;
+}
+
 /** The material word for a tier in a family, or null where the family has none. */
 export function materialName(n: number, family: Family): string | null {
   return tier(n)[family];

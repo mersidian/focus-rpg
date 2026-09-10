@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { MAX_TIER, GUN_ENTRY_TIER, TIERS, tier, tierForHours, familiesAt } from "../src/lib/game/tiers.ts";
+import { MAX_TIER, GUN_ENTRY_TIER, LINE_WORDS, TIERS, tier, tierForHours, familiesAt } from "../src/lib/game/tiers.ts";
 import { ARCHETYPES, STYLES, archetypesFor, wheel, BEATS, STYLE_FAMILY } from "../src/lib/game/archetypes.ts";
 import { SPECIES, PARTS, FAMILY_PARTS } from "../src/lib/game/species.ts";
 import { BIOMES, BIOME_MATERIALS, AREAS_PER_BIOME, areaTier } from "../src/lib/game/biomes.ts";
@@ -1933,4 +1933,71 @@ test("a mined seed reproduces its gems exactly", () => {
       rng: rng(sessionSeed("replay", "yield")),
     });
   assert.deepEqual(once(), once());
+});
+
+test("a recipe calls its output what the catalogue calls it", () => {
+  // Recipes used to re-derive their own output names out of the same fragments
+  // the catalogue used, which is two expressions that have to agree about a
+  // string. Nothing checked, so a crafting row and the bank row for the very
+  // same item could drift apart.
+  const named = new Map(generateCatalogue().map((i) => [i.id, i.name]));
+  const wrong: string[] = [];
+  for (const r of allRecipes()) {
+    const real = named.get(r.outputId);
+    if (real === undefined) continue; // equipment instances are not catalogue rows
+    if (real !== r.outputName) wrong.push(`${r.id}: "${r.outputName}" vs "${real}"`);
+  }
+  assert.deepEqual(wrong, [], "recipe names disagree with the catalogue");
+});
+
+test("no material is named after the wrong substance", () => {
+  // "Copper Catch", "Copper Log", "Copper Gem", "Copper Relic", "Flax Herb":
+  // every line that was not metal, hide or cloth fell back on the metal word,
+  // so the tier did the naming and the thing itself did not. Written from what
+  // a reader would object to, not from the implementation.
+  const catalogue = generateCatalogue();
+  const named = (id: string) => catalogue.find((i) => i.id === id)?.name ?? "";
+
+  const metals = new Set(TIERS.map((t) => t.metal));
+  const NEVER_METAL = ["Catch", "Log", "Plank", "Charcoal", "Gem", "Herb", "Relic", "Essence"];
+  for (const line of NEVER_METAL) {
+    for (const t of TIERS) {
+      for (const cls of ["raw", "refined"]) {
+        const name = named(`${cls}:${line}:${t.tier}`);
+        if (!name) continue;
+        const first = [...metals].find((m) => name.startsWith(`${m} `));
+        assert.equal(
+          first,
+          undefined,
+          `${cls}:${line}:${t.tier} is called "${name}" — ${line} is not made of ${first}`,
+        );
+      }
+    }
+  }
+
+  // And the ones that genuinely are metal should stay that way.
+  assert.ok(named("raw:Ore:1").startsWith("Copper"), `ore is called "${named("raw:Ore:1")}"`);
+  assert.ok(named("refined:Bar:1").startsWith("Copper"), "a bar is not metal");
+});
+
+test("every line's vocabulary covers the whole spine", () => {
+  // A short list would silently name the deep tiers `undefined`.
+  for (const [vocab, words] of Object.entries(LINE_WORDS)) {
+    assert.equal(words.length, MAX_TIER, `${vocab} has ${words.length} words for ${MAX_TIER} tiers`);
+    assert.equal(new Set(words).size, words.length, `${vocab} repeats a word`);
+    for (const w of words) assert.ok(w.length > 0, `${vocab} has an empty word`);
+  }
+});
+
+test("no two items in the catalogue share a name", () => {
+  // Two different things with one name is indistinguishable in the bank, in a
+  // recipe's Needs column and in a session result.
+  const seen = new Map<string, string>();
+  const clashes: string[] = [];
+  for (const item of generateCatalogue()) {
+    const prior = seen.get(item.name);
+    if (prior && prior !== item.id) clashes.push(`"${item.name}" is both ${prior} and ${item.id}`);
+    else seen.set(item.name, item.id);
+  }
+  assert.deepEqual(clashes.slice(0, 5), [], "the catalogue names two things the same");
 });

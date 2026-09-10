@@ -18,10 +18,15 @@ import {
   ARMOUR_SLOTS,
   POTION_EFFECTS,
   POTION_ROMAN,
+  AMMO_LINES,
   POTION_TIERS,
+  REFINED_BY_NAME,
   SLOT_NOUN,
   STONE_KINDS,
+  ammoName,
+  lineName,
   materialFor,
+  rationName,
 } from "./items";
 import type { Slot } from "./power";
 import { processingXp, tierSkillRequirement } from "./skills";
@@ -68,7 +73,7 @@ export function refiningRecipes(): Recipe[] {
         id: `recipe:${line.skill}:${line.to}:${t.tier}`,
         skill: line.skill,
         outputId: refined(line.to, t.tier),
-        outputName: `${t.metal} ${line.to}`,
+        outputName: lineName(REFINED_BY_NAME.get(line.to)!, t.tier),
         outputQty: 1,
         tier: t.tier,
         inputs,
@@ -183,7 +188,7 @@ export function upkeepRecipes(): Recipe[] {
         id: `recipe:cooking:${food.from}:${t.tier}`,
         skill: "cooking",
         outputId: `ration:${t.tier}`,
-        outputName: `${t.metal} Ration`,
+        outputName: rationName(t.tier),
         outputQty: food.makes,
         tier: t.tier,
         inputs: [{ itemId: raw(food.from, t.tier), qty: food.qty }],
@@ -193,22 +198,17 @@ export function upkeepRecipes(): Recipe[] {
       });
     }
   }
-  const AMMO: { name: string; skill: string; style: Style; from: string; qty: number }[] = [
-    { name: "Arrow", skill: "fletching", style: "ranged", from: "Plank", qty: 20 },
-    { name: "Bolt", skill: "fletching", style: "ranged", from: "Bar", qty: 20 },
-    { name: "Dart", skill: "fletching", style: "ranged", from: "Bar", qty: 20 },
-    { name: "Rune", skill: "runecrafting", style: "magic", from: "Essence", qty: 10 },
-    { name: "Cartridge", skill: "gunsmithing", style: "gun", from: "Powder", qty: 8 },
-    { name: "Shell", skill: "gunsmithing", style: "gun", from: "Powder", qty: 6 },
-  ];
-  for (const line of AMMO) {
+  // One table, in `items`, so the catalogue and the recipe cannot disagree
+  // about what an arrow is made of — which is exactly how they disagreed about
+  // what to call one.
+  for (const line of AMMO_LINES) {
     const from = line.style === "gun" ? GUN_ENTRY_TIER : 1;
     for (const t of TIERS.filter((x) => x.tier >= from)) {
       out.push({
         id: `recipe:${line.skill}:${line.name}:${t.tier}`,
         skill: line.skill,
         outputId: `ammo:${line.name}:${t.tier}`,
-        outputName: `${t.metal} ${line.name}`,
+        outputName: ammoName(line.from, line.name, t.tier),
         outputQty: line.qty,
         tier: t.tier,
         inputs: [{ itemId: refined(line.from, t.tier), qty: 1 }],

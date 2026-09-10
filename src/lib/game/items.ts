@@ -14,7 +14,7 @@ import { BIOME_MATERIALS } from "./biomes";
 import { QUALITIES, type Quality } from "./quality";
 import { SLOTS, type Slot } from "./power";
 import { PARTS } from "./species";
-import { GUN_ENTRY_TIER, MAX_TIER, TIERS, tier as tierAt } from "./tiers";
+import { GUN_ENTRY_TIER, MAX_TIER, TIERS, materialWord, tier as tierAt } from "./tiers";
 
 export type ItemClass =
   | "weapon"
@@ -166,13 +166,30 @@ export function generateTools(): ItemDef[] {
   return out;
 }
 
-export const AMMO_LINES: { name: string; style: Style; skill: string }[] = [
-  { name: "Arrow", style: "ranged", skill: "fletching" },
-  { name: "Bolt", style: "ranged", skill: "fletching" },
-  { name: "Dart", style: "ranged", skill: "fletching" },
-  { name: "Rune", style: "magic", skill: "runecrafting" },
-  { name: "Cartridge", style: "gun", skill: "gunsmithing" },
-  { name: "Shell", style: "gun", skill: "gunsmithing" },
+/**
+ * The ammunition lines, and what each is made of.
+ *
+ * `from` and `qty` used to live in a second copy of this table inside
+ * `recipes.ts`, which is how an arrow came to be a "Copper Arrow" in the
+ * catalogue and a "Pine Arrow" in its own recipe: the catalogue did not know
+ * what an arrow was made of, so it fell back on the tier's metal. An arrow is a
+ * wooden shaft, and the recipe has always taken a plank to say so.
+ */
+export const AMMO_LINES: {
+  name: string;
+  style: Style;
+  skill: string;
+  /** The refined line it is made from; names it too. */
+  from: string;
+  /** How many one craft produces. */
+  qty: number;
+}[] = [
+  { name: "Arrow", style: "ranged", skill: "fletching", from: "Plank", qty: 20 },
+  { name: "Bolt", style: "ranged", skill: "fletching", from: "Bar", qty: 20 },
+  { name: "Dart", style: "ranged", skill: "fletching", from: "Bar", qty: 20 },
+  { name: "Rune", style: "magic", skill: "runecrafting", from: "Essence", qty: 10 },
+  { name: "Cartridge", style: "gun", skill: "gunsmithing", from: "Powder", qty: 8 },
+  { name: "Shell", style: "gun", skill: "gunsmithing", from: "Powder", qty: 6 },
 ];
 
 export function generateAmmo(): ItemDef[] {
@@ -181,7 +198,7 @@ export function generateAmmo(): ItemDef[] {
     for (const t of tiersFor(line.style)) {
       out.push({
         id: id("ammo", line.name, t),
-        name: `${tierAt(t).metal} ${line.name}`,
+        name: ammoName(line.from, line.name, t),
         cls: "ammo",
         tier: t,
         style: line.style,
@@ -194,30 +211,72 @@ export function generateAmmo(): ItemDef[] {
 }
 
 /** The eight raw lines, one per gathering output. */
-export const RAW_LINES: { name: string; skill: string; family: "metal" | "hide" | "cloth" }[] = [
-  { name: "Log", skill: "woodcutting", family: "metal" },
-  { name: "Catch", skill: "fishing", family: "metal" },
-  { name: "Ore", skill: "mining", family: "metal" },
-  { name: "Gem", skill: "mining", family: "metal" },
-  { name: "Herb", skill: "foraging", family: "cloth" },
-  { name: "Hide", skill: "hunting", family: "hide" },
-  // The hide family names the animal, so this reads "Hare Meat", "Boar Meat",
-  // "Wolf Meat" — which is what Cooking's note has always promised and what the
-  // game has never had.
-  { name: "Meat", skill: "hunting", family: "hide" },
-  { name: "Fibre", skill: "foraging", family: "cloth" },
-  { name: "Relic", skill: "excavation", family: "metal" },
+/**
+ * The raw lines, and what each is called.
+ *
+ * `vocab` picks the tier's word for this line and `bare` says whether the word
+ * stands on its own. A fish IS the catch, so tier 3's is a Trout rather than a
+ * "Wolf Catch"; a log is made OF wood, so tier 3's is a "Oak Log". Getting that
+ * distinction wrong is what produced "Copper Catch" and "Copper Relic" — every
+ * line that was not metal, hide or cloth fell back on the metal word and let
+ * the tier do the naming for it.
+ */
+export type MaterialLine = {
+  name: string;
+  skill: string;
+  vocab: string;
+  /** True when the tier's word is the whole name. */
+  bare?: boolean;
+};
+
+export const RAW_LINES: MaterialLine[] = [
+  { name: "Log", skill: "woodcutting", vocab: "wood" },
+  { name: "Catch", skill: "fishing", vocab: "fish", bare: true },
+  { name: "Ore", skill: "mining", vocab: "metal" },
+  { name: "Gem", skill: "mining", vocab: "gem", bare: true },
+  { name: "Herb", skill: "foraging", vocab: "herb", bare: true },
+  { name: "Hide", skill: "hunting", vocab: "hide" },
+  { name: "Meat", skill: "hunting", vocab: "hide" },
+  { name: "Fibre", skill: "foraging", vocab: "cloth" },
+  { name: "Relic", skill: "excavation", vocab: "relic", bare: true },
 ];
 
-export const REFINED_LINES: { name: string; skill: string }[] = [
-  { name: "Bar", skill: "smelting" },
-  { name: "Plank", skill: "fletching" },
-  { name: "Leather", skill: "leatherworking" },
-  { name: "Cloth", skill: "tailoring" },
-  { name: "Charcoal", skill: "firemaking" },
-  { name: "Alloy", skill: "smithing" },
-  { name: "Essence", skill: "runecrafting" },
+export const REFINED_LINES: MaterialLine[] = [
+  { name: "Bar", skill: "smelting", vocab: "metal" },
+  { name: "Plank", skill: "fletching", vocab: "wood" },
+  { name: "Leather", skill: "leatherworking", vocab: "hide" },
+  { name: "Cloth", skill: "tailoring", vocab: "cloth" },
+  { name: "Charcoal", skill: "firemaking", vocab: "wood" },
+  { name: "Alloy", skill: "smithing", vocab: "metal" },
+  { name: "Essence", skill: "runecrafting", vocab: "gem" },
 ];
+
+/**
+ * What one unit of a line is called at a tier.
+ *
+ * The single place any material name is built. Recipes used to re-derive their
+ * own output names from the same fragments, which is two expressions that have
+ * to agree about a string — so a recipe row and the bank row for the very same
+ * item could drift apart, and there was nothing to notice.
+ */
+export function lineName(line: MaterialLine, t: number): string {
+  const word = materialWord(t, line.vocab);
+  return line.bare ? word : `${word} ${line.name}`;
+}
+
+export const RAW_BY_NAME = new Map(RAW_LINES.map((l) => [l.name, l]));
+export const REFINED_BY_NAME = new Map(REFINED_LINES.map((l) => [l.name, l]));
+
+/** A ration reads as a preparation: "Dried Ration", "Salted Ration". */
+export function rationName(t: number): string {
+  return `${materialWord(t, "food")} Ration`;
+}
+
+/** Ammunition takes the word of whatever it is made from. */
+export function ammoName(from: string, noun: string, t: number): string {
+  const line = REFINED_BY_NAME.get(from) ?? RAW_BY_NAME.get(from);
+  return `${materialWord(t, line?.vocab ?? "metal")} ${noun}`;
+}
 
 export function generateMaterials(): ItemDef[] {
   const out: ItemDef[] = [];
@@ -225,7 +284,7 @@ export function generateMaterials(): ItemDef[] {
     for (const t of TIERS) {
       out.push({
         id: id("raw", line.name, t.tier),
-        name: `${t[line.family] ?? t.metal} ${line.name}`,
+        name: lineName(line, t.tier),
         cls: "raw",
         tier: t.tier,
         skill: line.skill,
@@ -237,7 +296,7 @@ export function generateMaterials(): ItemDef[] {
     for (const t of TIERS) {
       out.push({
         id: id("refined", line.name, t.tier),
-        name: `${t.metal} ${line.name}`,
+        name: lineName(line, t.tier),
         cls: "refined",
         tier: t.tier,
         skill: line.skill,
@@ -308,7 +367,7 @@ export function generateConsumables(): ItemDef[] {
   for (const t of TIERS) {
     out.push({
       id: id("ration", t.tier),
-      name: `${t.metal} Ration`,
+      name: rationName(t.tier),
       cls: "consumable",
       tier: t.tier,
       skill: "cooking",
