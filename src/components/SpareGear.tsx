@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from "react";
 import type { InstanceRow } from "@/lib/game-view-service";
-import { Rows } from "./GameUi";
+import { Rows, DepthValue } from "./GameUi";
 import { EquipButton, RefineButton, SellInstanceButton } from "./GameActions";
 import { MAX_REFINE } from "@/lib/game/power";
+import { MAX_TIER } from "@/lib/game/tiers";
 
 /** As many as are worth rendering at once. The filter reaches the rest. */
 const SHOWN = 60;
@@ -91,7 +92,7 @@ export function SpareGear({ spare }: { spare: InstanceRow[] }) {
               {i.refine > 0 && <span style={{ color: "var(--tier)" }}> +{i.refine}</span>}
             </span>,
             i.slot,
-            String(i.tier),
+            <DepthValue key="t" step={i.tier} steps={MAX_TIER} />,
             `${Math.round(i.percentile * 100)}%`,
             <span key="a" className="inline-flex flex-wrap gap-x-3">
               <EquipButton instanceId={i.id} />

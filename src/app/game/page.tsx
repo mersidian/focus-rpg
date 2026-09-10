@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { Screen, Block, Rows, Rail, Empty } from "@/components/GameUi";
+import { Screen, Block, Rows, Rail, Empty, Gauge, Gauges } from "@/components/GameUi";
 import { overview } from "@/lib/game-view-service";
 import { groupNumber } from "@/lib/format";
 import { RARITIES, spawnPower, successChance } from "@/lib/game/combat";
@@ -23,18 +23,52 @@ export default async function GameOverview() {
       title="The game"
       lead="What your character has, and what it can currently take on. Everything here was earned by a timed session — nothing in this app advances while you are away."
     >
+      {/*
+        Four of these five were ratios printed as "1 234 / 5 678" in a
+        two-column table, which is the shape that makes a proportion hardest to
+        read. Coins is the only figure here with no ceiling, so it is the only
+        one that stays a number.
+      */}
       <Block title="Held" aside="wallet and bank">
-        <Rows
-          head={["", "Amount"]}
-          rows={[
-            ["Coins", groupNumber(o.coins)],
-            ["Fuel", `${groupNumber(o.fuel)} / ${groupNumber(o.fuelCap)}`],
-            ["Bank slots used", `${groupNumber(o.bank.used)} / ${groupNumber(o.bank.slots)}`],
-            ["Collected", `${groupNumber(o.collected)} / ${groupNumber(o.catalogue)}`],
-            ["Bosses down", `${o.bossesDown} / ${BIOMES.length * 2}`],
-            ["Key items", o.keyItems.length > 0 ? o.keyItems.join(", ") : "—"],
-          ]}
-        />
+        <p className="mt-4 text-body text-dim">
+          <span className="tnum text-stat" style={{ color: "var(--tier)" }}>
+            {groupNumber(o.coins)}
+          </span>{" "}
+          coins
+        </p>
+        <Gauges>
+          <Gauge
+            label="Fuel"
+            value={o.fuel}
+            cap={o.fuelCap}
+            tone="full"
+            note="Spent between sessions, on processing."
+          />
+          <Gauge
+            label="Bank slots"
+            value={o.bank.used}
+            cap={o.bank.slots}
+            note="A slot holds an item type; stacks inside it are unlimited."
+          />
+          <Gauge
+            label="Collected"
+            value={o.collected}
+            cap={o.catalogue}
+            note="Every type ever obtained, kept whether or not you still hold it."
+          />
+          <Gauge
+            label="Bosses down"
+            value={o.bossesDown}
+            cap={BIOMES.length * 2}
+            note="Two to a biome, and neither comes back."
+          />
+        </Gauges>
+        <p className="mt-5 text-body text-faint">
+          Key items{" "}
+          <span className="text-dim">
+            {o.keyItems.length > 0 ? o.keyItems.join(", ") : "none yet"}
+          </span>
+        </p>
       </Block>
 
       <Block title="Loadout" aside={style ? `fighting as ${style}` : "nothing equipped"}>

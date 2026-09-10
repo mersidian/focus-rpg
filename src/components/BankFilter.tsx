@@ -3,6 +3,9 @@
 import { useMemo, useState } from "react";
 import type { BankRow } from "@/lib/game-view-service";
 import { SellStackButton } from "./GameActions";
+import { Depth } from "./GameUi";
+import { MAX_TIER } from "@/lib/game/tiers";
+import { depthInk } from "@/lib/format";
 
 /**
  * The bank is search-first, and that is a design requirement rather than a
@@ -64,12 +67,17 @@ export function BankFilter({ rows }: { rows: BankRow[] }) {
               key={row.itemId}
               className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-rule py-2 text-body last:border-0"
             >
-              <span className="min-w-0 text-dim">
-                {row.name}
-                <span className="text-faint">
-                  {" "}
-                  · {row.cls}
-                  {row.tier > 0 && ` t${row.tier}`}
+              <span className="flex min-w-0 items-baseline gap-1.5 text-dim">
+                {row.tier > 0 && <Depth step={row.tier} steps={MAX_TIER} title={`Tier ${row.tier}`} />}
+                <span className="min-w-0">
+                  {row.name}
+                  <span className="text-faint"> · {row.cls}</span>
+                  {row.tier > 0 && (
+                    <span className="tnum" style={{ color: depthInk(row.tier, MAX_TIER) }}>
+                      {" "}
+                      t{row.tier}
+                    </span>
+                  )}
                 </span>
               </span>
               <span className="flex shrink-0 items-baseline gap-4">

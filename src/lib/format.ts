@@ -69,3 +69,41 @@ export function tierAction(hue: number, intensity: number, lightness = 0.74): st
   const chroma = Math.max(ACTION_FLOOR, accentChroma(intensity)).toFixed(3);
   return `oklch(${lightness} ${chroma} ${hue})`;
 }
+
+/**
+ * Depth, drawn in the colour that was already earned.
+ *
+ * The game's spine is 24 tiers and a five-step rarity table, and both appeared
+ * on screen only as a digit — so ten screens of otherwise identical rows gave
+ * a reader nothing to sort by at a glance. The obvious fix is a palette, and
+ * §8 forbids one: nothing but the tier accent may be saturated.
+ *
+ * `seriesColor` in Charts.tsx had already answered this for the dashboard's
+ * projects — mix the earned accent toward the surface and you get as many
+ * distinguishable steps as you need, all of them the same hue, none of them
+ * able to out-colour the accent because they *are* the accent, diluted. Its
+ * note says the rest: safe for colour-vision deficiency, and it says the right
+ * thing, because more of what you earned means more of the colour you earned.
+ *
+ * Two of them, because ink and fill want different floors. A fill sits on a
+ * surface and may fade into it at tier 1 — that is the point. Text may not, so
+ * it dilutes toward --color-dim and stays body copy at its palest.
+ */
+const DEPTH_FLOOR_FILL = 16;
+const DEPTH_FLOOR_INK = 34;
+
+function depthPercent(step: number, steps: number, floor: number): number {
+  if (steps <= 1) return 100;
+  const t = Math.min(Math.max(step - 1, 0), steps - 1) / (steps - 1);
+  return Math.round(floor + (100 - floor) * t);
+}
+
+/** For a bar, a dot or a swatch: may fade into the surface at the shallow end. */
+export function depthFill(step: number, steps: number): string {
+  return `color-mix(in oklch, var(--tier) ${depthPercent(step, steps, DEPTH_FLOOR_FILL)}%, var(--color-lift))`;
+}
+
+/** For a numeral or a label: never paler than the body colour it sits among. */
+export function depthInk(step: number, steps: number): string {
+  return `color-mix(in oklch, var(--tier) ${depthPercent(step, steps, DEPTH_FLOOR_INK)}%, var(--color-dim))`;
+}

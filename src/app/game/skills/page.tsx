@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { Screen, Block, Rail } from "@/components/GameUi";
+import { Icon, type IconName } from "@/components/Icon";
 import { skillViews } from "@/lib/game-view-service";
-import { groupNumber } from "@/lib/format";
+import { depthInk, groupNumber } from "@/lib/format";
 import { MAX_SKILL_LEVEL, SKILL_XP } from "@/lib/game/skills";
 
 export const dynamic = "force-dynamic";
@@ -45,10 +46,27 @@ export default async function SkillsPage() {
               {here.map((s) => (
                 <li key={s.key} className="border-b border-rule py-3 last:border-0">
                   <div className="flex items-baseline justify-between gap-4 text-body">
-                    <p className="text-dim">
-                      {s.label} <span className="text-faint">— {s.note}</span>
+                    <p className="flex min-w-0 items-baseline gap-2 text-dim">
+                      {/*
+                        The mark takes the same depth colour as the level, so a
+                        skill you have put six hundred hours into is legible as
+                        one from across the row — and an untouched one sits at
+                        the body colour rather than shouting for attention it
+                        has not earned.
+                      */}
+                      <Icon
+                        name={s.key as IconName}
+                        className="size-4 shrink-0 translate-y-0.5"
+                        style={{ color: depthInk(s.level, MAX_SKILL_LEVEL) }}
+                      />
+                      <span className="min-w-0">
+                        {s.label} <span className="text-faint">— {s.note}</span>
+                      </span>
                     </p>
-                    <p className="tnum shrink-0" style={s.level > 1 ? { color: "var(--tier)" } : undefined}>
+                    <p
+                      className="tnum shrink-0"
+                      style={{ color: depthInk(s.level, MAX_SKILL_LEVEL) }}
+                    >
                       {s.level}
                     </p>
                   </div>

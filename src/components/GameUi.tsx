@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { depthFill, depthInk, groupNumber } from "@/lib/format";
 
 /**
  * The handful of shapes every game screen needs, so ten pages do not each
@@ -124,6 +125,99 @@ export function Rows({
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * A ratio, said once.
+ *
+ * Four of the five figures in the overview's "Held" block are ratios — fuel
+ * against its cap, slots used against slots owned, items found against the
+ * catalogue, bosses down against bosses — and all four were rendered as
+ * "1 234 / 5 678" in a two-column table, which is the one shape that makes a
+ * proportion hard to read. A number tells you where you are; a bar tells you
+ * how far along that is, and the pair together is the only reason to draw
+ * either.
+ */
+export function Gauge({
+  label,
+  value,
+  cap,
+  note,
+  tone = "tier",
+}: {
+  label: string;
+  value: number;
+  cap: number;
+  note?: string;
+  /** `full` marks a gauge that is meant to be emptied, like fuel. */
+  tone?: "tier" | "full";
+}) {
+  const share = cap <= 0 ? 0 : Math.min(1, Math.max(0, value / cap));
+  return (
+    <div className="min-w-0">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="truncate text-body text-dim">{label}</p>
+        <p className="shrink-0 text-note text-faint">
+          <span className="tnum text-dim">{groupNumber(value)}</span>
+          <span className="tnum"> / {groupNumber(cap)}</span>
+        </p>
+      </div>
+      <div className="mt-1.5 h-[3px] w-full bg-rule">
+        <div
+          className="h-full transition-[width] duration-700 ease-out"
+          style={{
+            width: `${share * 100}%`,
+            backgroundColor: tone === "full" ? "var(--color-ice)" : "var(--tier)",
+          }}
+        />
+      </div>
+      {note && <p className="mt-1 text-note text-faint">{note}</p>}
+    </div>
+  );
+}
+
+/** Gauges sit in a grid, because a ratio is read against its neighbours. */
+export function Gauges({ children }: { children: ReactNode }) {
+  return <div className="mt-4 grid gap-5 sm:grid-cols-2">{children}</div>;
+}
+
+/**
+ * How deep a thing is, as a mark rather than a digit.
+ *
+ * Tier runs 1–24 and rarity 1–5, and both were text in a column of other text.
+ * The mark is the earned accent diluted by depth (see `depthFill`), so a
+ * tier-1 scrap barely lifts off the surface and a tier-24 piece is the full
+ * colour — which is the same sentence the ladder itself makes.
+ */
+export function Depth({ step, steps, title }: { step: number; steps: number; title?: string }) {
+  return (
+    <span
+      title={title}
+      aria-hidden
+      className="inline-block size-2.5 shrink-0 rounded-[1px] align-middle"
+      style={{ backgroundColor: depthFill(step, steps) }}
+    />
+  );
+}
+
+/** A depth mark and its number, which is the pair every table row wanted. */
+export function DepthValue({
+  step,
+  steps,
+  label,
+}: {
+  step: number;
+  steps: number;
+  label?: string;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <Depth step={step} steps={steps} />
+      <span className="tnum" style={{ color: depthInk(step, steps) }}>
+        {label ?? step}
+      </span>
+    </span>
   );
 }
 
