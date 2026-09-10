@@ -6,7 +6,7 @@ import { listProjectDetails } from "@/lib/project-service";
 import { SessionCorrection } from "@/components/SessionCorrection";
 import { groupNumber } from "@/lib/format";
 import { ABANDON_REASON_LABEL } from "@/lib/constants";
-import { sessionResults } from "@/lib/game-view-service";
+import { itemName, sessionResults } from "@/lib/game-view-service";
 import type { ResolutionSummary } from "@/lib/game-types";
 
 export const dynamic = "force-dynamic";
@@ -182,11 +182,22 @@ export default async function LogPage() {
   );
 }
 
+/**
+ * What to call a banked item.
+ *
+ * The id wins. The name is stored beside it only for the rows written before
+ * the id was, and trusting the stored name meant a material rename left every
+ * older line in the log saying "Copper Catch" about a fish.
+ */
+function nameOf(item: { itemId?: string; name: string }): string {
+  return item.itemId ? itemName(item.itemId) : item.name;
+}
+
 /** One line for what a session's character got up to. */
 function describeResult(r: ResolutionSummary): string {
   const bits: string[] = [];
   if (r.kind === "gathering" && r.items[0]) {
-    bits.push(`${r.items[0].qty} ${r.items[0].name}`);
+    bits.push(`${r.items[0].qty} ${nameOf(r.items[0])}`);
   } else if (r.kind === "boss") {
     bits.push(r.bossDown ? `${r.bossName ?? "a boss"} down` : `${r.bossName ?? "a boss"} held`);
   } else if (r.kills !== undefined) {

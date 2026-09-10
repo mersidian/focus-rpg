@@ -171,7 +171,16 @@ export type ResolutionSummary = {
   coins: number;
   fuel: number;
   skillXp: number;
-  items: { name: string; qty: number }[];
+  /**
+   * What the session banked.
+   *
+   * `itemId` is the fact and the name is only how it renders, so the reader
+   * looks the name up rather than trusting the one stored beside it. The first
+   * version of this stored the name alone, and renaming a material left every
+   * log line before the rename saying "Copper Catch" about a fish for ever.
+   * `name` stays for the rows written before the id was there.
+   */
+  items: { itemId?: string; name: string; qty: number }[];
   equipmentKept: number;
   equipmentSalvaged: number;
   ranDry?: boolean;

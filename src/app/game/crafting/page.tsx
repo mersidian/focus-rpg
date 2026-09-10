@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { Screen, Block, Rows, Depth } from "@/components/GameUi";
-import { MAX_TIER } from "@/lib/game/tiers";
+import { Screen, Block, Rows, Depth, Empty } from "@/components/GameUi";
+import { MAX_TIER, GUN_ENTRY_TIER } from "@/lib/game/tiers";
 import { itemName } from "@/lib/game-view-service";
 import { loadSkills } from "@/lib/activity-service";
 import { balances, loadWallet } from "@/lib/inventory-service";
@@ -54,41 +54,51 @@ export default async function CraftingPage() {
         // level-1 smith read "384 recipes" above a table of 24.
         const withinReach = mine.filter((r) => r.level <= level + 8);
         const reachable = withinReach.sort((a, b) => a.tier - b.tier).slice(0, 24);
+        // For the block that has nothing yet: how deep the first rung actually is.
+        const shallowest = Math.min(...mine.map((r) => r.level));
         return (
           <Block
             key={skill.key}
             title={skill.label}
             aside={`level ${level} · ${withinReach.length} within reach of ${mine.length}`}
           >
-            <Rows
-              total={withinReach.length}
-              head={["Makes", "Needs", "Fuel", "Level", ""]}
-              rows={reachable.map((r) => {
-                const check = canCraft(r, have, wallet.fuel, level, itemName);
-                return [
-                  <span key="o" className="flex min-w-0 items-baseline gap-1.5 text-dim">
-                    {/* Sorted by tier, so the depth it is sorted by should show. */}
-                    {r.tier > 0 && <Depth step={r.tier} steps={MAX_TIER} title={`Tier ${r.tier}`} />}
-                    <span className="min-w-0">
-                      {r.outputName}
-                      {r.outputQty > 1 && <span className="text-faint"> ×{r.outputQty}</span>}
-                    </span>
-                  </span>,
-                  <span key="i" className="text-faint">
-                    {r.inputs.map((i) => `${i.qty} ${itemName(i.itemId)}`).join(", ")}
-                  </span>,
-                  String(r.fuel),
-                  String(r.level),
-                  check.ok ? (
-                    <CraftButton key="c" recipeId={r.id} />
-                  ) : (
-                    <span key="n" className="text-note text-faint">
-                      {check.missing[0]}
-                    </span>
-                  ),
-                ];
-              })}
-            />
+            {withinReach.length === 0 ? (
+              <Empty>
+                Nothing within reach yet. The shallowest thing {skill.label.toLowerCase()} makes
+                wants level <span className="tnum">{shallowest}</span>, and firearms need a
+                composite material that does not exist below tier {GUN_ENTRY_TIER}.
+              </Empty>
+            ) : (
+              <Rows
+                total={withinReach.length}
+                head={["Makes", "Needs", "Fuel", "Level", ""]}
+                rows={reachable.map((r) => {
+                  const check = canCraft(r, have, wallet.fuel, level, itemName);
+                  return [
+                    <span key="o" className="flex min-w-0 items-baseline gap-1.5 text-dim">
+                      {/* Sorted by tier, so the depth it is sorted by should show. */}
+                      {r.tier > 0 && <Depth step={r.tier} steps={MAX_TIER} title={`Tier ${r.tier}`} />}
+                      <span className="min-w-0">
+                        {r.outputName}
+                        {r.outputQty > 1 && <span className="text-faint"> ×{r.outputQty}</span>}
+                      </span>
+                    </span>,
+                    <span key="i" className="text-faint">
+                      {r.inputs.map((i) => `${i.qty} ${itemName(i.itemId)}`).join(", ")}
+                    </span>,
+                    String(r.fuel),
+                    String(r.level),
+                    check.ok ? (
+                      <CraftButton key="c" recipeId={r.id} />
+                    ) : (
+                      <span key="n" className="text-note text-faint">
+                        {check.missing[0]}
+                      </span>
+                    ),
+                  ];
+                })}
+              />
+            )}
           </Block>
         );
       })}

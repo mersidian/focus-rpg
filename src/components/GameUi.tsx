@@ -74,7 +74,8 @@ export function Rows({
   total?: number;
 }) {
   const hidden = total !== undefined && total > rows.length;
-  const wide = head.length > 4;
+  // No rows means nothing to scroll to, whatever the column count.
+  const wide = head.length > 4 && rows.length > 0;
   return (
     <div className="mt-4 overflow-x-auto">
       {/*

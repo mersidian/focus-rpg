@@ -783,9 +783,9 @@ export async function resolveActivity(
     // The NAME, not the id. This was `name: itemId`, so a gathering result
     // would have read literally "raw:Ore:12" — combat already used the name.
     summary.items = [
-      { name: itemName(itemId), qty: result.units },
+      { itemId, name: itemName(itemId), qty: result.units },
       ...(result.byproduct > 0
-        ? [{ name: itemName(extraId), qty: result.byproduct }]
+        ? [{ itemId: extraId, name: itemName(extraId), qty: result.byproduct }]
         : []),
     ];
     summary.where = itemName(itemId);
@@ -962,7 +962,11 @@ export async function resolveActivity(
         acc[sp.rarity.key] = (acc[sp.rarity.key] ?? 0) + 1;
         return acc;
       }, {});
-    summary.items = [...folded.items.values()].map((i) => ({ name: i.name, qty: i.qty }));
+    summary.items = [...folded.items.entries()].map(([itemId, i]) => ({
+      itemId,
+      name: i.name,
+      qty: i.qty,
+    }));
 
     await advanceContract(userId, combat.spawns.filter((s) => s.killed).map((s) => s.variant.name));
   }

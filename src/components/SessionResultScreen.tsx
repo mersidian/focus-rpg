@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useGameOptional } from "./GameProvider";
 import { CountUp } from "./CountUp";
 import { groupNumber } from "@/lib/format";
+import { itemName } from "@/lib/game/items";
 import type { ResolutionSummary } from "@/lib/game-types";
 
 /**
@@ -236,7 +237,9 @@ function Headline({ result }: { result: ResolutionSummary }) {
       <span className="tnum animate-pop inline-block" style={{ color: "var(--tier)" }}>
         <CountUp value={result.units ?? 0} />
       </span>{" "}
-      {first?.name ?? "units"}
+      {/* The id wins over the name stored beside it, so a material rename
+          fixes what an older session says it banked. */}
+      {first ? (first.itemId ? itemName(first.itemId) : first.name) : "units"}
     </h1>
   );
 }
