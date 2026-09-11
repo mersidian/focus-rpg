@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useGame } from "./GameProvider";
 import { SLACKED_XP_MULTIPLIER } from "@/lib/constants";
-import { clock, groupNumber } from "@/lib/format";
+import { clock, groupNumber, hours, sinceLabel } from "@/lib/format";
 
 const DRAFT_KEY = "focusrpg:draft";
 
@@ -117,14 +117,26 @@ export function ReportCard() {
                     setCreating(false);
                     setProjectId(p.id);
                   }}
-                  className="rounded-sm border px-3 py-2 text-body transition-colors"
+                  className="rounded-sm border px-3 py-2 text-left text-body transition-colors"
                   style={{
                     borderColor: selected ? "var(--action)" : "var(--color-rule)",
                     color: selected ? "var(--action)" : undefined,
                   }}
                 >
-                  {p.name}
-                  <span className="tnum ml-2 text-faint">{p.sessions}</span>
+                  <span className="block">{p.name}</span>
+                  {/*
+                    The hours this project has in it, and when it was last
+                    touched. §6 calls the per-project total the number this app
+                    is really for, and the chip was showing a bare session
+                    count — which is the one figure about a project nobody is
+                    deciding anything with. The list is ordered by the same
+                    recency, so the project you were just on leads it.
+                  */}
+                  <span className="mt-0.5 block text-note text-faint">
+                    <span className="tnum">{hours(p.focusedMs)}</span>
+                    {" · "}
+                    {sinceLabel(p.lastAt, snapshot.serverNow)}
+                  </span>
                 </button>
               );
             })}

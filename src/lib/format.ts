@@ -18,6 +18,28 @@ export function hours(ms: number): string {
   return `${h < 10 ? h.toFixed(1) : Math.round(h)} h`;
 }
 
+/**
+ * How long ago, in the roughest terms that are still useful.
+ *
+ * Takes `now` rather than reading a clock, like every other rule in the app —
+ * which is also what lets the report card render the same string on the server
+ * and the client instead of flickering on hydration.
+ *
+ * Deliberately coarse. The picker wants to answer "is this the one I was just
+ * on" and "have I touched this in a while"; a to-the-minute figure would be
+ * more precise and no more useful.
+ */
+export function sinceLabel(then: number | null, now: number): string {
+  if (then === null) return "not yet";
+  const days = Math.floor((now - then) / 86_400_000);
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 7) return `${days} days ago`;
+  if (days < 14) return "last week";
+  if (days < 60) return `${Math.floor(days / 7)} weeks ago`;
+  return `${Math.floor(days / 30)} months ago`;
+}
+
 export function completionRatio(completed: number, abandoned: number): number | null {
   const total = completed + abandoned;
   return total === 0 ? null : completed / total;

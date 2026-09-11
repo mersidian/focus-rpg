@@ -239,6 +239,7 @@ async function listProjects(userId: string): Promise<ProjectSummary[]> {
       focusedMs: sum(
         sql<number>`case when ${focusSessions.status} = 'completed' then ${focusSessions.plannedMinutes} * 60000 else 0 end`,
       ),
+      lastAt: sql<string | null>`max(${focusSessions.startedAt})`,
     })
     .from(projects)
     .leftJoin(
@@ -247,13 +248,20 @@ async function listProjects(userId: string): Promise<ProjectSummary[]> {
     )
     .where(and(eq(projects.userId, userId), sql`${projects.archivedAt} is null`))
     .groupBy(projects.id, projects.name)
-    .orderBy(projects.name);
+    /*
+     * Most recently worked first. The picker this feeds is shown the moment a
+     * session ends, and the project you want is almost always the one you were
+     * on last — alphabetical put that wherever its name happened to fall.
+     * Projects never worked sort last, by name.
+     */
+    .orderBy(sql`max(${focusSessions.startedAt}) desc nulls last`, projects.name);
 
   return rows.map((r) => ({
     id: r.id,
     name: r.name,
     sessions: Number(r.sessions ?? 0),
     focusedMs: Number(r.focusedMs ?? 0),
+    lastAt: r.lastAt ? new Date(r.lastAt).getTime() : null,
   }));
 }
 

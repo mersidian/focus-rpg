@@ -5,6 +5,7 @@ import {
   ACCENT_RANGE,
   ACTION_FLOOR,
   accentChroma,
+  sinceLabel,
   tierAccent,
   tierAction,
 } from "../src/lib/format.ts";
@@ -185,4 +186,24 @@ test("the earned face marks the earned title and nothing else", () => {
     [],
     `these wear Fraunces without being the earned title:\n  ${offenders.join("\n  ")}`,
   );
+});
+
+test("how long ago is coarse, and never reads a clock", () => {
+  // It takes `now` like every other rule, which is also what lets the report
+  // card render the same string on the server and the client.
+  const now = Date.UTC(2026, 0, 31, 12, 0, 0);
+  const ago = (days: number) => sinceLabel(now - days * 86_400_000, now);
+
+  assert.equal(sinceLabel(null, now), "not yet");
+  assert.equal(ago(0), "today");
+  assert.equal(ago(1), "yesterday");
+  assert.equal(ago(3), "3 days ago");
+  assert.equal(ago(9), "last week");
+  assert.equal(ago(21), "3 weeks ago");
+  assert.equal(ago(90), "3 months ago");
+
+  // A session finished seconds ago is today, not "0 days ago".
+  assert.equal(sinceLabel(now - 5_000, now), "today");
+  // And a clock that has drifted backwards does not produce a negative.
+  assert.equal(sinceLabel(now + 60_000, now), "today");
 });

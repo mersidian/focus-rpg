@@ -28,6 +28,8 @@ export type ProjectSummary = {
   name: string;
   sessions: number;
   focusedMs: number;
+  /** When the last completed session on it started, or null if there is none. */
+  lastAt: number | null;
 };
 
 export type LogEntry = {
