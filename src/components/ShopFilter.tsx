@@ -2,9 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { BuyButton } from "./GameActions";
-import { Icon, type IconName } from "./Icon";
+import { Icon } from "./Icon";
+import { DepthValue } from "./GameUi";
+import { markFor } from "./item-mark";
 import { MAX_TIER } from "@/lib/game/tiers";
-import { depthInk, groupNumber } from "@/lib/format";
+import { groupNumber } from "@/lib/format";
+import { classHue } from "@/lib/palette";
 
 export type ShopRow = {
   id: string;
@@ -19,49 +22,6 @@ export type ShopRow = {
   /** Crude, Plain, Fine — only tools carry one. */
   grade?: string;
 };
-
-/**
- * Which of the fifty-six marks a shelf row wears.
- *
- * Tools take the mark of the skill they belong to, which already exists — a
- * pickaxe is the mining mark, an axe the woodcutting one — so eight of the
- * kinds cost nothing to add and read the same here as they do on the skills
- * page. The rest are drawn by line rather than by item: thirty tonics do not
- * want thirty glyphs, because no drawing distinguishes Deep Vein from Rich
- * Seam and pretending otherwise is decoration posing as information.
- */
-function markFor(row: ShopRow): IconName {
-  if (row.cls === "tool" && row.skill) return row.skill as IconName;
-  const line = row.id.split(":")[1] ?? "";
-  if (row.cls === "ammo") {
-    const map: Record<string, IconName> = {
-      Arrow: "arrow",
-      Bolt: "bolt",
-      Dart: "dart",
-      Rune: "rune",
-      Cartridge: "cartridge",
-      Shell: "shell",
-    };
-    return map[line] ?? "arrow";
-  }
-  if (row.cls === "consumable") {
-    if (row.id.startsWith("ration:")) return "ration";
-    return /Ward|Warded|Kindled|Still Water/.test(line) ? "ward" : "tonic";
-  }
-  if (row.cls === "stone") {
-    return line === "Whetstone" ? "whetstone" : line === "Temper Salt" ? "temper" : "flux";
-  }
-  if (row.cls === "seed") {
-    const map: Record<string, IconName> = {
-      Herb: "herbseed",
-      Fibre: "fibreseed",
-      Sapling: "sapling",
-      Stock: "stock",
-    };
-    return map[line] ?? "herbseed";
-  }
-  return "shop";
-}
 
 const CLASS_LABEL: Record<string, string> = {
   all: "all",
@@ -155,22 +115,26 @@ export function ShopFilter({ rows, coins }: { rows: ShopRow[]; coins: number }) 
               key={r.id}
               className="flex items-start gap-3 border-b border-rule py-3 pr-4 text-body"
             >
-              {/* The mark takes the depth colour, so a shelf reads as a ladder
-                  at a glance and the icon is carrying the tier rather than
-                  repeating the name. */}
+              {/*
+                Hue for kind, accent for standing — the rule `palette.ts` was
+                written for. The mark says what sort of thing this is and the
+                tier beside it says how deep, so the two colours in a row are
+                answering two different questions instead of both answering the
+                same one twice.
+              */}
               <Icon
                 name={markFor(r)}
                 className="mt-0.5 size-5 shrink-0"
-                style={{ color: depthInk(r.tier, MAX_TIER) }}
+                style={{ color: classHue(r.cls) }}
               />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-dim" title={r.name}>
                   {r.name}
                 </span>
                 <span className="mt-0.5 flex items-baseline gap-2 text-note text-faint">
-                  <span className="tnum" style={{ color: depthInk(r.tier, MAX_TIER) }}>
-                    t{r.tier}
-                  </span>
+                  {/* A swatch and its number: the depth ramp on two characters
+                      of text is too little ink to read a ladder by. */}
+                  <DepthValue step={r.tier} steps={MAX_TIER} label={`t${r.tier}`} />
                   <span
                     className="tnum"
                     style={r.price > coins ? { color: "var(--color-warn)" } : undefined}

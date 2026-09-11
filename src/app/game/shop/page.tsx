@@ -70,6 +70,28 @@ export default async function ShopPage() {
         <span className="tnum text-dim">{groupNumber(wallet.coins)}</span> coins
       </p>
 
+      <Block title="In stock" aside={`up to tier ${openTier}`}>
+        <p className="mt-3 max-w-2xl text-body leading-relaxed text-faint">
+          Tools, ammunition, rations, upgrade stones and seeds. Everything else has to be made or
+          found — the shop will not sell you a weapon you could smith. Nothing here is required:
+          a tool reaches one tier past itself, so the ladder can be climbed without ever opening
+          this page.
+        </p>
+        <ShopFilter
+          rows={stock.map((i) => ({
+            id: i.id,
+            name: i.name,
+            cls: i.cls,
+            skill: i.skill,
+            tier: i.tier,
+            price: i.price,
+            held: held.get(i.id) ?? 0,
+            grade: i.quality,
+          }))}
+          coins={wallet.coins}
+        />
+      </Block>
+
       <Block title="Upgrades" aside="the sinks">
         <div className="mt-4 flex flex-wrap gap-4">
           <BuySlotsButton />
@@ -112,28 +134,6 @@ export default async function ShopPage() {
           Bank slots are the largest sink in the game, and the reason late-game coin income has
           somewhere to go.
         </p>
-      </Block>
-
-      <Block title="In stock" aside={`up to tier ${openTier}`}>
-        <p className="mt-3 max-w-2xl text-body leading-relaxed text-faint">
-          Tools, ammunition, rations, upgrade stones and seeds. Everything else has to be made or
-          found — the shop will not sell you a weapon you could smith. Nothing here is required:
-          a tool reaches one tier past itself, so the ladder can be climbed without ever opening
-          this page.
-        </p>
-        <ShopFilter
-          rows={stock.map((i) => ({
-            id: i.id,
-            name: i.name,
-            cls: i.cls,
-            skill: i.skill,
-            tier: i.tier,
-            price: i.price,
-            held: held.get(i.id) ?? 0,
-            grade: i.quality,
-          }))}
-          coins={wallet.coins}
-        />
       </Block>
 
       <Block title="Prices" aside="V(T) = 10 × 1.20^(T−1)">

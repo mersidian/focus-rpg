@@ -2,14 +2,23 @@
 
 import { useMemo, useState } from "react";
 import { CraftButton } from "./GameActions";
-import { Depth } from "./GameUi";
+import { Icon } from "./Icon";
+import { DepthValue } from "./GameUi";
+import { markFor } from "./item-mark";
 import { MAX_TIER } from "@/lib/game/tiers";
-import { depthInk } from "@/lib/format";
+import { classHue } from "@/lib/palette";
 
 export type CraftIngredient = { name: string; need: number; have: number };
 
 export type CraftRow = {
   id: string;
+  /** The item this makes, for the mark and its hue. */
+  outputId: string;
+  outputClass: string;
+  /** A tool's or a refined good's own skill, which is what picks its mark. */
+  outputSkill?: string;
+  /** A weapon's combat style, likewise. */
+  outputStyle?: string;
   skill: string;
   skillLabel: string;
   name: string;
@@ -39,8 +48,9 @@ export type CraftRow = {
  * per skill, and one toggle for the question actually being asked, which is
  * what can I make right now.
  *
- * Deepest first, because a crafting list is a list of what to make next and
- * nobody needs reminding they can still make a copper axe.
+ * Craftable first and then deepest, because a crafting list is a list of what
+ * to do next: the things you have the materials for lead, and the deepest of
+ * those leads them.
  */
 export function CraftFilter({ rows, fuel }: { rows: CraftRow[]; fuel: number }) {
   const [query, setQuery] = useState("");
@@ -64,7 +74,16 @@ export function CraftFilter({ rows, fuel }: { rows: CraftRow[]; fuel: number }) 
           r.name.toLowerCase().includes(q) ||
           r.inputs.some((i) => i.name.toLowerCase().includes(q)),
       )
-      .sort((a, b) => b.tier - a.tier || a.name.localeCompare(b.name));
+      /*
+       * What you can make, first — then deepest. Sorting by tier alone opened
+       * the page on a wall of the deepest things within reach, every one of
+       * them short of materials, which answers "what could I eventually make"
+       * when the question is "what can I make now".
+       */
+      .sort(
+        (a, b) =>
+          Number(b.ok) - Number(a.ok) || b.tier - a.tier || a.name.localeCompare(b.name),
+      );
   }, [rows, query, skill, ready]);
 
   const canMake = rows.filter((r) => r.ok).length;
@@ -120,15 +139,27 @@ export function CraftFilter({ rows, fuel }: { rows: CraftRow[]; fuel: number }) 
               key={r.id}
               className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-rule py-3 text-body last:border-0"
             >
-              <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
-                <Depth step={r.tier} steps={MAX_TIER} title={`Tier ${r.tier}`} />
+              <span className="flex min-w-0 flex-1 items-baseline gap-2">
+                {/*
+                  Hue for kind, accent for standing — the same pairing the shelf
+                  uses, so a Bronze Pickaxe is the same green mark in both
+                  places and the tier beside it is the only thing that moves.
+                */}
+                <Icon
+                  name={markFor({
+                    id: r.outputId,
+                    cls: r.outputClass,
+                    skill: r.outputSkill,
+                    style: r.outputStyle,
+                  })}
+                  className="size-5 shrink-0 self-start"
+                  style={{ color: classHue(r.outputClass) }}
+                />
                 <span className="min-w-0 text-dim">
                   {r.name}
                   {r.qty > 1 && <span className="text-faint"> ×{r.qty}</span>}
-                  <span className="tnum" style={{ color: depthInk(r.tier, MAX_TIER) }}>
-                    {" "}
-                    t{r.tier}
-                  </span>
+                  {" "}
+                  <DepthValue step={r.tier} steps={MAX_TIER} label={`t${r.tier}`} />
                   {/* What you already hold of the thing you are about to make. */}
                   {r.held > 0 && (
                     <span className="text-faint">

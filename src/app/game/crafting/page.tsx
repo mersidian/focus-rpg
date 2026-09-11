@@ -5,6 +5,7 @@ import { itemName } from "@/lib/game-view-service";
 import { loadSkills } from "@/lib/activity-service";
 import { balances, loadWallet } from "@/lib/inventory-service";
 import { allRecipes, canCraft } from "@/lib/game/recipes";
+import { itemIndex } from "@/lib/game/items";
 import { SKILLS } from "@/lib/game/skills";
 import { groupNumber } from "@/lib/format";
 import { CraftFilter, type CraftRow } from "@/components/CraftFilter";
@@ -24,6 +25,9 @@ export default async function CraftingPage() {
   ]);
 
   const recipes = allRecipes();
+  // Names the mark and its hue. Every crafted output is a catalogue row, so
+  // the fallback is a safety net rather than a path anything takes.
+  const CATALOGUE = itemIndex();
   const have = (id: string) => held.get(id) ?? 0;
 
   /*
@@ -37,8 +41,13 @@ export default async function CraftingPage() {
     .map((r) => {
       const level = skills[r.skill] ?? 1;
       const check = canCraft(r, have, wallet.fuel, level, itemName);
+      const made = CATALOGUE.get(r.outputId);
       return {
         id: r.id,
+        outputId: r.outputId,
+        outputClass: made?.cls ?? "refined",
+        outputSkill: made?.skill,
+        outputStyle: made?.style,
         skill: r.skill,
         skillLabel: LABEL.get(r.skill) ?? r.skill,
         name: r.outputName,
