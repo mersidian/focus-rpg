@@ -22,7 +22,7 @@ import {
   tierValue, refineStoneCost, refineCoinCost, refineTotal, bankSlotCost, bankSlotsTotalCost,
   BANK_SLOTS_BASE, BANK_SLOTS_MAX, AMMO_COST, processFuelCost, FUEL_BY_LENGTH,
 } from "../src/lib/game/economy.ts";
-import { generateCatalogue, catalogueBreakdown, tiersFor } from "../src/lib/game/items.ts";
+import { generateCatalogue, catalogueBreakdown, tiersFor, TOOL_SKILLS } from "../src/lib/game/items.ts";
 import { rollDrops, foldDrops, salvageDecision, salvageValue } from "../src/lib/game/drops.ts";
 import {
   allRecipes,
@@ -32,6 +32,7 @@ import {
   jewelleryRecipes,
   refiningRecipes,
   relicRecipes,
+  toolRecipes,
   upkeepRecipes,
 } from "../src/lib/game/recipes.ts";
 import { UNIQUES } from "../src/lib/game/uniques.ts";
@@ -80,6 +81,8 @@ import { shopStock, shopGroups, SHOP_CLASS_ORDER } from "../src/lib/shop-service
 import { JEWELLERY_SLOTS } from "../src/lib/game/recipes.ts";
 import { BYPRODUCT } from "../src/lib/game/yield.ts";
 import { GATHERED_LINE, gatheredItemId } from "../src/lib/game/items.ts";
+import { CRAFTED_QUALITY } from "../src/lib/game/quality.ts";
+import { buyPrice as toolBuyPrice, tierValue as toolTierValue } from "../src/lib/game/economy.ts";
 
 /**
  * A zeroed V1 Stats, so a V2 predicate can be exercised without a session
@@ -747,6 +750,7 @@ test("recipes generate, with unique ids and a level gate on every one", () => {
     equipment: equipmentRecipes().length,
     jewellery: jewelleryRecipes().length,
     relics: relicRecipes().length,
+    tools: toolRecipes().length,
     alchemy: alchemyRecipes().length,
     upkeep: upkeepRecipes().length,
   };
@@ -758,7 +762,7 @@ test("recipes generate, with unique ids and a level gate on every one", () => {
   for (const [name, n] of Object.entries(parts)) {
     assert.ok(n > 0, `${name} generates nothing`);
   }
-  assert.equal(recipes.length, 1986);
+  assert.equal(recipes.length, 2178);
   assert.equal(new Set(recipes.map((r) => r.id)).size, recipes.length, "duplicate recipe id");
   for (const r of recipes) {
     assert.ok(r.inputs.length > 0, `${r.id} takes nothing`);
@@ -2040,5 +2044,43 @@ test("the shop never lists one item at two qualities", () => {
         `${group.cls} at tier ${maxTier} lists one item at several qualities`,
       );
     }
+  }
+});
+
+test("smithing makes the tools its note promises", () => {
+  // "Bars to plate and tools", and for a long time no recipe in the game made
+  // one — so the eight tools every gathering skill is gated behind could only
+  // be bought. Written from the note, which is a promise.
+  const all = allRecipes();
+  for (const { skill, noun } of TOOL_SKILLS) {
+    const made = all.filter((r) => r.outputId.startsWith(`tool:${skill}:`));
+    assert.equal(made.length, TIERS.length, `${noun} is not made at every tier`);
+    for (const r of made) {
+      assert.equal(r.skill, "smithing", `${r.outputName} is not made by a smith`);
+      assert.ok(
+        r.inputs.some((i) => i.itemId.startsWith("refined:Bar:")),
+        `${r.outputName} is a tool made without a bar`,
+      );
+      assert.ok(r.outputId.endsWith(`:${CRAFTED_QUALITY}`), `${r.id} crafts a non-Plain tool`);
+    }
+  }
+});
+
+test("a tool costs more than the ore it is made of", () => {
+  // `SELL_MULTIPLIER` had no `tool` entry, so it fell through to 1 and a
+  // pickaxe cost exactly one unit of ore. Nothing would ever be smithed at a
+  // price like that: the cheapest possible recipe is a bar, and a bar is two
+  // ore and a charcoal.
+  for (const t of TIERS) {
+    const tool = toolBuyPrice(t.tier, "tool");
+    assert.ok(
+      tool > toolTierValue(t.tier) * 2,
+      `a tier-${t.tier} tool costs ${tool} against ${toolTierValue(t.tier)} for an ore`,
+    );
+    // And under equipment, which is the thing it is not.
+    assert.ok(
+      tool < toolBuyPrice(t.tier, "equipment"),
+      `a tier-${t.tier} tool costs more than a piece of armour`,
+    );
   }
 });

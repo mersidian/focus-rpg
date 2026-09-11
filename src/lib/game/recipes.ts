@@ -23,6 +23,8 @@ import {
   REFINED_BY_NAME,
   SLOT_NOUN,
   STONE_KINDS,
+  TOOL_SKILLS,
+  toolName,
   ammoName,
   armourName,
   lineName,
@@ -341,6 +343,42 @@ export function relicRecipes(): Recipe[] {
   return out;
 }
 
+/**
+ * Tools, which Smithing's note has always promised.
+ *
+ * "Bars to plate and tools", and no recipe in the game made one — so the eight
+ * tools every gathering skill is gated behind could only ever be bought. That
+ * is the same shape as Alchemy's empty recipe list, and it survived longer
+ * because the shop covered for it.
+ *
+ * One bar apiece. A tool is manufactured but simpler than a weapon and it is
+ * never destroyed, and at `SELL_MULTIPLIER.tool` a bar is worth almost exactly
+ * what the shop charges — so buying and smithing sit level, and the tie breaks
+ * toward whichever you already have: coins if you fight, ore if you mine.
+ *
+ * Crafted at Plain, like all crafted equipment: quality is found, never made.
+ */
+export function toolRecipes(): Recipe[] {
+  const out: Recipe[] = [];
+  for (const { skill, noun } of TOOL_SKILLS) {
+    for (const t of TIERS) {
+      out.push({
+        id: `recipe:smithing:tool:${skill}:${t.tier}`,
+        skill: "smithing",
+        outputId: `tool:${skill}:${t.tier}:${CRAFTED_QUALITY}`,
+        outputName: toolName(noun, t.tier, CRAFTED_QUALITY),
+        outputQty: 1,
+        tier: t.tier,
+        inputs: [{ itemId: refined("Bar", t.tier), qty: 1 }],
+        fuel: processFuelCost(t.tier) * 2,
+        level: tierSkillRequirement(t.tier),
+        xp: processingXp(t.tier) * 2,
+      });
+    }
+  }
+  return out;
+}
+
 /** Every recipe in the game. */
 export function allRecipes(): Recipe[] {
   return [
@@ -348,6 +386,7 @@ export function allRecipes(): Recipe[] {
     ...equipmentRecipes(),
     ...jewelleryRecipes(),
     ...relicRecipes(),
+    ...toolRecipes(),
     ...alchemyRecipes(),
     ...upkeepRecipes(),
   ];

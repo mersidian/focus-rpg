@@ -23,6 +23,19 @@ export const SELL_MULTIPLIER: Record<string, number> = {
   part: 1.4,
   refined: 2.6,
   consumable: 2,
+  /**
+   * A tool had no entry at all, so it fell through the `?? 1` below and was
+   * priced as raw material: a pickaxe cost exactly one unit of ore at every
+   * tier. That is why smithing could not sensibly make one — the cheapest
+   * conceivable recipe is a bar, a bar is two ore and a charcoal, and crafting
+   * would have cost more than twice buying at every rung of the ladder.
+   *
+   * Four sits above refined and well under equipment, which is where a tool
+   * belongs: manufactured, but simpler than a sword and never destroyed. It
+   * also puts buying and smithing within sight of each other — a tool is one
+   * bar, so if you mine you make them and if you fight you buy them.
+   */
+  tool: 4,
   equipment: 9,
   unique: 40,
 };

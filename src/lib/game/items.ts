@@ -160,6 +160,15 @@ export const TOOL_SKILLS: { skill: string; noun: string }[] = [
 /** Tools come in three grades rather than five: they are equipment you work with. */
 export const TOOL_GRADES: Quality[] = ["crude", "plain", "fine"];
 
+/**
+ * What a tool is called. Shared, so a recipe cannot name one differently from
+ * the catalogue — the drift that had a single arrow called two things.
+ */
+export function toolName(noun: string, t: number, q: Quality): string {
+  const grade = q === "plain" ? "" : `${QUALITIES.find((x) => x.key === q)!.label} `;
+  return `${grade}${materialWord(t, "metal")} ${noun}`.trim();
+}
+
 export function generateTools(): ItemDef[] {
   const out: ItemDef[] = [];
   for (const { skill, noun } of TOOL_SKILLS) {
@@ -167,7 +176,7 @@ export function generateTools(): ItemDef[] {
       for (const q of TOOL_GRADES) {
         out.push({
           id: id("tool", skill, t.tier, q),
-          name: `${q === "plain" ? "" : QUALITIES.find((x) => x.key === q)!.label + " "}${t.metal} ${noun}`.trim(),
+          name: toolName(noun, t.tier, q),
           cls: "tool",
           tier: t.tier,
           quality: q,
