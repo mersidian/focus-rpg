@@ -1,8 +1,8 @@
 import type { CSSProperties, ReactNode } from "react";
 
 /**
- * Forty-one marks: nineteen for the two navigation rows, twenty-two for the
- * skills.
+ * Fifty-seven marks: nineteen for the two navigation rows, twenty-two for the
+ * skills, and sixteen for the kinds of thing the shop sells.
  *
  * Drawn here rather than pulled from a package: an icon set is a dependency
  * that ships hundreds of glyphs to render forty-one, and every one of these is
@@ -288,6 +288,118 @@ const MARKS = {
       <path d="M9 3.5h6v6a3 3 0 0 1-6 0Z" />
       <path d="M9.4 12.5h5.2v6a1.6 1.6 0 0 1-1.6 1.6h-2a1.6 1.6 0 0 1-1.6-1.6Z" />
       <path d="M12 3.5v3" />
+    </>
+  ),
+
+  /* — the kinds of thing the shop sells — */
+  arrow: (
+    <>
+      <path d="M5 19 19 5" />
+      <path d="M14 5h5v5" />
+      <path d="M5 19v-4M5 19h4" />
+    </>
+  ),
+  bolt: (
+    <>
+      <path d="M7 17 16 8" />
+      <path d="M15 5h4v4l-3 3" />
+      <path d="M7 17H4v3" />
+    </>
+  ),
+  dart: (
+    <>
+      <path d="m12 2.5 3.5 6.5h-7z" />
+      <path d="M12 9v8.5" />
+      <path d="M7 21.5 12 17l5 4.5" />
+    </>
+  ),
+  rune: (
+    <>
+      <path d="M12 3 19 8v8l-7 5-7-5V8z" />
+      <path d="M9.5 10h5" />
+      <path d="M12 10v6" />
+    </>
+  ),
+  cartridge: (
+    <>
+      <path d="M9 21h6a1 1 0 0 0 1-1V8H8v12a1 1 0 0 0 1 1Z" />
+      <path d="M8 12h8" />
+      <path d="M10 8V5a2 2 0 0 1 4 0v3" />
+    </>
+  ),
+  shell: (
+    <>
+      <path d="M9 21h6a1 1 0 0 0 1-1V6H8v14a1 1 0 0 0 1 1Z" />
+      <path d="M8 13h8" />
+      <path d="M8 16h8" />
+    </>
+  ),
+  ration: (
+    <>
+      <path d="M5 12c0-3.3 3.1-6 7-6s7 2.7 7 6v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2Z" />
+      <path d="M9.5 12v8" />
+      <path d="M14.5 12v8" />
+    </>
+  ),
+  tonic: (
+    <>
+      <path d="M10 3h4" />
+      <path d="M10.5 3v6.5L7 17.5a2 2 0 0 0 1.8 3h6.4a2 2 0 0 0 1.8-3l-3.5-8V3" />
+      <path d="M8.6 15h6.8" />
+    </>
+  ),
+  ward: (
+    <>
+      <path d="M12 3 19 5.8v6.4c0 4.1-2.9 7-7 8.8-4.1-1.8-7-4.7-7-8.8V5.8Z" />
+      <path d="m9.2 12 2 2.2 3.6-4" />
+    </>
+  ),
+  whetstone: (
+    <>
+      <path d="M4.5 14 8.5 8h7l4 6-4 4h-7Z" />
+      <path d="M7.5 13h9" />
+    </>
+  ),
+  temper: (
+    <>
+      <path d="m12 3.5 2.2 4.2L12 12l-2.2-4.3Z" />
+      <path d="m6.5 13 2 3.2-2 3.3-2-3.3Z" />
+      <path d="m17.5 13 2 3.2-2 3.3-2-3.3Z" />
+    </>
+  ),
+  flux: (
+    <>
+      <path d="m12 4.5 4.2 4.3L12 17.5 7.8 8.8Z" />
+      <path d="M7.8 8.8h8.4" />
+      <path d="M5 20.5h14" />
+    </>
+  ),
+  herbseed: (
+    <>
+      <path d="M12 21v-7.5" />
+      <path d="M12 13.5c0-3.2-2.2-5.2-5.2-5.2 0 3.2 2.2 5.2 5.2 5.2Z" />
+      <path d="M12 13.5c0-3.2 2.2-5.2 5.2-5.2 0 3.2-2.2 5.2-5.2 5.2Z" />
+    </>
+  ),
+  fibreseed: (
+    <>
+      <path d="M7 3.5c2.5 4 2.5 13 0 17" />
+      <path d="M12 3.5c2.5 4 2.5 13 0 17" />
+      <path d="M17 3.5c2.5 4 2.5 13 0 17" />
+    </>
+  ),
+  sapling: (
+    <>
+      <path d="M12 21v-5.5" />
+      <path d="m12 3 4.5 7h-9Z" />
+      <path d="m12 8.5 5 7H7Z" />
+    </>
+  ),
+  stock: (
+    <>
+      <path d="M6 12.5a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3V16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2Z" />
+      <path d="M9 18v2.5M15 18v2.5" />
+      <path d="M6 12.5 3.5 9.5" />
     </>
   ),
 } satisfies Record<string, ReactNode>;

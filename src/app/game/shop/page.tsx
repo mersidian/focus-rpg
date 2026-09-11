@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { Screen, Block, Rows, DepthValue, KindDot } from "@/components/GameUi";
-import { classHue } from "@/lib/palette";
+import { Screen, Block, Rows, DepthValue } from "@/components/GameUi";
 import { loadWallet, bankUsage } from "@/lib/inventory-service";
 import {
   bankSlotCost,
@@ -17,28 +16,19 @@ import {
 } from "@/lib/game/economy";
 import { TIERS, MAX_TIER } from "@/lib/game/tiers";
 import { groupNumber } from "@/lib/format";
-import { shopGroups, SHOP_ROWS_PER_CLASS } from "@/lib/shop-service";
+import { shopStock } from "@/lib/shop-service";
 import { tierForHours } from "@/lib/game/tiers";
 import { loadState } from "@/lib/game-state";
 import {
-  BuyButton,
   BuyFuelCapButton,
   BuySlotsButton,
   ExchangeStonesButton,
   SalvageOutputButtons,
 } from "@/components/GameActions";
 import { balances } from "@/lib/inventory-service";
+import { ShopFilter } from "@/components/ShopFilter";
 
 export const dynamic = "force-dynamic";
-
-/** Player-facing names for the stocked classes, in the order they are stocked. */
-const CLASS_TITLE: Record<string, string> = {
-  tool: "Tools",
-  ammo: "Ammunition",
-  consumable: "Rations and tonics",
-  stone: "Upgrade stones",
-  seed: "Seeds",
-};
 
 export default async function ShopPage() {
   const session = await auth();
@@ -51,7 +41,7 @@ export default async function ShopPage() {
   // The shop stocks a tier above what your hours have opened, so there is always
   // something to save for.
   const openTier = Math.min(24, tierForHours(state.lifetimeFocusedMs / 3_600_000) + 1);
-  const stock = shopGroups(openTier, SHOP_ROWS_PER_CLASS);
+  const stock = shopStock(openTier);
 
   // Which stone tiers are actually held, so the exchange only offers real trades.
   const held = await balances(session.user.id);
@@ -127,28 +117,24 @@ export default async function ShopPage() {
       <Block title="In stock" aside={`up to tier ${openTier}`}>
         <p className="mt-3 max-w-2xl text-body leading-relaxed text-faint">
           Tools, ammunition, rations, upgrade stones and seeds. Everything else has to be made or
-          found — the shop will not sell you a weapon you could smith.
+          found — the shop will not sell you a weapon you could smith. Nothing here is required:
+          a tool reaches one tier past itself, so the ladder can be climbed without ever opening
+          this page.
         </p>
+        <ShopFilter
+          rows={stock.map((i) => ({
+            id: i.id,
+            name: i.name,
+            cls: i.cls,
+            skill: i.skill,
+            tier: i.tier,
+            price: i.price,
+            held: held.get(i.id) ?? 0,
+            grade: i.quality,
+          }))}
+          coins={wallet.coins}
+        />
       </Block>
-
-      {stock.map((group) => (
-        <Block key={group.cls} title={CLASS_TITLE[group.cls]} aside={`${group.total} in stock`}>
-          <p className="mt-3 flex items-center gap-2 text-note text-faint">
-            <KindDot hue={classHue(group.cls)} />
-            {group.cls}
-          </p>
-          <Rows
-            head={["Item", "Tier", "Price", ""]}
-            rows={group.items.map((i) => [
-              i.name,
-              <DepthValue key="t" step={i.tier} steps={MAX_TIER} />,
-              groupNumber(i.price),
-              <BuyButton key="b" itemId={i.id} />,
-            ])}
-            total={group.total}
-          />
-        </Block>
-      ))}
 
       <Block title="Prices" aside="V(T) = 10 × 1.20^(T−1)">
         <Rows
