@@ -52,6 +52,19 @@ export type CraftRow = {
  * to do next: the things you have the materials for lead, and the deepest of
  * those leads them.
  */
+/**
+ * How many times this recipe could run right now.
+ *
+ * The limiting input, or the fuel, whichever runs out first — which is exactly
+ * the number a "max" shortcut should offer and one the row already has every
+ * part of.
+ */
+function runsPossible(r: CraftRow, fuel: number): number {
+  const byInput = r.inputs.map((i) => Math.floor(i.have / Math.max(1, i.need)));
+  const byFuel = Math.floor(fuel / Math.max(1, r.fuel));
+  return Math.max(0, Math.min(byFuel, ...byInput));
+}
+
 export function CraftFilter({ rows, fuel }: { rows: CraftRow[]; fuel: number }) {
   const [query, setQuery] = useState("");
   const [skill, setSkill] = useState("all");
@@ -172,7 +185,7 @@ export function CraftFilter({ rows, fuel }: { rows: CraftRow[]; fuel: number }) 
 
               <span className="shrink-0">
                 {r.ok ? (
-                  <CraftButton recipeId={r.id} />
+                  <CraftButton recipeId={r.id} max={runsPossible(r, fuel)} />
                 ) : (
                   <span className="text-note text-faint">{r.missing}</span>
                 )}

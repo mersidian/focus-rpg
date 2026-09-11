@@ -46,3 +46,17 @@ export const ABANDON_REASON_LABEL: Record<AbandonReason, string> = {
   heartbeat_lost: "Page went away for over two minutes",
   superseded: "Started another session",
 };
+
+/* ------------------------- how many at a time ------------------------- */
+
+/**
+ * The most one press may buy or make.
+ *
+ * Both services clamp to these, and the quantity field reads them, so the box
+ * cannot ask for a number the server would silently trim — a field that accepts
+ * 500 crafts and quietly performs 100 is a field that lies about what it did.
+ * They live here rather than in the services because both of those are
+ * `server-only` and the input is not.
+ */
+export const MAX_BUY_AT_ONCE = 1000;
+export const MAX_CRAFT_AT_ONCE = 100;

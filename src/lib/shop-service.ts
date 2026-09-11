@@ -29,6 +29,7 @@ import type { Style } from "./game/archetypes";
 import type { Quality } from "./game/quality";
 import { skillLevel } from "./game/skills";
 import { rollContract } from "./game/contracts";
+import { MAX_BUY_AT_ONCE } from "./constants";
 
 /**
  * The shop, and the two things coins are really for (SPEC-V2.md §9).
@@ -53,7 +54,7 @@ export async function buyStock(userId: string, itemId: string, qty = 1): Promise
     return { ok: false, reason: `${def.name} has to be made or found, not bought.` };
   }
 
-  const n = Math.max(1, Math.min(1000, Math.trunc(qty)));
+  const n = Math.max(1, Math.min(MAX_BUY_AT_ONCE, Math.trunc(qty)));
   // The same function the shelf prices with, so a Fine tool cannot be bought
   // at a Plain tool's price.
   const unit = priceOf(def);

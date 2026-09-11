@@ -18,6 +18,7 @@ import { milestoneMarker, skillLevelXp, skillMilestonesCrossed } from "./game/mi
 import { band, type ItemSpec, type Slot } from "./game/power";
 import { ARCHETYPE_BY_NAME, type Style } from "./game/archetypes";
 import type { Quality } from "./game/quality";
+import { MAX_CRAFT_AT_ONCE } from "./constants";
 
 /**
  * Crafting: spend fuel and inputs, get an output (SPEC-V2.md §4).
@@ -62,7 +63,7 @@ export async function craftItem(
   const recipe = RECIPES.get(recipeId);
   if (!recipe) return { ok: false, missing: ["that recipe"] };
 
-  const runs = Math.max(1, Math.min(100, Math.trunc(times)));
+  const runs = Math.max(1, Math.min(MAX_CRAFT_AT_ONCE, Math.trunc(times)));
   const [held, wallet, levelRow] = await Promise.all([
     have(userId, recipe.inputs.map((i) => i.itemId)),
     loadWallet(userId),

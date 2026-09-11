@@ -21,6 +21,7 @@ import {
   setSalvageOutputAction,
   exchangeStonesAction,
 } from "@/lib/actions";
+import { MAX_BUY_AT_ONCE, MAX_CRAFT_AT_ONCE } from "@/lib/constants";
 
 /**
  * The buttons, one per action.
@@ -30,22 +31,85 @@ import {
  * server component — they read a lot and the reads are cheap on the server.
  */
 
-export function CraftButton({ recipeId, label }: { recipeId: string; label?: string }) {
+
+/**
+ * How many, as a number you type.
+ *
+ * It was a select of ×1 ×5 ×10 ×25 ×100, which answers "how many" with five
+ * guesses — and none of them is the number you want when you hold 33 ore and a
+ * bar takes two. A field takes any number; `max` fills in the largest the
+ * materials, the coins and the server's own clamp allow, which is the one
+ * quantity worth a shortcut.
+ *
+ * Clamped on the way in as well as on submit, so the box can never show a
+ * figure the server would trim. A field that accepts 500 and quietly does 100
+ * is a field that lies about what it did.
+ */
+function Quantity({
+  value,
+  onChange,
+  max,
+  cap,
+  label,
+}: {
+  value: number;
+  onChange: (n: number) => void;
+  /** The most that is actually possible right now, when the caller knows it. */
+  max?: number;
+  /** The server's own limit on one press. */
+  cap: number;
+  label: string;
+}) {
+  const ceiling = Math.max(1, Math.min(cap, max ?? cap));
+  const clamp = (n: number) => Math.max(1, Math.min(ceiling, Math.trunc(n || 1)));
+  return (
+    <span className="inline-flex items-baseline gap-1.5">
+      <input
+        type="number"
+        inputMode="numeric"
+        min={1}
+        max={ceiling}
+        value={value}
+        onChange={(e) => onChange(clamp(Number(e.target.value)))}
+        aria-label={label}
+        className="tnum w-12 border-b border-rule bg-transparent py-0.5 text-right text-note text-dim focus:border-current"
+        style={{ caretColor: "var(--tier)" }}
+      />
+      {/* Only worth offering when it is more than one and not what is already
+          in the box. */}
+      {ceiling > 1 && value !== ceiling && (
+        <button
+          type="button"
+          onClick={() => onChange(ceiling)}
+          className="text-note text-faint underline underline-offset-2 transition-colors hover:text-dim"
+        >
+          max {ceiling}
+        </button>
+      )}
+    </span>
+  );
+}
+
+export function CraftButton({
+  recipeId,
+  label,
+  max,
+}: {
+  recipeId: string;
+  label?: string;
+  /** The most the materials and the fuel allow, worked out by the caller. */
+  max?: number;
+}) {
   const [times, setTimes] = useState(1);
   return (
     <span className="inline-flex items-baseline gap-2">
-      <select
+      <Quantity
         value={times}
-        onChange={(e) => setTimes(Number(e.target.value))}
-        aria-label="How many"
-        className="border-b border-rule bg-transparent py-0.5 text-note text-dim"
-      >
-        {[1, 5, 10, 25, 100].map((n) => (
-          <option key={n} value={n}>
-            ×{n}
-          </option>
-        ))}
-      </select>
+        onChange={setTimes}
+        max={max}
+        cap={MAX_CRAFT_AT_ONCE}
+        label="How many to make"
+      />
       <ActionButton quiet label={label ?? "Make"} run={() => craftAction(recipeId, times)} />
     </span>
   );
@@ -73,42 +137,33 @@ export function SellInstanceButton({ instanceId }: { instanceId: string }) {
 
 export function SellStackButton({ itemId, held }: { itemId: string; held: number }) {
   const [qty, setQty] = useState(1);
-  const options = [1, 10, 100, held].filter((n, i, all) => n > 0 && all.indexOf(n) === i);
   return (
     <span className="inline-flex items-baseline gap-2">
-      <select
+      {/* Selling had the same preset select, and its "all N" was only ever the
+          max of what you hold — which is what the shortcut says now. */}
+      <Quantity
         value={qty}
-        onChange={(e) => setQty(Number(e.target.value))}
-        aria-label="How many to sell"
-        className="border-b border-rule bg-transparent py-0.5 text-note text-dim"
-      >
-        {options.map((n) => (
-          <option key={n} value={n}>
-            {n === held ? `all ${n}` : n}
-          </option>
-        ))}
-      </select>
+        onChange={setQty}
+        max={held}
+        cap={MAX_BUY_AT_ONCE}
+        label="How many to sell"
+      />
       <ActionButton quiet label="Sell" run={() => sellStackAction(itemId, qty)} />
     </span>
   );
 }
 
-export function BuyButton({ itemId }: { itemId: string }) {
+export function BuyButton({ itemId, max }: { itemId: string; max?: number }) {
   const [qty, setQty] = useState(1);
   return (
     <span className="inline-flex items-baseline gap-2">
-      <select
+      <Quantity
         value={qty}
-        onChange={(e) => setQty(Number(e.target.value))}
-        aria-label="How many to buy"
-        className="border-b border-rule bg-transparent py-0.5 text-note text-dim"
-      >
-        {[1, 10, 50, 200].map((n) => (
-          <option key={n} value={n}>
-            ×{n}
-          </option>
-        ))}
-      </select>
+        onChange={setQty}
+        max={max}
+        cap={MAX_BUY_AT_ONCE}
+        label="How many to buy"
+      />
       <ActionButton quiet label="Buy" run={() => buyStockAction(itemId, qty)} />
     </span>
   );

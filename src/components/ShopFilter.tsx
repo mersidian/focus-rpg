@@ -149,7 +149,9 @@ export function ShopFilter({ rows, coins }: { rows: ShopRow[]; coins: number }) 
                 </span>
               </span>
               <span className="shrink-0">
-                <BuyButton itemId={r.id} />
+                {/* What your coins actually reach, so "max" is a real number
+                    rather than the server's ceiling. */}
+                <BuyButton itemId={r.id} max={Math.floor(coins / Math.max(1, r.price))} />
               </span>
             </li>
           ))}
