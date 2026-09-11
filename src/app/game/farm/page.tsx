@@ -10,6 +10,9 @@ import { CROP_LINES } from "@/lib/game/items";
 import { CROP_OUTPUT } from "@/lib/game/farm";
 import { BuyPlotButton, HarvestButton, SowButton } from "@/components/GameActions";
 import { groupNumber } from "@/lib/format";
+import { Icon } from "@/components/Icon";
+import { markFor } from "@/components/item-mark";
+import { classHue } from "@/lib/palette";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +46,11 @@ export default async function FarmPage() {
                         step={Number(p.seedItemId.split(":")[2] ?? 1)}
                         steps={MAX_TIER}
                         title={`Tier ${p.seedItemId.split(":")[2] ?? 1}`}
+                      />
+                      <Icon
+                        name={markFor({ id: p.seedItemId, cls: "seed" })}
+                        className="size-4 shrink-0 self-center"
+                        style={{ color: classHue("seed") }}
                       />
                       {itemName(p.seedItemId)}
                     </span>
@@ -99,7 +107,14 @@ export default async function FarmPage() {
         <Rows
           head={["Line", "Grows", "Why the wild will not do"]}
           rows={CROP_LINES.map((line) => [
-            line,
+            <span key="l" className="inline-flex items-baseline gap-2 text-dim">
+              <Icon
+                name={markFor({ id: `seed:${line}:1`, cls: "seed" })}
+                className="size-4 shrink-0 self-center"
+                style={{ color: classHue("seed") }}
+              />
+              {line}
+            </span>,
             itemName(`${CROP_OUTPUT[line].itemLine}:1`),
             CROP_OUTPUT[line].note,
           ])}

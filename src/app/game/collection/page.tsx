@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { Screen, Block, Rows, Gauge, KindDot, TierBars } from "@/components/GameUi";
+import { Screen, Block, Rows, Gauge, TierBars } from "@/components/GameUi";
+import { Icon } from "@/components/Icon";
+import { markFor } from "@/components/item-mark";
 import { classHue } from "@/lib/palette";
 import { collectionProgress, itemIndex } from "@/lib/game-view-service";
 import { groupNumber } from "@/lib/format";
@@ -53,7 +55,13 @@ export default async function CollectionPage() {
             .sort((a, b) => b[1].total - a[1].total)
             .map(([cls, n]) => [
               <span key="c" className="inline-flex items-baseline gap-2 text-dim">
-                <KindDot hue={classHue(cls)} />
+                {/* The class's own mark rather than a dot: the collection is a
+                    list of kinds, and a kind is exactly what a mark says. */}
+                <Icon
+                  name={markFor({ id: "", cls })}
+                  className="size-4 shrink-0 self-center"
+                  style={{ color: classHue(cls) }}
+                />
                 {cls}
               </span>,
               groupNumber(n.got),

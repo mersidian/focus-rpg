@@ -6,6 +6,9 @@ import { useGameOptional } from "./GameProvider";
 import { CountUp } from "./CountUp";
 import { groupNumber } from "@/lib/format";
 import { itemName } from "@/lib/game/items";
+import { Icon } from "./Icon";
+import { markFor } from "./item-mark";
+import { classHue } from "@/lib/palette";
 import type { ResolutionSummary } from "@/lib/game-types";
 
 /**
@@ -68,6 +71,7 @@ export function SessionResultScreen({
 
       <Headline result={result} />
 
+      {result.items.length > 0 && <Banked result={result} />}
       {result.kind === "gathering" && <GatheringDetail result={result} />}
       {result.kind !== "gathering" && <CombatDetail result={result} />}
 
@@ -113,6 +117,37 @@ export function SessionResultScreen({
       </div>
     </main>
   );
+}
+
+/** What the session actually put in the bank, each line wearing its own mark. */
+function Banked({ result }: { result: ResolutionSummary }) {
+  return (
+    <ul className="mt-6 flex flex-wrap gap-x-6 gap-y-2">
+      {result.items.map((item, i) => (
+        <li
+          key={`${item.itemId ?? item.name}-${i}`}
+          className="cell-in flex items-baseline gap-2 text-body text-dim"
+          style={{ animationDelay: `${Math.min(i * 40, 320)}ms` }}
+        >
+          <Icon
+            name={markFor({ id: item.itemId ?? "", cls: classOf(item.itemId) })}
+            className="size-4 shrink-0 self-center"
+            style={{ color: classHue(classOf(item.itemId)) }}
+          />
+          <span className="tnum">{item.qty.toLocaleString()}</span>
+          {item.itemId ? itemName(item.itemId) : item.name}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** The class is the first segment of the id, which is all the mark needs. */
+function classOf(itemId: string | undefined): string {
+  const head = (itemId ?? "").split(":")[0];
+  if (head === "ration" || head === "potion") return "consumable";
+  if (head === "biome") return "biomeMaterial";
+  return head || "raw";
 }
 
 /**
@@ -352,7 +387,14 @@ function CombatDetail({ result }: { result: ResolutionSummary }) {
                 className="cell-in flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-rule py-2 text-body last:border-0"
                 style={{ animationDelay: `${Math.min(i * 40, 320)}ms` }}
               >
-                <span className="min-w-0 flex-1 text-text">{piece.name}</span>
+                <span className="flex min-w-0 flex-1 items-baseline gap-2 text-text">
+                  <Icon
+                    name="equipment"
+                    className="size-4 shrink-0 self-center"
+                    style={{ color: classHue("armour") }}
+                  />
+                  {piece.name}
+                </span>
                 <span className="text-note text-faint">{piece.quality}</span>
                 <span className="tnum w-16 shrink-0 text-right text-faint">
                   {Math.round(piece.percentile * 100)}%

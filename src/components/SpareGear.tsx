@@ -6,6 +6,7 @@ import { Rows, DepthValue } from "./GameUi";
 import { EquipButton, RefineButton, SellInstanceButton } from "./GameActions";
 import { MAX_REFINE } from "@/lib/game/power";
 import { MAX_TIER } from "@/lib/game/tiers";
+import { GearMark } from "./GearMark";
 
 /** As many as are worth rendering at once. The filter reaches the rest. */
 const SHOWN = 60;
@@ -87,7 +88,8 @@ export function SpareGear({ spare }: { spare: InstanceRow[] }) {
         <Rows
           head={["Item", "Slot", "Tier", "Roll", ""]}
           rows={matched.slice(0, SHOWN).map((i) => [
-            <span key="n" className="text-dim">
+            <span key="n" className="inline-flex items-baseline gap-2 text-dim">
+              <GearMark slot={i.slot} style={i.style} />
               {i.name}
               {i.refine > 0 && <span style={{ color: "var(--tier)" }}> +{i.refine}</span>}
             </span>,

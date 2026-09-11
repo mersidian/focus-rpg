@@ -69,7 +69,17 @@ export async function skillViews(userId: string): Promise<SkillView[]> {
   });
 }
 
-export type BankRow = { itemId: string; name: string; qty: number; cls: string; tier: number };
+export type BankRow = {
+  itemId: string;
+  name: string;
+  qty: number;
+  cls: string;
+  tier: number;
+  /** What makes it, which is what picks its mark. */
+  skill?: string;
+  /** A weapon's combat style, likewise. */
+  style?: string;
+};
 
 /**
  * What each of these sessions came to, for the log.
@@ -112,6 +122,8 @@ export async function bankRows(userId: string): Promise<BankRow[]> {
         qty: r.qty,
         cls: def?.cls ?? r.itemId.split(":")[0],
         tier: def?.tier ?? 0,
+        skill: def?.skill,
+        style: def?.style,
       };
     })
     .sort((a, b) => a.cls.localeCompare(b.cls) || b.tier - a.tier || a.name.localeCompare(b.name));

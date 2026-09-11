@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import type { BankRow } from "@/lib/game-view-service";
 import { SellStackButton } from "./GameActions";
 import { Depth } from "./GameUi";
+import { Icon } from "./Icon";
+import { markFor } from "./item-mark";
 import { MAX_TIER } from "@/lib/game/tiers";
 import { depthInk } from "@/lib/format";
 import { classHue } from "@/lib/palette";
@@ -68,7 +70,15 @@ export function BankFilter({ rows }: { rows: BankRow[] }) {
               key={row.itemId}
               className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-rule py-2 text-body last:border-0"
             >
-              <span className="flex min-w-0 items-baseline gap-1.5 text-dim">
+              <span className="flex min-w-0 items-baseline gap-2 text-dim">
+                {/* The same mark the shelf and the crafting list use, in the
+                    same hue, so a Bronze Pickaxe is one glyph everywhere it is
+                    named. */}
+                <Icon
+                  name={markFor({ id: row.itemId, cls: row.cls, skill: row.skill, style: row.style })}
+                  className="size-4 shrink-0 self-center"
+                  style={{ color: classHue(row.cls) }}
+                />
                 {row.tier > 0 && <Depth step={row.tier} steps={MAX_TIER} title={`Tier ${row.tier}`} />}
                 <span className="min-w-0">
                   {row.name}

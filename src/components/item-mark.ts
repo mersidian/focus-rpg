@@ -26,6 +26,10 @@ export function markFor(row: MarkTarget): IconName {
     return (row.style === "gun" ? "gunplay" : row.style) as IconName;
   }
   if (row.cls === "armour") return "equipment";
+  // Two the shop never sells but the bank is full of: a part comes off
+  // something you killed, a biome material out of the ground you fought over.
+  if (row.cls === "part") return "slaying";
+  if (row.cls === "biomeMaterial") return "areas";
   if (row.cls === "raw") {
     /*
      * Raw lines mostly wear the skill that wins them — ore is a pickaxe, a

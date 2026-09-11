@@ -9,6 +9,7 @@ import { BEATS } from "@/lib/game/archetypes";
 import { refineStoneCost, refineCoinCost } from "@/lib/game/economy";
 import { groupNumber } from "@/lib/format";
 import { RefineButton, RepairButton, UnequipButton } from "@/components/GameActions";
+import { GearMark } from "@/components/GearMark";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +54,8 @@ export default async function EquipmentPage() {
             }
             return [
               slot,
-              <span key="n" className="text-dim">
+              <span key="n" className="inline-flex items-baseline gap-2 text-dim">
+                <GearMark slot={slot} style={item.style} />
                 {item.name}
                 {item.refine > 0 && (
                   <span style={{ color: "var(--tier)" }}> +{item.refine}</span>
