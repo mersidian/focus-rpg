@@ -2001,3 +2001,44 @@ test("no two items in the catalogue share a name", () => {
   }
   assert.deepEqual(clashes.slice(0, 5), [], "the catalogue names two things the same");
 });
+
+test("the shop shows more than one tier of tools", () => {
+  // Tools are generated at three grades and nothing reads the grade, so eight
+  // tools filled exactly the twenty-four rows the block shows — with tier 1.
+  // Every deeper tool was stocked, counted in the total and unreachable, which
+  // is a shop you cannot upgrade from.
+  for (const maxTier of [2, 4, 12, 24]) {
+    const tools = shopGroups(maxTier, 24).find((g) => g.cls === "tool");
+    assert.ok(tools, `no tools stocked at tier ${maxTier}`);
+    const tiers = new Set(tools.items.map((i) => i.tier));
+    assert.ok(
+      tiers.size >= Math.min(3, maxTier),
+      `at tier ${maxTier} the shop shows ${tiers.size} tier(s) of tools in ${tools.items.length} rows`,
+    );
+  }
+});
+
+test("the shop never lists one item at two qualities", () => {
+  // Three tool grades at one price is three rows for one purchase, and nothing
+  // reads the grade. Keyed on the id with its quality segment dropped, so
+  // Arrow, Bolt and Dart at one tier stay the three different things they are.
+  for (const maxTier of [4, 24]) {
+    for (const group of shopGroups(maxTier, 999)) {
+      const seen = new Map<string, string[]>();
+      for (const item of group.items) {
+        const key = item.quality
+          ? item.id.slice(0, item.id.lastIndexOf(`:${item.quality}`))
+          : item.id;
+        seen.set(key, [...(seen.get(key) ?? []), item.name]);
+      }
+      const dupes = [...seen]
+        .filter(([, names]) => names.length > 1)
+        .map(([key, names]) => `${key}: ${names.join(", ")}`);
+      assert.deepEqual(
+        dupes.slice(0, 3),
+        [],
+        `${group.cls} at tier ${maxTier} lists one item at several qualities`,
+      );
+    }
+  }
+});

@@ -165,9 +165,30 @@ export async function buyFuelCap(userId: string): Promise<ShopResult> {
 }
 
 /** What the shop will show, priced, and only what it actually stocks. */
+/**
+ * The one grade of tool the shop carries.
+ *
+ * Tools are generated at three grades and NOTHING reads the grade: the gate
+ * parses a tool id for its tier and drops the rest, yield takes a tier, no
+ * achievement mentions one, and `buyPrice` charges by tier and class — so all
+ * three cost the same to the coin. Three identical rows per tool is not a
+ * choice, it is padding.
+ *
+ * And it was padding with a consequence. Eight tools at three grades is exactly
+ * twenty-four rows, which is exactly what the block shows — so the list filled
+ * with tier 1 and every deeper tool was stocked, counted in the total, and
+ * unreachable. "Showing 24 of 96" was honest and useless at the same time.
+ *
+ * The grades stay in the catalogue; a player who holds a crude tool keeps it,
+ * and a drop table is free to use them. The shop just stops selling you the
+ * same thing three times.
+ */
+const STOCKED_TOOL_GRADE = "plain";
+
 export function shopStock(maxTier: number) {
   return [...CATALOGUE.values()]
     .filter((i) => STOCKED.has(i.cls) && i.tier <= maxTier)
+    .filter((i) => i.cls !== "tool" || i.quality === STOCKED_TOOL_GRADE)
     .map((i) => ({ ...i, price: buyPrice(i.tier, i.cls) }))
     .sort((a, b) => a.cls.localeCompare(b.cls) || a.tier - b.tier);
 }

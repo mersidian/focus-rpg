@@ -11,7 +11,7 @@ checks below before pushing anything.
 ## Before pushing
 
 ```bash
-npm test                   # 349 unit tests, no database needed
+npm test                   # 355 unit tests, no database needed
 node --env-file=.env.local scripts/schema-check.mjs   # the live schema matches the code
 npm run test:integration   # 54 probes against the real database
 npx tsc --noEmit
