@@ -306,3 +306,40 @@ export async function resolveProject(
     .limit(1);
   return existing ? revive(existing) : null;
 }
+
+/**
+ * The projects a picker offers, and the clock they are described against.
+ *
+ * The clock comes back with the data on purpose. Every other read of it in this
+ * app happens in a service — `session-service` for the snapshot, `gameDay` just
+ * above — and a page that reads `Date.now()` while rendering is both against
+ * that grain and, in a server component, an impure call in render. Handing the
+ * reference time down with the rows it describes also means the "3 days ago" a
+ * chip prints cannot drift between the server's render and the client's.
+ *
+ * Ordered most recently worked first, which is the order a picker wants: the
+ * project you are most likely to mean is the one you were last on.
+ */
+export type PickerProject = {
+  id: string;
+  name: string;
+  focusedMs: number;
+  lastAt: number | null;
+};
+
+export async function projectPicker(
+  userId: string,
+): Promise<{ now: number; projects: PickerProject[] }> {
+  const details = await listProjectDetails(userId);
+  return {
+    now: Date.now(),
+    projects: details
+      .map((p) => ({
+        id: p.id,
+        name: p.name,
+        focusedMs: p.focusedMs,
+        lastAt: p.lastSessionAt,
+      }))
+      .sort((a, b) => (b.lastAt ?? 0) - (a.lastAt ?? 0) || a.name.localeCompare(b.name)),
+  };
+}

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { Nav } from "@/components/Nav";
 import { listLog } from "@/lib/session-service";
-import { listProjectDetails } from "@/lib/project-service";
+import { projectPicker } from "@/lib/project-service";
 import { SessionCorrection } from "@/components/SessionCorrection";
 import { groupNumber } from "@/lib/format";
 import { ABANDON_REASON_LABEL } from "@/lib/constants";
@@ -22,10 +22,13 @@ export default async function LogPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/signin");
 
-  const [entries, projects] = await Promise.all([
+  // The detail rows already carried the hours and the last session, and the
+  // picker was dropping both on the floor.
+  const [entries, picker] = await Promise.all([
     listLog(session.user.id, 200),
-    listProjectDetails(session.user.id),
+    projectPicker(session.user.id),
   ]);
+  const { now, projects: projectOptions } = picker;
   /*
    * What the game paid, per session. Read here rather than joined onto
    * `LogEntry`, because `listLog` is on `buildSnapshot`'s path and that runs on
@@ -35,7 +38,6 @@ export default async function LogPage() {
     session.user.id,
     entries.map((e) => e.id),
   );
-  const projectOptions = projects.map((p) => ({ id: p.id, name: p.name }));
 
   const days = new Map<string, typeof entries>();
   for (const entry of entries) {
@@ -163,6 +165,7 @@ export default async function LogPage() {
                           <SessionCorrection
                             sessionId={entry.id}
                             projects={projectOptions}
+                            now={now}
                             currentProjectName={entry.projectName}
                             currentNote={entry.note}
                             currentHonest={entry.honest}

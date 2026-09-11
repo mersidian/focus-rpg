@@ -21,7 +21,6 @@ import {
   AMMO_LINES,
   POTION_TIERS,
   REFINED_BY_NAME,
-  SLOT_NOUN,
   STONE_KINDS,
   TOOL_SKILLS,
   toolName,
@@ -132,8 +131,6 @@ export function equipmentRecipes(): Recipe[] {
       // Rings and amulets are the jeweller's, not the smith's — see
       // `jewelleryRecipes`. The ITEMS are unchanged; only who makes them moved.
       for (const slot of ARMOUR_SLOTS.filter((sl) => !JEWELLERY_SLOTS.includes(sl))) {
-        const noun = SLOT_NOUN[style][slot];
-        const material = materialFor(style, t.tier);
         out.push({
           id: `recipe:${source.skill}:${style}:${slot}:${t.tier}`,
           skill: source.skill,
@@ -244,8 +241,6 @@ export function jewelleryRecipes(): Recipe[] {
     const from = style === "gun" ? GUN_ENTRY_TIER : 1;
     for (const t of TIERS.filter((x) => x.tier >= from)) {
       for (const slot of JEWELLERY_SLOTS) {
-        const noun = SLOT_NOUN[style][slot];
-        const material = materialFor(style, t.tier);
         out.push({
           id: `recipe:jewelcrafting:${style}:${slot}:${t.tier}`,
           skill: "jewelcrafting",

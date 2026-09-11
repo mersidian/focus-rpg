@@ -4,11 +4,17 @@ import { useState, useTransition } from "react";
 import { correctSession } from "@/lib/actions";
 import { deviceId } from "@/lib/client/device";
 import { SLACKED_XP_MULTIPLIER } from "@/lib/constants";
-import { groupNumber } from "@/lib/format";
+import { groupNumber, hours, sinceLabel } from "@/lib/format";
 import type { Snapshot } from "@/lib/game-types";
 import { UnlockToast } from "./UnlockToast";
 
-type Project = { id: string; name: string };
+type Project = {
+  id: string;
+  name: string;
+  focusedMs: number;
+  /** The last completed session on it, or null if there is none. */
+  lastAt: number | null;
+};
 
 /**
  * Putting right a session that was tagged wrongly. Only what you said about it
@@ -21,6 +27,7 @@ export function SessionCorrection({
   currentNote,
   currentHonest,
   baseXp,
+  now,
 }: {
   sessionId: string;
   projects: Project[];
@@ -28,6 +35,11 @@ export function SessionCorrection({
   currentNote: string | null;
   currentHonest: boolean | null;
   baseXp: number;
+  /**
+   * The server's clock, handed down rather than read here, so the "3 days ago"
+   * on a chip is the same string before and after hydration.
+   */
+  now: number;
 }) {
   const [open, setOpen] = useState(false);
   const [projectId, setProjectId] = useState<string | null>(
@@ -99,13 +111,20 @@ export function SessionCorrection({
                 setCreating(false);
                 setProjectId(p.id);
               }}
-              className="rounded-sm border px-3 py-2 text-body transition-colors"
+              className="rounded-sm border px-3 py-2 text-left text-body transition-colors"
               style={{
                 borderColor: selected ? "var(--action)" : "var(--color-rule)",
                 color: selected ? "var(--action)" : undefined,
               }}
             >
-              {p.name}
+              {/* The same chip the report card shows, for the same reason: a
+                  name alone does not say which of five projects this was. */}
+              <span className="block">{p.name}</span>
+              <span className="mt-0.5 block text-note text-faint">
+                <span className="tnum">{hours(p.focusedMs)}</span>
+                {" · "}
+                {sinceLabel(p.lastAt, now)}
+              </span>
             </button>
           );
         })}
