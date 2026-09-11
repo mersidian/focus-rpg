@@ -11,7 +11,7 @@ checks below before pushing anything.
 ## Before pushing
 
 ```bash
-npm test                   # 357 unit tests, no database needed
+npm test                   # 361 unit tests, no database needed
 node --env-file=.env.local scripts/schema-check.mjs   # the live schema matches the code
 npm run test:integration   # 54 probes against the real database
 npx tsc --noEmit
@@ -52,6 +52,14 @@ before `git push`, and this says whether it took.
   stat band, a drop table, a conversion — comes from `game/rng.ts` seeded on the session, so
   a recompute reproduces a session exactly. A `Date.now()` or an unseeded random in a
   resolution path makes the ledger unrebuildable.
+- **A tool reaches one tier past itself, so the ladder climbs without the shop.** Asking for a
+  tool of the same tier is circular at every rung: bronze ore wants a bronze pickaxe, which
+  wants a bronze bar, which wants bronze ore. The shop was the only way out, which made a
+  convenience into a requirement. The deadlock was found once at the bottom and patched with a
+  special case — "tier 1 needs no tool: a rock and a stick" — without anyone noticing it
+  repeated all the way up; `offers` had always built gathering to `bestTool + 1`, so the list
+  carried one row the gate could never open. A test walks tier 1 to 24 from the starter kit
+  alone. The skill requirement is untouched and is the real pacing.
 - **A gate is a tier number.** Nothing — not handedness, not an archetype, not a quality —
   may change what a requirement gate asks for, or the greyed-out shopping list starts lying
   about what is missing.

@@ -40,6 +40,7 @@ import { BYPRODUCT, resolveYield } from "./game/yield";
 import type { Activity } from "./game/activity";
 import { chainMultiplier, linksBefore, type ChainSession } from "./chain";
 import type { MilestonePaid, ResolutionSummary } from "./game-types";
+import { quality, type Quality } from "./game/quality";
 
 /*
  * Re-exported, because the declarations moved to game-types so a client
@@ -337,14 +338,30 @@ export async function loadGateState(userId: string): Promise<GateState> {
 
   const tiers = Object.values(equipped).map((e) => e?.spec.tier ?? 0);
   const toolTier: Record<string, number> = {};
+  const toolGrade: Record<string, Quality> = {};
   const toolRows = await db
     .select({ itemId: sql<string>`item_id`, qty: sql<number>`qty` })
     .from(sql`inventory_balance`)
     .where(sql`user_id = ${userId} and item_id like 'tool:%' and qty > 0`);
   for (const row of toolRows) {
-    const [, skill, t] = String(row.itemId).split(":");
+    const [, skill, t, grade] = String(row.itemId).split(":");
     const n = Number(t);
-    if (skill && Number.isFinite(n)) toolTier[skill] = Math.max(toolTier[skill] ?? 0, n);
+    if (!skill || !Number.isFinite(n)) continue;
+    const best = toolTier[skill] ?? 0;
+    /*
+     * Tier first, then grade. A crude tier-3 pickaxe beats a fine tier-2 one
+     * because tier is what the gate reads and grade only scales what comes out
+     * — so the better tool is always the deeper one, and grade breaks the tie
+     * among equals rather than competing with depth.
+     */
+    if (n > best) {
+      toolTier[skill] = n;
+      toolGrade[skill] = (grade as Quality) ?? "plain";
+    } else if (n === best) {
+      const held = quality(toolGrade[skill] ?? "plain").window;
+      const found = quality((grade as Quality) ?? "plain").window;
+      if (found > held) toolGrade[skill] = (grade as Quality) ?? "plain";
+    }
   }
 
   return {
@@ -352,6 +369,7 @@ export async function loadGateState(userId: string): Promise<GateState> {
     // A loadout is only as good as its weakest slot: an empty slot is tier 0.
     equipmentTier: tiers.length === 10 ? Math.min(...tiers) : 0,
     toolTier,
+    toolGrade,
     rations,
     potions: await potionsHeld(userId),
     keyItems: markers
@@ -762,6 +780,9 @@ export async function resolveActivity(
         // A unique that "counts as a tool two tiers above itself" is read here.
         (gate.toolTier[row.skill] ?? row.tier) + (mods.toolBonus[row.skill] ?? 0),
       ),
+      // The grade of the tool the gate just accepted, and the only thing grade
+      // moves anywhere in the game.
+      toolWindow: quality(gate.toolGrade[row.skill] ?? "plain").window,
       skillLevel: skills[row.skill] ?? 1,
       chainMultiplier: chain,
       modifiers: mods,

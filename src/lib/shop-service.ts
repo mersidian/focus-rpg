@@ -54,7 +54,9 @@ export async function buyStock(userId: string, itemId: string, qty = 1): Promise
   }
 
   const n = Math.max(1, Math.min(1000, Math.trunc(qty)));
-  const unit = buyPrice(def.tier, def.cls);
+  // The same function the shelf prices with, so a Fine tool cannot be bought
+  // at a Plain tool's price.
+  const unit = priceOf(def);
   const cost = unit * n;
   const wallet = await loadWallet(userId);
   if (wallet.coins < cost) {
@@ -183,13 +185,40 @@ export async function buyFuelCap(userId: string): Promise<ShopResult> {
  * and a drop table is free to use them. The shop just stops selling you the
  * same thing three times.
  */
-const STOCKED_TOOL_GRADE = "plain";
+const STOCKED_TOOL_GRADES: Quality[] = ["plain", "fine"];
+
+/**
+ * What a grade adds to a tool's price.
+ *
+ * Fine is a permanent +12% on everything that tool ever digs up, so it is worth
+ * paying real money for and the premium has to say so — a 12% edge for a 12%
+ * price would be a rounding error dressed as a decision. Crude is not sold at
+ * all: it is the grade you are handed in the starter kit, and a shop that sells
+ * you worse than you can already smith is not offering anything.
+ */
+const GRADE_PRICE: Record<string, number> = { plain: 1, fine: 2 };
+
+/**
+ * Rows the shop shows per class.
+ *
+ * Exported so the page and its test cannot disagree about it — which is exactly
+ * how tools came to fill twenty-four rows with a single tier and nobody noticed.
+ * Two grades of eight tools is sixteen rows a tier, so this covers three.
+ */
+export const SHOP_ROWS_PER_CLASS = 48;
+
+/** A tool's price includes its grade; everything else is priced by class. */
+export function priceOf(def: { tier: number; cls: string; quality?: Quality }): number {
+  const base = buyPrice(def.tier, def.cls);
+  if (def.cls !== "tool") return base;
+  return Math.max(1, Math.round(base * (GRADE_PRICE[def.quality ?? "plain"] ?? 1)));
+}
 
 export function shopStock(maxTier: number) {
   return [...CATALOGUE.values()]
     .filter((i) => STOCKED.has(i.cls) && i.tier <= maxTier)
-    .filter((i) => i.cls !== "tool" || i.quality === STOCKED_TOOL_GRADE)
-    .map((i) => ({ ...i, price: buyPrice(i.tier, i.cls) }))
+    .filter((i) => i.cls !== "tool" || STOCKED_TOOL_GRADES.includes(i.quality as Quality))
+    .map((i) => ({ ...i, price: priceOf(i) }))
     .sort((a, b) => a.cls.localeCompare(b.cls) || a.tier - b.tier);
 }
 

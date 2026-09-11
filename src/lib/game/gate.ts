@@ -15,6 +15,7 @@
  */
 import type { BiomeKey } from "./biomes";
 import { acceptableWards, type Ward } from "./potions";
+import type { Quality } from "./quality";
 
 const ROMAN = ["I", "II", "III", "IV", "V", "VI"];
 
@@ -45,6 +46,16 @@ export type GateState = {
   skills: Record<string, number>;
   equipmentTier: number;
   toolTier: Record<string, number>;
+  /**
+   * The grade of the best tool held for a skill, which the GATE never reads.
+   *
+   * "A gate is a tier number" is the rule directly above, and grade is exactly
+   * the sort of thing that would quietly break it. It rides here because the
+   * same query already walks the tools, and it is consumed by `resolveYield`
+   * and nowhere else: a fine pickaxe digs more out of the same rock, it does
+   * not open a rock that was shut.
+   */
+  toolGrade: Record<string, Quality>;
   rations: number;
   /** Potion holdings by item id, so a ward requirement can be checked. */
   potions: Map<string, number>;

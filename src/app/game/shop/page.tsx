@@ -17,7 +17,7 @@ import {
 } from "@/lib/game/economy";
 import { TIERS, MAX_TIER } from "@/lib/game/tiers";
 import { groupNumber } from "@/lib/format";
-import { shopGroups } from "@/lib/shop-service";
+import { shopGroups, SHOP_ROWS_PER_CLASS } from "@/lib/shop-service";
 import { tierForHours } from "@/lib/game/tiers";
 import { loadState } from "@/lib/game-state";
 import {
@@ -51,7 +51,7 @@ export default async function ShopPage() {
   // The shop stocks a tier above what your hours have opened, so there is always
   // something to save for.
   const openTier = Math.min(24, tierForHours(state.lifetimeFocusedMs / 3_600_000) + 1);
-  const stock = shopGroups(openTier, 24);
+  const stock = shopGroups(openTier, SHOP_ROWS_PER_CLASS);
 
   // Which stone tiers are actually held, so the exchange only offers real trades.
   const held = await balances(session.user.id);

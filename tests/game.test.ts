@@ -5,7 +5,7 @@ import { ARCHETYPES, STYLES, archetypesFor, wheel, BEATS, STYLE_FAMILY } from ".
 import { SPECIES, PARTS, FAMILY_PARTS } from "../src/lib/game/species.ts";
 import { BIOMES, BIOME_MATERIALS, AREAS_PER_BIOME, areaTier } from "../src/lib/game/biomes.ts";
 import { allAreas, allVariants, areasIn, variantsIn, wheelStep } from "../src/lib/game/variants.ts";
-import { QUALITIES } from "../src/lib/game/quality.ts";
+import { QUALITIES, quality, type Quality } from "../src/lib/game/quality.ts";
 import {
   SLOTS, SLOT_KIND, affinity, band, centre, percentile, refineMultiplier,
   loadoutPower, MAX_REFINE,
@@ -77,7 +77,7 @@ import { requirementFor } from "../src/lib/game/requirements.ts";
 import { AMMO_PER_KILL, WHEEL_DISADVANTAGE } from "../src/lib/game/combat.ts";
 import { ammoUnitPrice, salvageStoneYield, salvageStones } from "../src/lib/game/economy.ts";
 import { CROP_LINES } from "../src/lib/game/items.ts";
-import { shopStock, shopGroups, SHOP_CLASS_ORDER } from "../src/lib/shop-service.ts";
+import { shopStock, shopGroups, SHOP_CLASS_ORDER, SHOP_ROWS_PER_CLASS } from "../src/lib/shop-service.ts";
 import { JEWELLERY_SLOTS } from "../src/lib/game/recipes.ts";
 import { BYPRODUCT } from "../src/lib/game/yield.ts";
 import { GATHERED_LINE, gatheredItemId } from "../src/lib/game/items.ts";
@@ -477,6 +477,7 @@ test("an empty roster resolves to nothing rather than looping", () => {
 test("the gate is binary and names everything that is missing", () => {
   const state = {
     skills: { mining: 10 }, equipmentTier: 4, toolTier: { mining: 3 },
+    toolGrade: {},
     rations: 1, potions: new Map(),
     keyItems: [], characterLevel: 5,
   };
@@ -496,7 +497,7 @@ test("nothing but a tier number can move what a gate wants", () => {
   // SPEC-V2 §7: if handedness or an archetype could shift a requirement, the
   // greyed-out list would start lying about what is missing.
   const state = {
-    skills: {}, equipmentTier: 7, toolTier: {}, rations: 0, potions: new Map(),
+    skills: {}, equipmentTier: 7, toolTier: {}, toolGrade: {}, rations: 0, potions: new Map(),
     keyItems: [], characterLevel: 1,
   };
   assert.equal(checkGate({ equipmentTier: 7 }, state).open, true);
@@ -1545,6 +1546,7 @@ test("the gate refuses without a ward and says which one", () => {
     skills: {},
     equipmentTier: 24,
     toolTier: {},
+    toolGrade: {},
     rations: 99,
     potions: new Map(),
     keyItems: [],
@@ -1600,6 +1602,7 @@ function freshAccount() {
     skills: {},
     equipmentTier: 0,
     toolTier: {},
+    toolGrade: {},
     rations: 0,
     potions: new Map<string, number>(),
     keyItems: [] as never[],
@@ -1633,9 +1636,51 @@ test("a brand-new account has something it can actually do", () => {
   );
 });
 
-test("tier 1 gathering needs no tool, and tier 2 does", () => {
+test("a tool reaches one tier past itself", () => {
   assert.equal(requirementFor({ kind: "gathering", skill: "mining", tier: 1 }).toolTier, undefined);
-  assert.equal(requirementFor({ kind: "gathering", skill: "mining", tier: 2 }).toolTier, 2);
+  assert.equal(requirementFor({ kind: "gathering", skill: "mining", tier: 2 }).toolTier, 1);
+  assert.equal(requirementFor({ kind: "gathering", skill: "mining", tier: 9 }).toolTier, 8);
+});
+
+test("the ladder can be climbed without ever opening the shop", () => {
+  // The requirement the whole tool economy rests on. Asking for a tool of the
+  // same tier is circular at every rung — bronze ore wants a bronze pickaxe,
+  // which wants a bronze bar, which wants bronze ore — and the shop was the
+  // only way out, which made a convenience into a requirement.
+  //
+  // Walked as a player would: start with the crude tier-1 tools the starter kit
+  // grants, and check that each tier's materials open the next tier's tools.
+  const recipes = allRecipes();
+  let toolTier = 1;
+  for (let tier = 2; tier <= MAX_TIER; tier++) {
+    const gate = checkGate(
+      requirementFor({ kind: "gathering", skill: "mining", tier }),
+      {
+        skills: { mining: MAX_SKILL_LEVEL },
+        equipmentTier: 0,
+        toolTier: { mining: toolTier },
+        toolGrade: { mining: "crude" },
+        rations: 0,
+        potions: new Map(),
+        keyItems: [],
+        characterLevel: 100,
+      },
+    );
+    assert.ok(
+      gate.open,
+      `a tier-${toolTier} pickaxe cannot reach tier ${tier} ore: ${gate.missing.join(", ")}`,
+    );
+    // And the ore it just won must be enough to smith the next tool.
+    const smithed = recipes.find((r) => r.outputId === `tool:mining:${tier}:${CRAFTED_QUALITY}`);
+    assert.ok(smithed, `nothing smiths a tier-${tier} pickaxe`);
+    for (const input of smithed.inputs) {
+      assert.ok(
+        input.itemId.endsWith(`:${tier}`),
+        `a tier-${tier} pickaxe wants ${input.itemId}, which is not tier ${tier}`,
+      );
+    }
+    toolTier = tier;
+  }
 });
 
 test("the tutorial biome asks for no equipment, and the third biome does", () => {
@@ -2012,7 +2057,7 @@ test("the shop shows more than one tier of tools", () => {
   // Every deeper tool was stocked, counted in the total and unreachable, which
   // is a shop you cannot upgrade from.
   for (const maxTier of [2, 4, 12, 24]) {
-    const tools = shopGroups(maxTier, 24).find((g) => g.cls === "tool");
+    const tools = shopGroups(maxTier, SHOP_ROWS_PER_CLASS).find((g) => g.cls === "tool");
     assert.ok(tools, `no tools stocked at tier ${maxTier}`);
     const tiers = new Set(tools.items.map((i) => i.tier));
     assert.ok(
@@ -2022,27 +2067,40 @@ test("the shop shows more than one tier of tools", () => {
   }
 });
 
-test("the shop never lists one item at two qualities", () => {
-  // Three tool grades at one price is three rows for one purchase, and nothing
-  // reads the grade. Keyed on the id with its quality segment dropped, so
-  // Arrow, Bolt and Dart at one tier stay the three different things they are.
+test("a second grade is a second price, or it is not a second row", () => {
+  // Three tool grades at one identical price was three rows for one purchase,
+  // and it filled the shop with tier 1. A grade may be listed only when it
+  // costs differently — and it may only cost differently because it now does
+  // something, which the yield test below holds it to.
   for (const maxTier of [4, 24]) {
     for (const group of shopGroups(maxTier, 999)) {
-      const seen = new Map<string, string[]>();
+      const byBase = new Map<string, { name: string; price: number }[]>();
       for (const item of group.items) {
         const key = item.quality
           ? item.id.slice(0, item.id.lastIndexOf(`:${item.quality}`))
           : item.id;
-        seen.set(key, [...(seen.get(key) ?? []), item.name]);
+        byBase.set(key, [...(byBase.get(key) ?? []), { name: item.name, price: item.price }]);
       }
-      const dupes = [...seen]
-        .filter(([, names]) => names.length > 1)
-        .map(([key, names]) => `${key}: ${names.join(", ")}`);
-      assert.deepEqual(
-        dupes.slice(0, 3),
-        [],
-        `${group.cls} at tier ${maxTier} lists one item at several qualities`,
-      );
+      for (const [key, rows] of byBase) {
+        const prices = new Set(rows.map((r) => r.price));
+        assert.equal(
+          prices.size,
+          rows.length,
+          `${key} is listed ${rows.length} times at ${prices.size} price(s): ${rows
+            .map((r) => `${r.name} ${r.price}`)
+            .join(", ")}`,
+        );
+      }
+    }
+  }
+});
+
+test("the shop never sells a grade that is worse than the one you start with", () => {
+  // Crude is the handout grade. A shop that sells you worse than the starter
+  // kit already gave you is not offering anything.
+  for (const group of shopGroups(24, 999)) {
+    for (const item of group.items) {
+      assert.notEqual(item.quality, "crude", `the shop sells ${item.name}`);
     }
   }
 });
@@ -2083,4 +2141,51 @@ test("a tool costs more than the ore it is made of", () => {
       `a tier-${t.tier} tool costs more than a piece of armour`,
     );
   }
+});
+
+test("a better tool digs more out of the same rock", () => {
+  // Three grades of every tool existed for as long as the game did and nothing
+  // read one, so a Crude and a Fine pickaxe were the same pickaxe at the same
+  // price. Grade moves yield and only yield.
+  const dig = (window: number) =>
+    resolveYield({
+      focusedMs: 50 * 60_000,
+      skill: "mining",
+      tier: 4,
+      toolTier: 4,
+      toolWindow: window,
+      skillLevel: 20,
+      chainMultiplier: 1,
+      rng: rng(sessionSeed("grade", "yield")),
+    });
+
+  const crude = dig(quality("crude").window);
+  const plain = dig(quality("plain").window);
+  const fine = dig(quality("fine").window);
+
+  assert.ok(crude.expected < plain.expected, "a crude tool is no worse than a plain one");
+  assert.ok(plain.expected < fine.expected, "a fine tool is no better than a plain one");
+  // And the screen can say why: the factor is one of the named parts.
+  assert.ok(
+    fine.parts.some((p) => Math.abs(p.factor - quality("fine").window) < 1e-9),
+    "the tool's grade is not one of the factors the result explains",
+  );
+});
+
+test("grade never moves a gate", () => {
+  // `gate.ts`: "a gate is a tier number. Nothing — not handedness, not an
+  // archetype, not a quality — may change what a requirement gate asks for."
+  const at = (grade: Quality) =>
+    checkGate(requirementFor({ kind: "gathering", skill: "mining", tier: 4 }), {
+      skills: { mining: MAX_SKILL_LEVEL },
+      equipmentTier: 0,
+      toolTier: { mining: 3 },
+      toolGrade: { mining: grade },
+      rations: 0,
+      potions: new Map(),
+      keyItems: [],
+      characterLevel: 100,
+    });
+  assert.deepEqual(at("crude"), at("fine"), "grade changed what the gate asked for");
+  assert.equal(at("crude").open, true, "a tier-3 tool cannot reach tier 4");
 });

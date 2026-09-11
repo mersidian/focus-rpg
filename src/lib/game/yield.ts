@@ -71,6 +71,20 @@ export type YieldInput = {
   /** The resource's tier. */
   tier: number;
   toolTier: number;
+  /**
+   * The grade of that tool, as its quality window.
+   *
+   * Three grades of every tool existed for as long as the game did and nothing
+   * read one, so a Crude and a Fine pickaxe were the same pickaxe at the same
+   * price. This is the one thing grade moves, and it is deliberately not the
+   * gate: `gate.ts` says a gate is a tier number, so a better tool digs more
+   * out of the same rock rather than opening a rock that was shut.
+   *
+   * It reuses `QUALITIES.window` — the same 0.85 / 1.0 / 1.12 that shifts an
+   * equipment stat band — because grade should mean one thing in this game, not
+   * two.
+   */
+  toolWindow?: number;
   skillLevel: number;
   /** From `chain.ts`; 1 when no links stand behind the session. */
   chainMultiplier: number;
@@ -114,6 +128,7 @@ export function resolveYield(input: YieldInput): YieldResult {
   const mods = input.modifiers ?? emptyModifiers();
   const parts = [
     { label: "a tool above the tier", factor: 1 + toolAbove * TOOL_TIER_BONUS },
+    { label: "how good that tool is", factor: input.toolWindow ?? 1 },
     {
       label: "skill above the requirement",
       factor: 1 + Math.min(MAX_SKILL_BONUS, skillAbove * SKILL_LEVEL_BONUS),

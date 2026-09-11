@@ -18,10 +18,27 @@ export function requirementFor(activity: Activity): Requirement {
   if (activity.kind === "gathering") {
     return {
       skill: { key: activity.skill, level: tierSkillRequirement(activity.tier) },
-      // Tier 1 needs no tool: a rock and a stick. Requiring a bought tool for
-      // the shallowest resource deadlocked the game — no tool meant no
-      // gathering, no materials, no coins, and no way to buy the tool.
-      toolTier: activity.tier > 1 ? activity.tier : undefined,
+      /*
+       * A tool reaches one tier past itself, and that is what makes the ladder
+       * climbable without ever opening the shop.
+       *
+       * Asking for a tool of the same tier is a circular dependency at every
+       * rung: bronze ore wants a bronze pickaxe, a bronze pickaxe wants a
+       * bronze bar, and a bronze bar wants bronze ore. The shop was the only
+       * way out of that loop, which made a convenience into a requirement.
+       *
+       * The deadlock was already found once, at the bottom, and patched with a
+       * special case — "tier 1 needs no tool: a rock and a stick" — without
+       * noticing it repeated all the way up. And `offers` has always built
+       * gathering up to `bestTool + 1`, so the offer list carried exactly one
+       * row the gate could never open. This is the gate agreeing with the list
+       * that was already being shown.
+       *
+       * The skill requirement is untouched, and it is the real pacing: tier 3
+       * still wants level 5, tier 12 level 41. What this removes is a materials
+       * deadlock, not a difficulty curve.
+       */
+      toolTier: activity.tier > 1 ? activity.tier - 1 : undefined,
     };
   }
 
