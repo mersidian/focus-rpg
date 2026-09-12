@@ -11,7 +11,7 @@ import {
   logCollected,
   type Grant,
 } from "./inventory-service";
-import { applyDelta } from "./game-state";
+import { applyDelta, loadState } from "./game-state";
 import { allRecipes, canCraft, type Recipe } from "./game/recipes";
 import { skillLevel } from "./game/skills";
 import { milestoneMarker, skillLevelXp, skillMilestonesCrossed } from "./game/milestones";
@@ -64,7 +64,7 @@ export async function craftItem(
   if (!recipe) return { ok: false, missing: ["that recipe"] };
 
   const runs = Math.max(1, Math.min(MAX_CRAFT_AT_ONCE, Math.trunc(times)));
-  const [held, wallet, levelRow] = await Promise.all([
+  const [held, wallet, levelRow, state] = await Promise.all([
     have(userId, recipe.inputs.map((i) => i.itemId)),
     loadWallet(userId),
     db
@@ -72,6 +72,9 @@ export async function craftItem(
       .from(skillStates)
       .where(and(eq(skillStates.userId, userId), eq(skillStates.skill, recipe.skill)))
       .limit(1),
+    // The character level, because the skill itself is gated on it. Checked
+    // here and not only on the page: a server action is reachable without one.
+    loadState(userId),
   ]);
   const level = skillLevel(levelRow[0]?.xp ?? 0);
 
@@ -81,7 +84,10 @@ export async function craftItem(
     fuel: recipe.fuel * runs,
     inputs: recipe.inputs.map((i) => ({ ...i, qty: i.qty * runs })),
   };
-  const check = canCraft(scaled, (id) => held.get(id) ?? 0, wallet.fuel, level);
+  const check = canCraft(scaled, (id) => held.get(id) ?? 0, wallet.fuel, {
+    skill: level,
+    character: state.level,
+  });
   if (!check.ok) return { ok: false, missing: check.missing };
 
   const makesEquipment =

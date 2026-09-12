@@ -281,7 +281,7 @@ days would flatter the number and make the date wrong.
 
 ## Decisions the spec left open
 
-Four things were not settled in SPEC-V1.md and had to be chosen to build. Each is one
+Five things were not settled in the specs and had to be chosen to build. Each is one
 constant or one commented block, easy to change.
 
 - **Where ranks II–IV sit inside a tier.** The spec's table pins rank I and rank V of
@@ -295,6 +295,17 @@ constant or one commented block, easy to change.
   by how much. Currently half — `SLACKED_XP_MULTIPLIER` in `src/lib/constants.ts`.
 - **Who may sign in.** The spec says single-user, but the app sits on a public URL, so
   `ALLOWED_GITHUB_LOGIN` locks sign-in to one GitHub account. Unset, anyone may sign in.
+- **Which skill opens at which character level.** SPEC-V2.md §11 decided that *"skills gate
+  on character level"* and named one example — *"Mining unlocks at a character level"* —
+  without giving the table. It is the `unlock` column in `src/lib/game/skills.ts`, and the
+  audit prints it in hours, which is the only unit it can honestly be judged in: nine skills
+  from the first minute, all twenty-two by ninety-three focused hours.
+
+  Two rules shaped it rather than taste. A processing skill never opens in front of the
+  gathering skill that feeds it, so nothing arrives with an empty list — a test walks every
+  recipe to prove each skill can run one the day it opens. And combat skills are ungated,
+  because you never pick one: you pick an area, and an area already asks for a character
+  level of its own.
 
 ## The look
 

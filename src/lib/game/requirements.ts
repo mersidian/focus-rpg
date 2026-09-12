@@ -9,7 +9,7 @@
 import { BIOME_BY_INDEX } from "./biomes";
 import { bossesIn } from "./bosses";
 import { hazardOf, wardTierFor } from "./potions";
-import { tierSkillRequirement } from "./skills";
+import { skillUnlock, tierSkillRequirement } from "./skills";
 import { areasIn } from "./variants";
 import type { Requirement } from "./gate";
 import type { Activity } from "./activity";
@@ -17,6 +17,13 @@ import type { Activity } from "./activity";
 export function requirementFor(activity: Activity): Requirement {
   if (activity.kind === "gathering") {
     return {
+      /*
+       * The skill has to be open before its tiers mean anything (SPEC-V2.md
+       * §11). This is the one requirement on the list that cannot be shopped
+       * for, traded for or crafted around: it is paid in focused minutes, which
+       * is the only currency this app actually mints.
+       */
+      characterLevel: skillUnlock(activity.skill),
       skill: { key: activity.skill, level: tierSkillRequirement(activity.tier) },
       /*
        * A tool reaches one tier past itself, and that is what makes the ladder

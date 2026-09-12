@@ -46,9 +46,13 @@ export type SkillView = {
   floor: number;
   next: number | null;
   progress: number;
+  /** The character level that opens it (SPEC-V2.md §11). */
+  unlock: number;
+  /** Whether this character has reached it. */
+  open: boolean;
 };
 
-export async function skillViews(userId: string): Promise<SkillView[]> {
+export async function skillViews(userId: string, characterLevel: number): Promise<SkillView[]> {
   const xpByKey = await loadSkillXp(userId);
   return SKILLS.map((s) => {
     const xp = xpByKey[s.key] ?? 0;
@@ -65,6 +69,8 @@ export async function skillViews(userId: string): Promise<SkillView[]> {
       floor,
       next,
       progress: next === null ? 1 : (xp - floor) / Math.max(1, next - floor),
+      unlock: s.unlock,
+      open: s.unlock <= characterLevel,
     };
   });
 }

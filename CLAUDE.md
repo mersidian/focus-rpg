@@ -11,7 +11,7 @@ checks below before pushing anything.
 ## Before pushing
 
 ```bash
-npm test                   # 362 unit tests, no database needed
+npm test                   # 367 unit tests, no database needed
 node --env-file=.env.local scripts/schema-check.mjs   # the live schema matches the code
 npm run test:integration   # 54 probes against the real database
 npx tsc --noEmit
@@ -63,6 +63,18 @@ before `git push`, and this says whether it took.
 - **A gate is a tier number.** Nothing — not handedness, not an archetype, not a quality —
   may change what a requirement gate asks for, or the greyed-out shopping list starts lying
   about what is missing.
+- **A skill opens at a character level, and that unlock is paid only in minutes.** SPEC-V2.md
+  §11's first seam — *"skills gate on character level"* — was decided and then not built:
+  `Skill` had no such field and nothing asked for one, so all twenty-two were open from the
+  first minute and V1's ladder meant nothing inside the game. The `unlock` column is now in
+  the requirement gate, in `canCraft`, and in `buyStock` for a skill's tools. Every unlock is
+  bought with focused time and nothing else — no material, no coin, no other skill stands in
+  front of it — which is what makes it safe to put in a gate that can otherwise deadlock an
+  account. A processing skill must never open in front of the gathering skill feeding it: a
+  test walks every recipe and asserts each skill can run one on the day it opens, which is the
+  same rule as *"a skill with no recipes is a skill written down"* applied to the calendar
+  rather than the catalogue. `game-audit.mjs` prints the ladder in hours, which is the only
+  unit an unlock can honestly be judged in — level 20 reads very differently from 93 hours.
 - **Nothing is hard-deleted.** Superseded state goes to `game_state_backup`; a merged
   project keeps its row pointing at where its hours went.
 - **Levels ratchet.** XP can fall; the level cannot. Prestige is the single sanctioned

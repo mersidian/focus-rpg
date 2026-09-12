@@ -4,6 +4,7 @@ import { Screen, Block, Rows, Empty, Gauge, DepthRange } from "@/components/Game
 import { MAX_TIER } from "@/lib/game/tiers";
 import { overview } from "@/lib/game-view-service";
 import { skillViews } from "@/lib/game-view-service";
+import { loadState } from "@/lib/game-state";
 import { BIOMES } from "@/lib/game/biomes";
 import { variantsIn } from "@/lib/game/variants";
 import { groupNumber } from "@/lib/format";
@@ -14,7 +15,11 @@ export const dynamic = "force-dynamic";
 export default async function SlayingPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/signin");
-  const [o, skills] = await Promise.all([overview(session.user.id), skillViews(session.user.id)]);
+  const state = await loadState(session.user.id);
+  const [o, skills] = await Promise.all([
+    overview(session.user.id),
+    skillViews(session.user.id, state.level),
+  ]);
   const slaying = skills.find((s) => s.key === "slaying");
   const level = slaying?.level ?? 1;
 

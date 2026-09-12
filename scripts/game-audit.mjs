@@ -13,7 +13,8 @@ import { SLOTS, band, loadoutPower } from "../src/lib/game/power.ts";
 import { RARITIES, spawnPower, successChance, wheelFactor, resolveCombat, rationsPerFailure } from "../src/lib/game/combat.ts";
 import { allVariants, allAreas, areasIn } from "../src/lib/game/variants.ts";
 import { BIOMES } from "../src/lib/game/biomes.ts";
-import { SKILL_XP, tierSkillRequirement } from "../src/lib/game/skills.ts";
+import { SKILL_XP, SKILLS, tierSkillRequirement } from "../src/lib/game/skills.ts";
+import { LEVEL_XP } from "../src/lib/levels.ts";
 import { refineTotal, bankSlotsTotalCost, tierValue, ammoUnitPrice, sellPrice, rationPrice } from "../src/lib/game/economy.ts";
 import { rng } from "../src/lib/game/rng.ts";
 import { BYPRODUCT, resolveYield } from "../src/lib/game/yield.ts";
@@ -177,6 +178,19 @@ for (const t of [6, 12, 24]) {
   const need = refineTotal(t).stones;
   line(`  50min at tier ${t}: ${per.toFixed(1)} relics -> ${stones} stones, and a full +10 wants ${need} (${(need / Math.max(1, stones)).toFixed(1)} sessions)`);
 }
+
+line("\n=== THE UNLOCK LADDER ===");
+/*
+ * What a spec cannot say: the HOUR each skill arrives at. The unlock table is
+ * written in character levels, and a level is only meaningful as the focused
+ * time it costs — level 20 is ninety-three hours, which reads very differently
+ * from "20". This is the line to check after moving any unlock.
+ */
+for (const s of [...SKILLS].sort((a, b) => a.unlock - b.unlock || a.key.localeCompare(b.key))) {
+  const hours = LEVEL_XP[s.unlock - 1] / 60;
+  line(`  lv ${String(s.unlock).padStart(2)} ${hours.toFixed(1).padStart(6)}h  ${s.label} (${s.kind})`);
+}
+line(`  ${SKILLS.filter((s) => s.unlock <= 1).length} open at the first minute, all ${SKILLS.length} by ${(LEVEL_XP[Math.max(...SKILLS.map((s) => s.unlock)) - 1] / 60).toFixed(0)}h`);
 
 line("\n=== CURVES ===");
 line(`skill 99 costs ${SKILL_XP[98]} xp = ${(SKILL_XP[98] / 60).toFixed(0)} focused hours on that skill`);

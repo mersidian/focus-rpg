@@ -17,7 +17,10 @@ import {
 import { checkGate } from "../src/lib/game/gate.ts";
 import { resolveYield } from "../src/lib/game/yield.ts";
 import { rng, sessionSeed } from "../src/lib/game/rng.ts";
-import { SKILLS, SKILL_XP, MAX_SKILL_LEVEL, skillLevel, tierSkillRequirement } from "../src/lib/game/skills.ts";
+import {
+  SKILLS, SKILL_XP, MAX_SKILL_LEVEL, skillLevel, tierSkillRequirement,
+  skillsOpenAt, nextSkillUnlock,
+} from "../src/lib/game/skills.ts";
 import {
   tierValue, refineStoneCost, refineCoinCost, refineTotal, bankSlotCost, bankSlotsTotalCost,
   BANK_SLOTS_BASE, BANK_SLOTS_MAX, AMMO_COST, processFuelCost, FUEL_BY_LENGTH,
@@ -51,7 +54,7 @@ import {
   skillLevelXp,
   skillMilestonesCrossed,
 } from "../src/lib/game/milestones.ts";
-import { LEVEL_XP } from "../src/lib/levels.ts";
+import { LEVEL_XP, MAX_LEVEL } from "../src/lib/levels.ts";
 import {
   CROP_OUTPUT,
   MAX_PLOTS,
@@ -792,10 +795,10 @@ test("no recipe makes a firearm or a coat below the gun entry tier", () => {
 
 test("a craft is gated the same way an area is: binary, and it says what is short", () => {
   const recipe = allRecipes().find((r) => r.skill === "smelting" && r.tier === 10)!;
-  const ok = canCraft(recipe, () => 99, 9999, 99);
+  const ok = canCraft(recipe, () => 99, 9999, { skill: 99, character: 100 });
   assert.equal(ok.ok, true);
 
-  const short = canCraft(recipe, () => 0, 0, 1);
+  const short = canCraft(recipe, () => 0, 0, { skill: 1, character: 100 });
   assert.equal(short.ok, false);
   if (short.ok) return;
   assert.ok(short.missing.length >= 3, "the craft gate did not list everything missing");
@@ -1628,12 +1631,23 @@ test("a brand-new account has something it can actually do", () => {
   }
 
   assert.ok(open.length > 0, "a fresh account has nothing open — the game is unreachable");
-  // And specifically: every tier-1 gathering skill, with bare hands.
-  assert.equal(
-    open.filter((o) => o.endsWith(" 1")).length,
-    6,
-    `only these were open with nothing: ${open.join(", ")}`,
+  /*
+   * And specifically: every gathering skill the unlock ladder opens at level 1,
+   * at tier 1, with bare hands.
+   *
+   * This used to read `=== 6` — every gathering skill — because there was no
+   * unlock ladder and all of them were open from the first minute. The figure
+   * is derived now rather than typed, so moving a skill's unlock moves this
+   * test with it, and the thing being asserted is the thing that matters: what
+   * the ladder says is open on day one is open on day one, with nothing.
+   */
+  const atLevelOne = SKILLS.filter((s) => s.kind === "gathering" && s.unlock <= 1);
+  assert.deepEqual(
+    open.filter((o) => o.endsWith(" 1")).sort(),
+    atLevelOne.map((s) => `${s.label} 1`).sort(),
+    `the level-1 gathering skills and what actually opened disagree: ${open.join(", ")}`,
   );
+  assert.ok(atLevelOne.length >= 2, "one gathering skill on day one is not a game");
 });
 
 test("a tool reaches one tier past itself", () => {
@@ -1911,6 +1925,135 @@ test("every gathering skill's output is worth something", () => {
     );
     assert.ok(consumed, `nothing consumes what ${skill.label} gathers`);
   }
+});
+
+/* -------------------------------------------------------------------------- */
+/*  The unlock ladder (SPEC-V2.md §11)                                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Everything a character of this level can end up holding.
+ *
+ * A fixed point, because a recipe's inputs are usually other recipes' outputs:
+ * ore and charcoal make a bar, a bar makes a pickaxe. Seeds and their crops
+ * count as reachable — they come off the shelf for coins, and coins are always
+ * obtainable — which is the honest accounting even though it means Fibre, and
+ * therefore Tailoring, leans on the shop in a way nothing else does.
+ */
+function reachableAt(characterLevel: number): Set<string> {
+  const open = new Set(skillsOpenAt(characterLevel).map((s) => s.key));
+  const have = new Set<string>();
+  for (const skill of Object.keys(GATHERED_LINE)) {
+    if (!open.has(skill)) continue;
+    for (const t of TIERS) have.add(gatheredItemId(skill, t.tier));
+  }
+  for (const [skill, { line }] of Object.entries(BYPRODUCT)) {
+    if (!open.has(skill)) continue;
+    for (const t of TIERS) have.add(`raw:${line}:${t.tier}`);
+  }
+  for (const crop of CROP_LINES) {
+    for (const t of TIERS) have.add(`raw:${crop}:${t.tier}`);
+  }
+
+  const usable = allRecipes().filter((r) => open.has(r.skill));
+  for (;;) {
+    let grew = false;
+    for (const r of usable) {
+      if (have.has(r.outputId)) continue;
+      if (r.inputs.every((i) => have.has(i.itemId))) {
+        have.add(r.outputId);
+        grew = true;
+      }
+    }
+    if (!grew) return have;
+  }
+}
+
+test("a skill that opens with nothing to do is a skill written down", () => {
+  /*
+   * The ladder's own version of the rule this file already enforces twice:
+   * `AMMO_COST` existed while nothing spent ammunition, and Alchemy shipped
+   * with a note, a fuel cost and no recipes. An unlock that lands in front of
+   * the gathering skill feeding it is the same mistake in a third costume —
+   * Tailoring arriving before anything makes fibre would be a congratulations
+   * screen attached to an empty list.
+   *
+   * So every processing skill must have at least one recipe it can actually
+   * run on the day it opens, with no skill that is still shut.
+   */
+  for (const skill of SKILLS.filter((s) => s.kind === "processing")) {
+    const have = reachableAt(skill.unlock);
+    const runnable = allRecipes().filter(
+      (r) => r.skill === skill.key && r.inputs.every((i) => have.has(i.itemId)),
+    );
+    assert.ok(
+      runnable.length > 0,
+      `${skill.label} opens at character level ${skill.unlock} with nothing it can make`,
+    );
+  }
+});
+
+test("every unlock is paid in focused minutes and nothing else", () => {
+  // The property that makes it safe to put an unlock inside the requirement
+  // gate. Every other line in that gate can be blocked by something you do not
+  // have; this one can only be blocked by time, so no unlock can ever be the
+  // thing that deadlocks an account.
+  for (const s of SKILLS) {
+    assert.ok(Number.isInteger(s.unlock), `${s.label}'s unlock is not a whole level`);
+    assert.ok(s.unlock >= 1 && s.unlock <= MAX_LEVEL, `${s.label} unlocks at an impossible level`);
+  }
+  // And the ladder has a bottom: enough at level 1 to make a first tool and
+  // fight the first area, which is the loop the whole game is built on.
+  const day1 = skillsOpenAt(1);
+  assert.ok(
+    day1.some((s) => s.kind === "gathering") && day1.some((s) => s.kind === "processing"),
+    "level 1 opens no way to gather or no way to make",
+  );
+});
+
+test("a combat skill is never gated, because nothing lets you pick one", () => {
+  // You choose an AREA, and an area asks for a character level of its own.
+  // Gating the style as well would be the same wall twice, and the second one
+  // would be invisible — no screen in the app names a combat skill as a choice.
+  for (const s of SKILLS.filter((s) => s.kind === "combat")) {
+    assert.equal(s.unlock, 1, `${s.label} is gated, and nothing would ever tell the player`);
+  }
+});
+
+test("the two gates say the same sentence about the same ladder", () => {
+  // A player meets the unlock on the activity picker and again on the crafting
+  // page. If those two screens word it differently it reads as two rules.
+  const locked = SKILLS.find((s) => s.kind === "gathering" && s.unlock > 1)!;
+  const state = { ...freshAccount(), skills: { [locked.key]: MAX_SKILL_LEVEL } };
+  const gate = checkGate(requirementFor({ kind: "gathering", skill: locked.key, tier: 1 }), state);
+  assert.ok(!gate.open, `${locked.label} opened at character level 1`);
+  assert.ok(
+    gate.missing.includes(`character level ${locked.unlock}`),
+    `the picker said ${JSON.stringify(gate.missing)}`,
+  );
+
+  const shut = SKILLS.filter((s) => s.kind === "processing").sort((a, b) => b.unlock - a.unlock)[0];
+  const recipe = allRecipes().find((r) => r.skill === shut.key)!;
+  const check = canCraft(recipe, () => 99, 9999, { skill: MAX_SKILL_LEVEL, character: 1 });
+  assert.ok(!check.ok, `${shut.label} crafted at character level 1`);
+  if (check.ok) return;
+  assert.ok(
+    check.missing.includes(`character level ${shut.unlock}`),
+    `the crafting page said ${JSON.stringify(check.missing)}`,
+  );
+});
+
+test("the ladder always has one more skill ahead of it, until it does not", () => {
+  // `nextSkillUnlock` is what the skills page promises with. Null at the top is
+  // the honest answer there, not a sixth way of writing "maxed".
+  const deepest = Math.max(...SKILLS.map((s) => s.unlock));
+  for (let level = 1; level < deepest; level++) {
+    const next = nextSkillUnlock(level);
+    assert.ok(next, `nothing left to unlock at character level ${level}, but ${deepest} exists`);
+    assert.ok(next!.unlock > level, "the next unlock is one already open");
+  }
+  assert.equal(nextSkillUnlock(deepest), null, "something still unlocks past the deepest unlock");
+  assert.equal(skillsOpenAt(deepest).length, SKILLS.length, "not every skill opens by the top");
 });
 
 test("every potion has exactly one way to make it", () => {

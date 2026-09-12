@@ -65,7 +65,16 @@ function runsPossible(r: CraftRow, fuel: number): number {
   return Math.max(0, Math.min(byFuel, ...byInput));
 }
 
-export function CraftFilter({ rows, fuel }: { rows: CraftRow[]; fuel: number }) {
+export function CraftFilter({
+  rows,
+  fuel,
+  locked,
+}: {
+  rows: CraftRow[];
+  fuel: number;
+  /** Skills the character level has not opened yet, shallowest first. */
+  locked: { label: string; at: number }[];
+}) {
   const [query, setQuery] = useState("");
   const [skill, setSkill] = useState("all");
   const [ready, setReady] = useState(false);
@@ -140,6 +149,20 @@ export function CraftFilter({ rows, fuel }: { rows: CraftRow[]; fuel: number }) 
         <span className="tnum">{shown.length}</span> of <span className="tnum">{rows.length}</span>{" "}
         within reach · fuel <span className="tnum text-dim">{fuel.toLocaleString()}</span>
       </p>
+
+      {/* What is not here and when it arrives. A page that quietly omits a
+          third of the game is worse than one that says what it omitted. */}
+      {locked.length > 0 && (
+        <p className="mt-1 text-note text-faint">
+          Not open yet:{" "}
+          {locked.map((s, n) => (
+            <span key={s.label}>
+              {n > 0 && " · "}
+              {s.label} at character level <span className="tnum text-dim">{s.at}</span>
+            </span>
+          ))}
+        </p>
+      )}
 
       {shown.length === 0 ? (
         <p className="mt-6 text-body text-faint">

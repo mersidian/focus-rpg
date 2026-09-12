@@ -19,6 +19,7 @@ import { groupNumber } from "@/lib/format";
 import { shopStock } from "@/lib/shop-service";
 import { tierForHours } from "@/lib/game/tiers";
 import { loadState } from "@/lib/game-state";
+import { skillUnlock } from "@/lib/game/skills";
 import {
   BuyFuelCapButton,
   BuySlotsButton,
@@ -41,7 +42,14 @@ export default async function ShopPage() {
   // The shop stocks a tier above what your hours have opened, so there is always
   // something to save for.
   const openTier = Math.min(24, tierForHours(state.lifetimeFocusedMs / 3_600_000) + 1);
-  const stock = shopStock(openTier);
+  /*
+   * A tool for a skill you cannot use yet is not stock, it is a trap with a
+   * price on it: the shop would happily sell a level-1 character an excavation
+   * pick that nothing will let them swing until level 12. Tools are the only
+   * class on the shelf that belongs to a skill, so this is the only filter the
+   * unlock ladder needs here.
+   */
+  const stock = shopStock(openTier).filter((i) => !i.skill || skillUnlock(i.skill) <= state.level);
 
   // Which stone tiers are actually held, so the exchange only offers real trades.
   const held = await balances(session.user.id);

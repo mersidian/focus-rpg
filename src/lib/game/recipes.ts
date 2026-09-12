@@ -31,7 +31,7 @@ import {
   rationName,
 } from "./items";
 import type { Slot } from "./power";
-import { processingXp, tierSkillRequirement } from "./skills";
+import { processingXp, skillUnlock, tierSkillRequirement } from "./skills";
 
 export type Ingredient = { itemId: string; qty: number };
 
@@ -399,11 +399,25 @@ export function canCraft(
   recipe: Recipe,
   have: (itemId: string) => number,
   fuel: number,
-  level: number,
+  /**
+   * Both levels, as one argument rather than two adjacent numbers.
+   *
+   * The skill's own level and the character level that opens the skill at all
+   * are different questions with the same type, and a positional pair of them
+   * is a bug waiting for a refactor to swap it.
+   */
+  levels: { skill: number; character: number },
   nameOf: (itemId: string) => string = (id) => id,
 ): CraftCheck {
   const missing: string[] = [];
-  if (level < recipe.level) missing.push(`${recipe.skill} ${recipe.level}`);
+  /*
+   * The skill has to be open before its levels mean anything. Worded exactly as
+   * `checkGate` words it, because a player meets these two gates on different
+   * screens and they are the same sentence about the same ladder.
+   */
+  const unlock = skillUnlock(recipe.skill);
+  if (levels.character < unlock) missing.push(`character level ${unlock}`);
+  if (levels.skill < recipe.level) missing.push(`${recipe.skill} ${recipe.level}`);
   if (fuel < recipe.fuel) missing.push(`${recipe.fuel} fuel (you have ${fuel})`);
   for (const input of recipe.inputs) {
     const held = have(input.itemId);

@@ -27,8 +27,9 @@ import { salvageStones } from "./game/economy";
 import { percentile, type ItemSpec, type Slot } from "./game/power";
 import type { Style } from "./game/archetypes";
 import type { Quality } from "./game/quality";
-import { skillLevel } from "./game/skills";
+import { skillLevel, skillUnlock } from "./game/skills";
 import { rollContract } from "./game/contracts";
+import { loadState } from "./game-state";
 import { MAX_BUY_AT_ONCE } from "./constants";
 
 /**
@@ -52,6 +53,20 @@ export async function buyStock(userId: string, itemId: string, qty = 1): Promise
   if (!def) return { ok: false, reason: "The shop does not carry that." };
   if (!STOCKED.has(def.cls)) {
     return { ok: false, reason: `${def.name} has to be made or found, not bought.` };
+  }
+
+  /*
+   * A tool for a skill that has not opened yet is refused, not merely hidden.
+   * The shelf already filters these out; if the action did not agree, the
+   * filter would be decoration and the first client to post an id would find
+   * itself holding a pick it cannot swing until level 12.
+   */
+  if (def.skill) {
+    const unlock = skillUnlock(def.skill);
+    const state = await loadState(userId);
+    if (state.level < unlock) {
+      return { ok: false, reason: `${def.name} needs character level ${unlock}.` };
+    }
   }
 
   const n = Math.max(1, Math.min(MAX_BUY_AT_ONCE, Math.trunc(qty)));

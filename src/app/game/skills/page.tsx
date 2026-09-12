@@ -5,7 +5,8 @@ import type { IconName } from "@/components/Icon";
 import { skillKindHue } from "@/lib/palette";
 import { skillViews } from "@/lib/game-view-service";
 import { depthInk, groupNumber } from "@/lib/format";
-import { MAX_SKILL_LEVEL, SKILL_XP } from "@/lib/game/skills";
+import { MAX_SKILL_LEVEL, SKILL_XP, nextSkillUnlock } from "@/lib/game/skills";
+import { loadState } from "@/lib/game-state";
 
 export const dynamic = "force-dynamic";
 
@@ -18,8 +19,13 @@ const KINDS = [
 export default async function SkillsPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/signin");
-  const skills = await skillViews(session.user.id);
-  const total = skills.reduce((n, s) => n + s.level, 0);
+  const state = await loadState(session.user.id);
+  const skills = await skillViews(session.user.id, state.level);
+  // A locked skill has no level to add — counting it would make the total
+  // claim credit for a skill you have never been able to touch.
+  const total = skills.reduce((n, s) => n + (s.open ? s.level : 0), 0);
+  const open = skills.filter((s) => s.open).length;
+  const next = nextSkillUnlock(state.level);
 
   return (
     <Screen
@@ -34,8 +40,16 @@ export default async function SkillsPage() {
       }
     >
       <p className="mt-6 text-body text-faint">
-        Total level <span className="tnum text-dim">{groupNumber(total)}</span> of{" "}
-        <span className="tnum">{groupNumber(skills.length * MAX_SKILL_LEVEL)}</span>
+        <span className="tnum text-dim">{open}</span> of{" "}
+        <span className="tnum">{skills.length}</span> open · total level{" "}
+        <span className="tnum text-dim">{groupNumber(total)}</span> of{" "}
+        <span className="tnum">{groupNumber(open * MAX_SKILL_LEVEL)}</span>
+        {next && (
+          <>
+            {" · "}
+            {next.label} at character level <span className="tnum text-dim">{next.unlock}</span>
+          </>
+        )}
       </p>
 
       {KINDS.map((kind) => {
@@ -49,7 +63,7 @@ export default async function SkillsPage() {
             <ul>
               {here.map((s) => (
                 <li key={s.key} className="border-b border-rule py-3 last:border-0">
-                  <div className="flex items-center gap-3">
+                  <div className={`flex items-center gap-3 ${s.open ? "" : "opacity-55"}`}>
                     {/*
                       The well says what kind of skill this is; the level beside
                       it says how far along. Two questions, two colours — and
@@ -62,24 +76,46 @@ export default async function SkillsPage() {
                         <p className="min-w-0 truncate text-dim">
                           {s.label} <span className="text-faint">— {s.note}</span>
                         </p>
-                        <p
-                          className="tnum shrink-0"
-                          style={{ color: depthInk(s.level, MAX_SKILL_LEVEL) }}
-                        >
-                          {s.level}
-                        </p>
-                      </div>
-                      <Rail progress={s.progress} />
-                      <p className="mt-1 text-note text-faint">
-                        <span className="tnum">{groupNumber(s.xp)}</span> xp
-                        {s.next !== null && (
-                          <>
-                            {" · "}
-                            <span className="tnum">{groupNumber(s.next - s.xp)}</span> to{" "}
-                            {s.level + 1}
-                          </>
+                        {s.open ? (
+                          <p
+                            className="tnum shrink-0"
+                            style={{ color: depthInk(s.level, MAX_SKILL_LEVEL) }}
+                          >
+                            {s.level}
+                          </p>
+                        ) : (
+                          <p className="shrink-0 text-note text-faint">locked</p>
                         )}
-                      </p>
+                      </div>
+                      {/*
+                        A locked skill keeps its mark, its name and its note and
+                        loses only its numbers. Hiding it outright would make
+                        the game look smaller than it is; showing it with a zero
+                        beside it would be a lie about a skill you have never
+                        had. What it gets instead is the one fact that is
+                        actually true of it — the level it arrives at.
+                      */}
+                      {s.open ? (
+                        <>
+                          <Rail progress={s.progress} />
+                          <p className="mt-1 text-note text-faint">
+                            <span className="tnum">{groupNumber(s.xp)}</span> xp
+                            {s.next !== null && (
+                              <>
+                                {" · "}
+                                <span className="tnum">{groupNumber(s.next - s.xp)}</span> to{" "}
+                                {s.level + 1}
+                              </>
+                            )}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="mt-1 text-note text-faint">
+                          Opens at character level{" "}
+                          <span className="tnum text-dim">{s.unlock}</span> — focused minutes and
+                          nothing else.
+                        </p>
+                      )}
                     </div>
                   </div>
                 </li>
