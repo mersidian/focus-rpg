@@ -181,6 +181,15 @@ export async function instances(userId: string): Promise<InstanceRow[]> {
 }
 
 export type Overview = {
+  /**
+   * The reference time the page describes, read here rather than in the page.
+   *
+   * Every clock read in this app lives in a service — `session-service` for the
+   * snapshot, `project-service` for the picker — and a `Date.now()` during
+   * render is both impure and a second value: "3 days ago" should be one
+   * reading for the whole page, not one per row that can drift across it.
+   */
+  now: number;
   coins: number;
   fuel: number;
   fuelCap: number;
@@ -231,6 +240,7 @@ export async function overview(userId: string): Promise<Overview> {
   const markerList = markers.map((m) => m.marker);
 
   return {
+    now: Date.now(),
     coins: wallet.coins,
     fuel: wallet.fuel,
     fuelCap: wallet.fuelCap,

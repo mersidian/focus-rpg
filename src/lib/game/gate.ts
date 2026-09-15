@@ -69,10 +69,24 @@ export type GateResult = {
   missing: string[];
 };
 
-const KEY_LABEL: Record<BiomeKey, string> = {
-  sulphurAndSaltpetre: "sulphur and saltpetre from Ashfall Ridge",
-  rimeworksCipher: "a Rimeworks cipher from the Sunken Cathedral",
+/**
+ * A key item's own name, apart from where it is found.
+ *
+ * The gate wants "needs sulphur and saltpetre FROM ASHFALL RIDGE", because a
+ * shopping list has to say where to shop. A list of what you are already
+ * carrying wants the name alone — telling someone where they got a thing they
+ * are holding is telling them something they did.
+ */
+export const KEY_NAME: Record<BiomeKey, string> = {
+  sulphurAndSaltpetre: "sulphur and saltpetre",
+  rimeworksCipher: "a Rimeworks cipher",
   voidscarSigil: "a Voidscar sigil",
+};
+
+const KEY_LABEL: Record<BiomeKey, string> = {
+  sulphurAndSaltpetre: `${KEY_NAME.sulphurAndSaltpetre} from Ashfall Ridge`,
+  rimeworksCipher: `${KEY_NAME.rimeworksCipher} from the Sunken Cathedral`,
+  voidscarSigil: KEY_NAME.voidscarSigil,
 };
 
 export function checkGate(req: Requirement, state: GateState, skillLabel = (k: string) => k): GateResult {

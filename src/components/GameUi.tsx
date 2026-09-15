@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { depthFill, depthInk, groupNumber } from "@/lib/format";
+import { MAX_TIER } from "@/lib/game/tiers";
 import { wash } from "@/lib/palette";
 import { Icon, type IconName } from "./Icon";
 
@@ -350,6 +351,161 @@ export function Rail({ progress }: { progress: number }) {
         }}
       />
     </div>
+  );
+}
+
+/**
+ * The ten slots, as the thing the requirement gate actually reads.
+ *
+ * The overview used to say `Slots filled 7 / 10` and then, two lines below,
+ * explain that "an empty slot counts as tier zero for the requirement gate, so
+ * a missing cape can close an area". Both sentences are true and neither is
+ * usable: a count cannot say WHICH slot, and which slot is the entire content
+ * of the warning.
+ *
+ * So the loadout is drawn the way `TierBars` draws the catalogue — a bar per
+ * slot, its height its tier against the deepest there is, in the depth colour
+ * the rest of the app already reads as "how far down". The gate takes the
+ * minimum across all ten, which means the gate reads the SHORTEST BAR, and a
+ * shortest bar is a thing you find without counting. An empty slot is an empty
+ * track, so it is shortest by construction and needs no separate treatment.
+ *
+ * No paper doll, no icon boxes: this is the same grammar as every other depth
+ * in the app, on a baseline, in hairlines.
+ */
+export function SlotRack({
+  slots,
+  steps = MAX_TIER,
+}: {
+  /** In the game's own slot order. A tier of 0 means empty. */
+  slots: { slot: string; tier: number }[];
+  steps?: number;
+}) {
+  const floor = Math.min(...slots.map((s) => s.tier));
+  const deepest = Math.max(...slots.map((s) => s.tier));
+  return (
+    /*
+     * Scaled against the deepest tier there is, not against the deepest you
+     * own. A rack that renormalised itself would make a full set of tier-1
+     * scrap look exactly like a full set of tier-24 — and the number under each
+     * bar is already the absolute reading, so the height is free to be the
+     * comparison between the ten, which is the only comparison the gate makes.
+     *
+     * A drawn ceiling at tier 24 was tried here and cut: it is a rule, a label
+     * and a band of empty space to say what the numerals underneath already say
+     * exactly.
+     */
+    <div className="mt-5 grid grid-cols-5 gap-x-2 gap-y-5 sm:grid-cols-10">
+      {slots.map((s) => {
+        /*
+         * A floor of 18%, not a proportional height.
+         *
+         * `TierBars` lets a shallow column fade into its track, which is right
+         * when every column is present and depth is the only question. Here the
+         * first question is whether a slot holds anything at all, and a tier-1
+         * piece at a true 1/24 is four pixels of a colour `depthFill` has
+         * already mixed 84% into the track — indistinguishable from empty,
+         * which is the one distinction this rack exists to draw.
+         */
+        const share = s.tier <= 0 ? 0 : 0.18 + 0.82 * ((s.tier - 1) / Math.max(1, steps - 1));
+        /*
+         * Every slot sitting at the floor is marked, not just the first one
+         * found — with three empty slots there is no single weakest link.
+         *
+         * And nothing is marked when they are all level: a uniform tier-7 set
+         * is not ten problems, it is a finished set, and painting the whole
+         * rack the warning colour would say the opposite.
+         */
+        const holds = s.tier === floor && floor < deepest;
+        return (
+          <div key={s.slot} className="min-w-0">
+            <div
+              /*
+               * A bar standing on a hairline, and no track around it.
+               *
+               * A filled track reads a shallow tier as "nearly empty" rather
+               * than "shallow", and boxing all ten turns a rack into ten cards
+               * — which this app does not have anywhere, by rule. A baseline
+               * with nothing on it is unambiguously an empty slot, and it is
+               * the same hairline every other row in the app sits on.
+               */
+              className="flex h-10 w-full items-end border-b border-rule"
+              title={s.tier > 0 ? `${s.slot} · tier ${s.tier}` : `${s.slot} · empty`}
+            >
+              <div
+                className="w-full transition-[height] duration-700 ease-out"
+                style={{
+                  height: `${share * 100}%`,
+                  backgroundColor: depthFill(s.tier, steps),
+                }}
+              />
+            </div>
+            <p className="mt-1.5 truncate text-note">
+              {s.tier > 0 ? (
+                <span
+                  className="tnum"
+                  style={{ color: holds ? "var(--color-warn)" : depthInk(s.tier, steps) }}
+                >
+                  t{s.tier}
+                </span>
+              ) : (
+                <span className="tnum text-faint">—</span>
+              )}
+            </p>
+            <p className="truncate text-note text-faint" title={s.slot}>
+              {s.slot}
+            </p>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * The style wheel, which was two rows of a table reading "Strong against" and
+ * "Weak to".
+ *
+ * Four styles in a cycle so that no style is merely safe — that is the whole
+ * mechanic, and it is a shape. Drawn in canonical order rather than rotated to
+ * start at yours: the relationship is one sentence away, and a wheel that
+ * reorders itself between visits is a wheel nobody learns.
+ *
+ * Yours takes the earned accent and the rest stay dim, because "which is mine"
+ * is the only categorical question here and one mark answers it. Giving each of
+ * the four its own hue would be a second palette for a four-item list.
+ */
+export function StyleWheel({
+  order,
+  yours,
+}: {
+  order: string[];
+  /** Null when no weapon is equipped, and then nothing is lit. */
+  yours: string | null;
+}) {
+  return (
+    <p className="mt-5 flex flex-wrap items-baseline gap-x-2 text-lead">
+      {order.map((style, i) => (
+        <span key={style} className="inline-flex items-baseline gap-2">
+          {i > 0 && (
+            <span className="text-faint" aria-hidden>
+              ▸
+            </span>
+          )}
+          <span
+            className={style === yours ? "font-medium" : "text-faint"}
+            style={style === yours ? { color: "var(--tier)" } : undefined}
+          >
+            {style}
+          </span>
+        </span>
+      ))}
+      {/* The cycle closing back on itself, which is what makes it a wheel
+          rather than a ladder with a best end. */}
+      <span className="text-faint" aria-hidden>
+        ▸ {order[0]}
+      </span>
+    </p>
   );
 }
 
