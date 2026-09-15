@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { depthFill, depthInk, groupNumber } from "@/lib/format";
 import { MAX_TIER } from "@/lib/game/tiers";
@@ -40,16 +41,57 @@ export function Screen({
 export function Block({
   title,
   aside,
+  icon,
+  href,
   children,
 }: {
   title: string;
   aside?: ReactNode;
+  /**
+   * The mark of the page this block summarises — and only that.
+   *
+   * A glyph beside every heading is decoration on every section, which says
+   * nothing and costs a look each time. A block that condenses a whole screen
+   * is different: the mark is the same one the sub-nav uses for that screen, so
+   * it reads as "there is more of this through here" rather than as an
+   * ornament, and `href` makes that literally true. Blocks with no page behind
+   * them — the milestones, the history — get no mark, which is what keeps the
+   * ones that have it meaning something.
+   */
+  icon?: IconName;
+  href?: string;
   children: ReactNode;
 }) {
   return (
     <section className="mt-12">
       <div className="flex items-baseline justify-between gap-4 border-b border-rule pb-2">
-        <h2 className="text-lead text-text">{title}</h2>
+        {/*
+          One link, not two. The mark and the words go to the same page, so
+          wrapping them separately would put two targets with the same
+          destination side by side — twice the tab stops and twice the
+          announcement for one thing to do.
+        */}
+        <h2 className="min-w-0 text-lead text-text">
+          {href ? (
+            <Link href={href} className="group flex min-w-0 items-center gap-2.5">
+              {icon && (
+                <Icon
+                  name={icon}
+                  aria-hidden
+                  className="size-[18px] shrink-0 text-faint transition-colors group-hover:text-dim"
+                />
+              )}
+              <span className="truncate group-hover:underline group-hover:underline-offset-4">
+                {title}
+              </span>
+            </Link>
+          ) : (
+            <span className="flex min-w-0 items-center gap-2.5">
+              {icon && <Icon name={icon} aria-hidden className="size-[18px] shrink-0 text-faint" />}
+              <span className="truncate">{title}</span>
+            </span>
+          )}
+        </h2>
         {aside && <p className="shrink-0 text-note text-faint">{aside}</p>}
       </div>
       {children}

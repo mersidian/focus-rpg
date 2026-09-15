@@ -6,6 +6,7 @@ import {
   equipmentInstances,
   farmPlots,
   inventoryBalances,
+  inventoryEntries,
   sessionActivities,
   slayingContracts,
   worldProgress,
@@ -17,6 +18,7 @@ import { loadoutPower, percentile, type Equipped } from "./game/power";
 import { SKILLS, skillLevel, skillFloorXp, skillNextXp } from "./game/skills";
 import { BIOME_BY_INDEX } from "./game/biomes";
 import { BIOME_UNLOCK_XP, FIRST_REFINE_TEN_XP, skillLevelXp } from "./game/milestones";
+import { sellPrice } from "./game/economy";
 
 const SKILL_LABELS = new Map(SKILLS.map((s) => [s.key, s.label]));
 
@@ -178,6 +180,93 @@ export async function instances(userId: string): Promise<InstanceRow[]> {
       percentile: percentile(spec, row.rolled / 1000),
     };
   });
+}
+
+/* ------------------------------ the history ------------------------------ */
+
+/**
+ * The three faucets, which are the only reasons on the ledger that mean the
+ * game produced something.
+ *
+ * `bought` and `exchanged` are the shop, `correction` is an edited session and
+ * `salvage` is gear going back the other way. None of them is a day's work, and
+ * putting them in a chart headed "what your sessions made" would be the chart
+ * lying about the thing it is for.
+ */
+export const FAUCETS = ["gathered", "fought", "made"] as const;
+export type Faucet = (typeof FAUCETS)[number];
+
+const FAUCET_OF: Record<string, Faucet> = {
+  session_yield: "gathered",
+  combat_drop: "fought",
+  craft_output: "made",
+};
+
+export type HistoryDay = {
+  /** Midnight UTC of the day, as milliseconds. */
+  day: number;
+  parts: Record<Faucet, number>;
+};
+
+/**
+ * What the last `days` days of sessions put in the bank, per day and per faucet.
+ *
+ * Read off `inventory_entry`, because the ledger is the record and everything
+ * else is a fold of it. Nothing is re-rolled and nothing is derived twice: a row
+ * here is a thing that was actually granted.
+ *
+ * **Valued at what the shop would pay, not counted.** A day of tier-1 mining is
+ * twenty ore and a day at the bench is two bars, so a count of units would make
+ * crafting permanently invisible next to gathering and say something false
+ * about where a day went. `economy.ts` prices every class off one curve
+ * precisely so that ore and swords can be compared, and this is that comparison.
+ *
+ * Empty days stay empty. Nothing in this app advances while you are away, so a
+ * day with no column is a day you did not play — which is a true thing about the
+ * history and not a hole in it.
+ */
+export async function ledgerHistory(userId: string, days = 30): Promise<HistoryDay[]> {
+  const since = new Date(Date.now() - days * 86_400_000);
+  const rows = await db
+    .select({
+      day: sql<string>`date_trunc('day', ${inventoryEntries.at} at time zone 'utc')`,
+      reason: inventoryEntries.reason,
+      itemId: inventoryEntries.itemId,
+      units: sql<number>`sum(${inventoryEntries.delta})::int`,
+    })
+    .from(inventoryEntries)
+    .where(
+      and(
+        eq(inventoryEntries.userId, userId),
+        sql`${inventoryEntries.delta} > 0`,
+        sql`${inventoryEntries.at} >= ${since}`,
+        inArray(inventoryEntries.reason, Object.keys(FAUCET_OF) as never[]),
+      ),
+    )
+    .groupBy(sql`1`, inventoryEntries.reason, inventoryEntries.itemId);
+
+  const catalogue = itemIndex();
+  const byDay = new Map<number, Record<Faucet, number>>();
+  for (const row of rows) {
+    const faucet = FAUCET_OF[row.reason];
+    if (!faucet) continue;
+    const at = new Date(row.day).setUTCHours(0, 0, 0, 0);
+    const def = catalogue.get(row.itemId);
+    const worth = sellPrice(def?.tier ?? 1, def?.cls ?? "raw") * row.units;
+    const bucket = byDay.get(at) ?? { gathered: 0, fought: 0, made: 0 };
+    bucket[faucet] += worth;
+    byDay.set(at, bucket);
+  }
+
+  // Every day in the window, including the ones with nothing — a bar chart of
+  // only the days that happened compresses a fortnight off and reads as a run.
+  const out: HistoryDay[] = [];
+  const today = new Date().setUTCHours(0, 0, 0, 0);
+  for (let i = days - 1; i >= 0; i--) {
+    const day = today - i * 86_400_000;
+    out.push({ day, parts: byDay.get(day) ?? { gathered: 0, fought: 0, made: 0 } });
+  }
+  return out;
 }
 
 export type Overview = {

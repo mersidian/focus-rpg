@@ -201,6 +201,7 @@ export default async function DashboardPage() {
                   colorOf={(key) => (key === "other" ? "var(--color-rule)" : colorFor.get(key)!)}
                   labelOf={(key) => (key === "other" ? "Other projects" : nameFor.get(key) ?? "Untagged")}
                   format={minutes}
+                  caption="Hours per project, by month"
                 />
               </div>
               <Legend

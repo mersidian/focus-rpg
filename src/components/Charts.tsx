@@ -122,16 +122,26 @@ export function StackedBars({
   colorOf,
   labelOf,
   format,
+  caption,
+  height = 150,
 }: {
   columns: { label: string; parts: Record<string, number> }[];
   keys: string[];
   colorOf: (key: string) => string;
   labelOf: (key: string) => string;
   format: (n: number) => string;
+  /**
+   * What this chart is, for a screen reader.
+   *
+   * It used to be the literal string "Hours per project, by month", baked in
+   * where the second caller could not reach it — so the first chart to reuse
+   * this component would have announced itself as the dashboard's.
+   */
+  caption?: string;
+  height?: number;
 }) {
   const totals = columns.map((c) => keys.reduce((n, k) => n + (c.parts[k] ?? 0), 0));
   const max = Math.max(1, ...totals);
-  const height = 150;
   const width = 1000;
   const slot = width / Math.max(1, columns.length);
   const barWidth = Math.min(64, Math.max(6, slot - 10));
@@ -140,9 +150,10 @@ export function StackedBars({
     <svg
       viewBox={`0 0 ${width} ${height + 4}`}
       preserveAspectRatio="none"
-      className="h-40 w-full"
+      className="w-full"
+      style={{ height: height + 4 }}
       role="img"
-      aria-label="Hours per project, by month"
+      aria-label={caption ?? "Stacked totals over time"}
     >
       {columns.map((column, i) => {
         let y = height;
