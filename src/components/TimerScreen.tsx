@@ -386,7 +386,7 @@ function Running({
   paused: boolean;
   now: number;
 }) {
-  const { snapshot, pause, resume, abandon, pending, ruleset } = useGame();
+  const { snapshot, pause, resume, abandon, pending, ruleset, checkedIn } = useGame();
   const session = snapshot.active!;
   const total = session.plannedMinutes * 60_000;
   const progress = Math.min(1, Math.max(0, 1 - remainingMs / total));
@@ -468,6 +468,27 @@ function Running({
           Give up
         </button>
       </div>
+
+      {/*
+        A check-in that is failing, said while there is still time to do
+        something about it.
+
+        This used to be silent on both paths — a thrown fetch and a rejected
+        response both ended the ping function without a word — so the first the
+        user knew of it was the session gone and 30 XP with it. Two minutes of
+        grace is plenty of warning, but only if the warning is given.
+      */}
+      {!checkedIn && ruleset === "desktop" && (
+        <p
+          role="status"
+          className="mt-8 max-w-sm border-l-2 pl-4 text-left text-body leading-relaxed"
+          style={{ borderColor: "var(--color-warn)", color: "var(--color-warn)" }}
+        >
+          The timer has lost touch with the server and is retrying. Your session keeps running
+          here; if the connection does not come back within two minutes it will end on its own,
+          at no cost.
+        </p>
+      )}
 
       <div className="safe-bottom fixed inset-x-0 bottom-0 px-6">
         <RulesetNote ruleset={ruleset} />

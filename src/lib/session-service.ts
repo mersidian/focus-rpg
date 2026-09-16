@@ -4,7 +4,7 @@ import { db } from "./db";
 import { focusSessions, projects } from "./db/schema";
 import { applyDelta, loadState } from "./game-state";
 import {
-  ABANDON_XP_PENALTY,
+  abandonPenalty,
   SESSION_LENGTHS,
   XP_BY_LENGTH,
   type AbandonReason,
@@ -139,7 +139,20 @@ async function bankCompletion(
       xpMultiplier(prestige.stars) *
       chainMultiplier(links, row.plannedMinutes),
   );
-  await db
+  /*
+   * The status transition IS the marker, and it is checked in the WHERE clause.
+   *
+   * `applyDelta` does not deduplicate by reason — CLAUDE.md says so, and says a
+   * milestone therefore inserts a `world_progress` row to prove it paid once.
+   * Completion had no such proof, and this account's `game_state_backup` shows
+   * four sessions with two `session-complete:<id>` writes apiece: two
+   * reconciles overlapped, both read the row as still running, and both banked
+   * it. There is no interactive transaction on the Neon HTTP driver, so the
+   * only atomic thing available is a single conditional UPDATE — narrowing it
+   * to the statuses a running session can be in means exactly one caller can
+   * come away having changed the row, and only that one pays.
+   */
+  const [claimed] = await db
     .update(focusSessions)
     .set({
       status: "awaiting_report",
@@ -148,7 +161,16 @@ async function bankCompletion(
       baseXp: xp,
       updatedAt: new Date(),
     })
-    .where(eq(focusSessions.id, row.id));
+    .where(
+      and(
+        eq(focusSessions.id, row.id),
+        inArray(focusSessions.status, ["active", "paused"]),
+      ),
+    )
+    .returning({ id: focusSessions.id });
+
+  // Somebody else banked it between our read and our write. Their delta stands.
+  if (!claimed) return { settled: null, levelChange: null };
 
   const result = await applyDelta(userId, deviceId, `session-complete:${row.id}`, {
     xp,
@@ -174,20 +196,41 @@ export async function abandonRow(
   at: Date,
   deviceId: string | null,
 ) {
-  await db
+  // Not every abandon is a decision — see `abandonPenalty`. A lost heartbeat
+  // ends the session and costs nothing, because nobody chose it.
+  const penalty = abandonPenalty(reason);
+
+  // The same claim the completion path makes, for the same reason: two
+  // reconciles racing must not both charge for one abandon.
+  const [claimed] = await db
     .update(focusSessions)
     .set({
       status: "abandoned",
       endedAt: at,
       abandonReason: reason,
-      xpAwarded: -ABANDON_XP_PENALTY,
+      xpAwarded: -penalty,
       pausedAt: null,
       updatedAt: new Date(),
     })
-    .where(eq(focusSessions.id, row.id));
+    .where(
+      and(
+        eq(focusSessions.id, row.id),
+        inArray(focusSessions.status, ["active", "paused"]),
+      ),
+    )
+    .returning({ id: focusSessions.id });
 
+  if (!claimed) return { settled: null, levelChange: null };
+
+  /*
+   * `abandoned: 1` regardless, because that counter is a count of sessions that
+   * did not finish and `db:recompute` rebuilds it by counting exactly those
+   * rows. Making it selective here would put the cache and the rebuild into
+   * permanent disagreement — the streak is where the judgement belongs, and
+   * `loadActivity` makes it there, off the same table.
+   */
   const result = await applyDelta(userId, deviceId, `session-abandon:${row.id}`, {
-    xp: -ABANDON_XP_PENALTY,
+    xp: -penalty,
     abandoned: 1,
   });
 
@@ -196,7 +239,7 @@ export async function abandonRow(
       kind: "abandoned" as const,
       sessionId: row.id,
       reason,
-      xp: -ABANDON_XP_PENALTY,
+      xp: -penalty,
     },
     levelChange: result.levelChange,
   };

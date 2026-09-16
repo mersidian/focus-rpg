@@ -7,6 +7,15 @@ import {
   pauseBudgetLeftMs,
   type EngineSession,
 } from "../src/lib/session-engine.ts";
+import {
+  ABANDON_REASON_LABEL,
+  ABANDON_XP_PENALTY,
+  abandonCountsAgainstStreak,
+  abandonPenalty,
+  type AbandonReason,
+} from "../src/lib/constants.ts";
+
+const REASONS = Object.keys(ABANDON_REASON_LABEL) as AbandonReason[];
 
 const MIN = 60_000;
 const T0 = 1_700_000_000_000;
@@ -130,4 +139,49 @@ test("settled sessions are left alone", () => {
   assert.equal(evaluate(session({ status: "awaiting_report" }), T0 + MIN).kind, "settled");
   assert.equal(evaluate(session({ status: "completed" }), T0 + MIN).kind, "settled");
   assert.equal(evaluate(session({ status: "abandoned" }), T0 + MIN).kind, "settled");
+});
+
+/* -------------------------------------------------------------------------- */
+/*  What an abandon costs, and who decided it                                  */
+/* -------------------------------------------------------------------------- */
+
+test("only the abandons somebody chose carry the penalty", () => {
+  /*
+   * §3 lists four triggers under one −30, but three of them are decisions and
+   * the fourth is an inference. A desktop tab that the browser froze stops
+   * pinging and looks, from the server, exactly like a tab that was closed —
+   * which is the same false-abandon the spec already switched the heartbeat off
+   * on phones to avoid. It ends the session; it does not fine anyone.
+   */
+  assert.equal(abandonPenalty("gave_up"), ABANDON_XP_PENALTY);
+  assert.equal(abandonPenalty("pause_count"), ABANDON_XP_PENALTY);
+  assert.equal(abandonPenalty("pause_budget"), ABANDON_XP_PENALTY);
+  assert.equal(abandonPenalty("superseded"), ABANDON_XP_PENALTY);
+  assert.equal(abandonPenalty("heartbeat_lost"), 0);
+});
+
+test("the streak counts the abandons somebody chose, and only those", () => {
+  // A streak is a record of showing up, and a frozen page was open. The two
+  // functions have to agree: a free abandon that still broke the streak would
+  // be the same punishment wearing a different name.
+  for (const reason of REASONS) {
+    assert.equal(
+      abandonCountsAgainstStreak(reason),
+      abandonPenalty(reason) > 0,
+      `${reason} is charged and counted inconsistently`,
+    );
+  }
+});
+
+test("every abandon reason has a label that does not accuse anyone", () => {
+  // The log prints these. "Page went away for over two minutes" described a
+  // decision the user had not made, next to a number it had cost them.
+  for (const reason of REASONS) {
+    const label = ABANDON_REASON_LABEL[reason];
+    assert.ok(label && label.length > 0, `${reason} has no label`);
+  }
+  assert.ok(
+    !ABANDON_REASON_LABEL.heartbeat_lost.includes("went away"),
+    "the lost-heartbeat label still says the user left",
+  );
 });

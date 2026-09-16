@@ -281,7 +281,7 @@ days would flatter the number and make the date wrong.
 
 ## Decisions the spec left open
 
-Five things were not settled in the specs and had to be chosen to build. Each is one
+Six things were not settled in the specs and had to be chosen to build. Each is one
 constant or one commented block, easy to change.
 
 - **Where ranks II–IV sit inside a tier.** The spec's table pins rank I and rank V of
@@ -295,6 +295,13 @@ constant or one commented block, easy to change.
   by how much. Currently half — `SLACKED_XP_MULTIPLIER` in `src/lib/constants.ts`.
 - **Who may sign in.** The spec says single-user, but the app sits on a public URL, so
   `ALLOWED_GITHUB_LOGIN` locks sign-in to one GitHub account. Unset, anyone may sign in.
+- **What a lost heartbeat costs.** SPEC-V1.md §3 lists four abandon triggers under one −30 XP.
+  Three are decisions; a desktop heartbeat gap is an inference about one, and the same spec
+  switches the heartbeat off on phones entirely because it *"would register false abandons"*.
+  Desktop browsers freeze backgrounded tabs now too, so the premise that made desktop different
+  has expired. `abandonPenalty` in `src/lib/constants.ts` charges the three decisions and not
+  the inference: the session still ends, because the server will not take a client's word for
+  focus it never witnessed, but nobody is fined for a choice they did not make.
 - **Which skill opens at which character level.** SPEC-V2.md §11 decided that *"skills gate
   on character level"* and named one example — *"Mining unlocks at a character level"* —
   without giving the table. It is the `unlock` column in `src/lib/game/skills.ts`, and the

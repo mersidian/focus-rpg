@@ -81,6 +81,20 @@ export async function saveStreakState(
  * begun at 1am belongs to the night before, which is the day the user thinks
  * they are in (§7).
  */
+/**
+ * Completed and abandoned sessions per game day.
+ *
+ * The abandon count here is the one that decides streaks, and it leaves out
+ * `heartbeat_lost` — the only one of §3's four triggers nobody chooses. A
+ * backgrounded tab that the browser froze looks from the server exactly like a
+ * tab that was closed, and §3 already distrusts that signal enough to switch
+ * the heartbeat off on phones entirely. A streak is a record of showing up, and
+ * a frozen page was open.
+ *
+ * Filtered in the query the walk reads rather than at the moment of abandoning:
+ * `db:recompute` rebuilds counts off this same table, so a rule applied only to
+ * the row as it was written would survive until the next rebuild and no longer.
+ */
 export async function loadActivity(
   userId: string,
   timezone: string,
@@ -97,7 +111,10 @@ export async function loadActivity(
         'YYYY-MM-DD'
       ) as day,
       count(*) filter (where status = 'completed')::int as completed,
-      count(*) filter (where status = 'abandoned')::int as abandoned,
+      -- a lost heartbeat is nobody's decision, so it is not one of the two
+      count(*) filter (
+        where status = 'abandoned' and abandon_reason is distinct from 'heartbeat_lost'
+      )::int as abandoned,
       coalesce(sum(planned_minutes * 60000) filter (where status = 'completed'), 0)::bigint as focused_ms
     from focus_session
     where user_id = ${userId} and status in ('completed', 'abandoned')

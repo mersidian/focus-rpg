@@ -11,7 +11,7 @@ checks below before pushing anything.
 ## Before pushing
 
 ```bash
-npm test                   # 367 unit tests, no database needed
+npm test                   # 370 unit tests, no database needed
 node --env-file=.env.local scripts/schema-check.mjs   # the live schema matches the code
 npm run test:integration   # 54 probes against the real database
 npx tsc --noEmit
@@ -125,6 +125,25 @@ before `git push`, and this says whether it took.
   highest tier first for ammunition.
 - **V1's achievement set is frozen at 131.** V2 is a second list and `ALL_ACHIEVEMENTS` is the
   union. Adding a game did not change what V1 means.
+- **A session settles once, and the status transition proves it.** The same rule as the
+  milestone below, and it was missing for two years: `completeRow` and `abandonRow` read the
+  row, then updated it by id, then called `applyDelta` — so two reconciles overlapping both
+  saw a running session and both banked it. A live account's `game_state_backup` carried four
+  sessions with two `session-complete:<id>` writes apiece. There is no interactive transaction
+  on the Neon HTTP driver, so the claim is a single conditional UPDATE: the WHERE narrows to
+  the statuses a running session can be in, exactly one caller comes away having changed the
+  row, and only that one pays. An integration probe races four reconciles at one session;
+  without the guard it banks four.
+- **An abandon is only charged to whoever decided it.** §3 lists four triggers under one −30,
+  but three are decisions and the fourth is an inference: a desktop heartbeat gap. Browsers
+  freeze backgrounded tabs, so a page that has gone quiet is not a person who gave up — and the
+  spec already knows this signal is unreliable, because phone sessions have no heartbeat at all
+  to avoid "false abandons". §3's own rule is about existence: *"Other tabs do not matter. Only
+  the page's existence is checked."* A frozen tab exists. So `heartbeat_lost` ends the session,
+  costs nothing, and does not count toward the two-in-a-day that breaks a streak — filtered in
+  `loadActivity`, the query the walk reads, because `db:recompute` rebuilds counts off that same
+  table and a rule applied only where the row is written would last until the next rebuild.
+  Everything else keeps the −30.
 - **A milestone is paid once, ever, and the marker proves it.** `applyDelta` does not
   deduplicate by reason, so anything paying a lump into the ladder inserts a `world_progress`
   marker with `onConflictDoNothing` and pays only when it created a row. Never trust a caller

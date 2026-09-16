@@ -131,12 +131,17 @@ export default function WikiRulesPage() {
         <Rule
           label="XP penalty"
           value={`−${ABANDON_XP_PENALTY}`}
-          note="Applied immediately. Levels ratchet, so this can delay a rank but never take one."
+          note="For giving up, blowing the pause budget, or starting a second session. Applied immediately. Levels ratchet, so this can delay a rank but never take one."
+        />
+        <Rule
+          label="If the page stops reporting in"
+          value="−0"
+          note="The session ends, and costs nothing. Browsers freeze background tabs, so a page that has gone quiet is not the same as a person who gave up — which is why phone sessions have no heartbeat at all."
         />
         <Rule
           label="Abandons in a day that break the streak"
           value={String(ABANDONS_THAT_BREAK)}
-          note="One slip does not cost the streak."
+          note="One slip does not cost the streak, and a lost heartbeat is not counted at all."
         />
         <div className="mt-4">
           <p className="text-body text-dim">The ways a session ends badly</p>

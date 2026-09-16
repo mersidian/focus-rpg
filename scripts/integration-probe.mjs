@@ -20,6 +20,7 @@ import {
 import { checkVacation } from "../src/lib/streak-service.ts";
 import { gameDay, addDays } from "../src/lib/game-day.ts";
 import { applyDelta, loadState } from "../src/lib/game-state.ts";
+import { reconcile } from "../src/lib/session-service.ts";
 import {
   chooseActivity,
   ensureStarterKit,
@@ -321,7 +322,70 @@ if (hunting) {
         `${meat.reduce((n, r) => n + r.qty, 0)} meat`);
 }
 
-console.log("\n11. XP can never go negative");
+console.log("\n11. a session settles once, however many reconciles race for it");
+/*
+ * `applyDelta` does not deduplicate by reason, and completion had nothing that
+ * did — this account's own `game_state_backup` carried four sessions with two
+ * `session-complete:<id>` writes apiece, which is four completions and their XP
+ * paid twice. A unit test cannot reach this: it is two database calls
+ * overlapping, so it has to be probed against a real one.
+ */
+{
+  const raceId = crypto.randomUUID();
+  const began = new Date(Date.now() - 30 * 60_000);
+  await sql`insert into focus_session
+    (id, user_id, planned_minutes, ruleset, device_id, status, started_at, last_heartbeat_at, paused_ms)
+    values (${raceId}, ${userId}, 25, 'mobile', 'probe', 'active',
+            ${began}, ${began}, 0)`;
+
+  const before = await loadState(userId);
+  // Four at once, as four tabs and a heartbeat would.
+  await Promise.all([
+    reconcile(userId, "probe"),
+    reconcile(userId, "probe"),
+    reconcile(userId, "probe"),
+    reconcile(userId, "probe"),
+  ]);
+  const after = await loadState(userId);
+
+  check(
+    "four concurrent reconciles bank one completion",
+    after.sessionsCompleted === before.sessionsCompleted + 1,
+    `${before.sessionsCompleted} -> ${after.sessionsCompleted}`,
+  );
+  const paid = await sql`select count(*)::int c from game_state_backup
+    where user_id = ${userId} and reason = ${`session-complete:${raceId}`}`;
+  check("and pay for it once", paid[0].c === 1, `${paid[0].c} payment(s)`);
+
+  const [settled] = await sql`select status from focus_session where id = ${raceId}`;
+  check("leaving the session awaiting its report", settled.status === "awaiting_report",
+        settled.status);
+}
+
+console.log("\n12. an abandon nobody chose costs nothing");
+{
+  const lostId = crypto.randomUUID();
+  // Started 30 minutes ago on desktop, last heard from 25 minutes ago: the
+  // grace period ran out long before the 50 minutes would have been up.
+  const began = new Date(Date.now() - 30 * 60_000);
+  await sql`insert into focus_session
+    (id, user_id, planned_minutes, ruleset, device_id, status, started_at, last_heartbeat_at, paused_ms)
+    values (${lostId}, ${userId}, 50, 'desktop', 'probe', 'active',
+            ${began}, ${new Date(Date.now() - 25 * 60_000)}, 0)`;
+
+  const before = await loadState(userId);
+  await reconcile(userId, "probe");
+  const after = await loadState(userId);
+  const [row] = await sql`select status, abandon_reason, xp_awarded from focus_session where id = ${lostId}`;
+
+  check("the session ends", row.status === "abandoned" && row.abandon_reason === "heartbeat_lost",
+        `${row.status} / ${row.abandon_reason}`);
+  check("its row carries no penalty", row.xp_awarded === 0, `${row.xp_awarded} XP`);
+  check("and the character sheet is untouched", after.xp === before.xp,
+        `${before.xp} -> ${after.xp}`);
+}
+
+console.log("\n13. XP can never go negative");
 await applyDelta(userId, null, "probe", { xp: -999_999 });
 check("a huge penalty floors at zero", (await loadState(userId)).xp === 0);
 

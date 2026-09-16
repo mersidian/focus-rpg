@@ -32,6 +32,16 @@ export const MAX_PAUSED_MS = 5 * 60 * 1000;
 export const HEARTBEAT_INTERVAL_MS = 15 * 1000;
 export const HEARTBEAT_GRACE_MS = 2 * 60 * 1000;
 
+/**
+ * Spec-silent: how soon to try again after a check-in fails.
+ *
+ * Waiting a full interval after a failure spends a twelfth of the grace period
+ * doing nothing, and failures come in blips — a redeploy, a cold database, a
+ * dropped wifi second. Three seconds turns the two-minute grace into forty
+ * attempts instead of eight.
+ */
+export const HEARTBEAT_RETRY_MS = 3 * 1000;
+
 export type AbandonReason =
   | "gave_up"
   | "pause_count"
@@ -43,9 +53,40 @@ export const ABANDON_REASON_LABEL: Record<AbandonReason, string> = {
   gave_up: "Gave up",
   pause_count: "Used a third pause",
   pause_budget: "Ran out of pause time",
-  heartbeat_lost: "Page went away for over two minutes",
+  heartbeat_lost: "The page stopped reporting in",
   superseded: "Started another session",
 };
+
+/**
+ * What an abandon costs, which is not the same for all four reasons.
+ *
+ * §3 lists four triggers under one −30: giving up, blowing the pause budget,
+ * starting a second session, and a desktop heartbeat gap. Three of those are
+ * decisions a person makes. The fourth is an *inference* about a decision, and
+ * the spec already says elsewhere that it is an unreliable one — phone sessions
+ * have no heartbeat at all precisely because "mobile browsers freeze background
+ * tabs and would register false abandons".
+ *
+ * Desktop browsers do it too now. Chrome and Edge freeze a backgrounded tab
+ * outright after about five minutes, and a sleeping laptop does the same, so a
+ * page that is open and a page that is pinging are no longer the same thing —
+ * while §3's own rule is about existence: "Other tabs do not matter. Only the
+ * page's existence is checked." A frozen tab exists. It was being charged 30 XP
+ * for continuing to exist quietly.
+ *
+ * So the session still ends — the server cannot witness focus it was not shown,
+ * and it will not take a client's word for it later. But it is not fined for a
+ * decision nobody made. The penalty is for giving up, and this is the one
+ * trigger where nobody did.
+ */
+export function abandonPenalty(reason: AbandonReason): number {
+  return reason === "heartbeat_lost" ? 0 : ABANDON_XP_PENALTY;
+}
+
+/** The reasons that count toward the two-in-a-day that breaks a streak (§3). */
+export function abandonCountsAgainstStreak(reason: AbandonReason): boolean {
+  return reason !== "heartbeat_lost";
+}
 
 /* ------------------------- how many at a time ------------------------- */
 

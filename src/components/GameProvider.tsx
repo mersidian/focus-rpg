@@ -19,7 +19,7 @@ import {
   startSession,
   submitReport,
 } from "@/lib/actions";
-import { HEARTBEAT_INTERVAL_MS } from "@/lib/constants";
+import { HEARTBEAT_INTERVAL_MS, HEARTBEAT_RETRY_MS } from "@/lib/constants";
 import { describeLevel } from "@/lib/levels";
 import { tierAccent, tierAction } from "@/lib/format";
 import { deviceId as readDeviceId, detectRuleset } from "@/lib/client/device";
@@ -42,6 +42,9 @@ type Ctx = {
   pending: boolean;
   error: string | null;
   clearError: () => void;
+  /** False when check-ins are failing, so the screen can say so before the
+   *  session is lost rather than after. */
+  checkedIn: boolean;
   lastSettled: SettleEvent | null;
   levelChange: LevelChange | null;
   dismissLevelChange: () => void;
@@ -109,6 +112,14 @@ export function GameProvider({
 }) {
   const [snapshot, setSnapshot] = useState<Snapshot>(initial);
   const [error, setError] = useState<string | null>(null);
+  /**
+   * Whether the server is still being told this page exists.
+   *
+   * Only meaningful while a desktop session runs. It starts true because a
+   * session that has not yet pinged has not yet failed, and the very first ping
+   * fires on mount.
+   */
+  const [checkedIn, setCheckedIn] = useState(true);
   const [levelChange, setLevelChange] = useState<LevelChange | null>(
     initial.levelChange ?? null,
   );
@@ -231,11 +242,38 @@ export function GameProvider({
   const activeId = snapshot.active?.id ?? null;
   const activeStatus = snapshot.active?.status ?? null;
 
+  /**
+   * The desktop heartbeat, and the two ways it used to go quiet without saying
+   * so.
+   *
+   * A ping that failed did nothing at all: a thrown fetch hit an empty `catch`
+   * and a 401 or a 500 hit `if (!res.ok) return`. Either way the page carried
+   * on showing a running timer while the server stopped being told the page
+   * existed, and two minutes later the session was gone. The app knew at the
+   * first failed ping and said nothing until the session was already lost.
+   *
+   * So a failure is now visible and is retried quickly rather than at the next
+   * scheduled tick. The grace period is two minutes and the interval fifteen
+   * seconds, which leaves eight attempts inside it — plenty for a blip, as long
+   * as a blip does not cost a whole interval to notice.
+   *
+   * It also pings the moment the page comes back. Browsers freeze backgrounded
+   * tabs, and a thawed tab whose next tick is fourteen seconds away is a tab
+   * that can still be judged absent while its user is looking straight at it.
+   */
   useEffect(() => {
     if (!activeId || ruleset !== "desktop") return;
 
     let cancelled = false;
-    const ping = async () => {
+    let timer: ReturnType<typeof setTimeout>;
+
+    const schedule = (ms: number) => {
+      if (cancelled) return;
+      timer = setTimeout(ping, ms);
+    };
+
+    async function ping() {
+      if (cancelled) return;
       try {
         const res = await fetch("/api/heartbeat", {
           method: "POST",
@@ -243,18 +281,36 @@ export function GameProvider({
           body: JSON.stringify({ sessionId: activeId, deviceId: device.current }),
           keepalive: true,
         });
-        if (!res.ok || cancelled) return;
+        if (cancelled) return;
+        if (!res.ok) throw new Error(`The server refused the check-in (${res.status}).`);
         adopt((await res.json()) as Snapshot);
+        setCheckedIn(true);
+        schedule(HEARTBEAT_INTERVAL_MS);
       } catch {
-        // Offline is fine: the grace period is two minutes wide (§3).
+        if (cancelled) return;
+        // Say so, and try again sooner than the next scheduled tick would.
+        setCheckedIn(false);
+        schedule(HEARTBEAT_RETRY_MS);
       }
-    };
+    }
 
     void ping();
-    const id = setInterval(ping, HEARTBEAT_INTERVAL_MS);
+    // A tab the browser froze wakes with a stale clock and a pending tick. Ping
+    // on the way back so the gap ends when the page returns, not up to fifteen
+    // seconds later.
+    const onBack = () => {
+      if (document.visibilityState === "visible") void ping();
+    };
+    document.addEventListener("visibilitychange", onBack);
+    window.addEventListener("focus", onBack);
+    window.addEventListener("online", onBack);
+
     return () => {
       cancelled = true;
-      clearInterval(id);
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onBack);
+      window.removeEventListener("focus", onBack);
+      window.removeEventListener("online", onBack);
     };
   }, [activeId, ruleset, adopt]);
 
@@ -411,6 +467,7 @@ export function GameProvider({
       pending,
       error,
       clearError: () => setError(null),
+      checkedIn,
       lastSettled,
       levelChange,
       dismissLevelChange: () => setLevelChange(null),
@@ -429,6 +486,7 @@ export function GameProvider({
       serverNow,
       pending,
       error,
+      checkedIn,
       lastSettled,
       levelChange,
       gameResult,
