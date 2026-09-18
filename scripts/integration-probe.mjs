@@ -385,7 +385,51 @@ console.log("\n12. an abandon nobody chose costs nothing");
         `${before.xp} -> ${after.xp}`);
 }
 
-console.log("\n13. XP can never go negative");
+console.log("\n13. a spent pause budget puts the clock back on");
+/*
+ * The engine decides this, but only the service can write it back — a row left
+ * saying "paused" for ever would gate `pauseSession` and `resumeSession` on a
+ * status that is no longer true and could never complete. Worth probing across
+ * both.
+ */
+{
+  const pausedId = crypto.randomUUID();
+  const began = new Date(Date.now() - 20 * 60_000);
+  // Paused 19 minutes ago with the whole five-minute budget intact, on mobile
+  // so nothing else can end it. The budget ran out fourteen minutes ago.
+  await sql`insert into focus_session
+    (id, user_id, planned_minutes, ruleset, device_id, status, started_at, last_heartbeat_at,
+     paused_at, paused_ms, pause_count)
+    values (${pausedId}, ${userId}, 50, 'mobile', 'probe', 'paused',
+            ${began}, ${began}, ${new Date(Date.now() - 19 * 60_000)}, 0, 1)`;
+
+  const before = await loadState(userId);
+  await reconcile(userId, "probe");
+  const [row] = await sql`select status, paused_ms, paused_at, xp_awarded, abandon_reason
+    from focus_session where id = ${pausedId}`;
+
+  check("the session is running again", row.status === "active", row.status);
+  check("the budget is spent, not overspent", Number(row.paused_ms) === 5 * 60_000,
+        `${Number(row.paused_ms) / 60_000} min banked`);
+  check("and nothing was abandoned", row.abandon_reason === null, String(row.abandon_reason));
+  const after = await loadState(userId);
+  check("so the character sheet is untouched", after.xp === before.xp,
+        `${before.xp} -> ${after.xp}`);
+
+  // Left long enough, the same pass resumes it and pays it: nobody has to come
+  // back and press Resume to be credited for a session that already finished.
+  await sql`update focus_session
+      set started_at = ${new Date(Date.now() - 120 * 60_000)},
+          paused_at = ${new Date(Date.now() - 119 * 60_000)},
+          paused_ms = 0, status = 'paused'
+    where id = ${pausedId}`;
+  await reconcile(userId, "probe");
+  const [done] = await sql`select status from focus_session where id = ${pausedId}`;
+  check("a pause left past the end completes the session", done.status === "awaiting_report",
+        done.status);
+}
+
+console.log("\n14. XP can never go negative");
 await applyDelta(userId, null, "probe", { xp: -999_999 });
 check("a huge penalty floors at zero", (await loadState(userId)).xp === 0);
 

@@ -113,7 +113,7 @@ export default function WikiRulesPage() {
         <Rule
           label="Total paused time allowed"
           value={minutes(MAX_PAUSED_MS)}
-          note="Exceeding either the count or the total abandons the session. Paused time earns no XP."
+          note="Paused time earns no XP. Run past it and the clock simply starts again, so a long break costs you the five minutes and nothing else."
         />
         <Rule
           label="Heartbeat interval"
@@ -131,7 +131,7 @@ export default function WikiRulesPage() {
         <Rule
           label="XP penalty"
           value={`−${ABANDON_XP_PENALTY}`}
-          note="For giving up, blowing the pause budget, or starting a second session. Applied immediately. Levels ratchet, so this can delay a rank but never take one."
+          note="For giving up, or starting a second session while one is live. Applied immediately. Levels ratchet, so this can delay a rank but never take one."
         />
         <Rule
           label="If the page stops reporting in"

@@ -58,34 +58,56 @@ export const ABANDON_REASON_LABEL: Record<AbandonReason, string> = {
 };
 
 /**
- * What an abandon costs, which is not the same for all four reasons.
+ * Whether a person actually decided this abandon.
  *
- * §3 lists four triggers under one −30: giving up, blowing the pause budget,
- * starting a second session, and a desktop heartbeat gap. Three of those are
- * decisions a person makes. The fourth is an *inference* about a decision, and
- * the spec already says elsewhere that it is an unreliable one — phone sessions
- * have no heartbeat at all precisely because "mobile browsers freeze background
- * tabs and would register false abandons".
+ * §3 lists four triggers under one −30 and treats them as one thing. They are
+ * not. Two of them are a person choosing to stop:
  *
- * Desktop browsers do it too now. Chrome and Edge freeze a backgrounded tab
- * outright after about five minutes, and a sleeping laptop does the same, so a
- * page that is open and a page that is pinging are no longer the same thing —
- * while §3's own rule is about existence: "Other tabs do not matter. Only the
- * page's existence is checked." A frozen tab exists. It was being charged 30 XP
- * for continuing to exist quietly.
+ *   `gave_up`     — they pressed the button that says Give up.
+ *   `superseded`  — they started a second session on top of a live one.
  *
- * So the session still ends — the server cannot witness focus it was not shown,
- * and it will not take a client's word for it later. But it is not fined for a
- * decision nobody made. The penalty is for giving up, and this is the one
- * trigger where nobody did.
+ * The other two were the app deciding on their behalf, and both have been taken
+ * out of the code that could produce them:
+ *
+ *   `heartbeat_lost` is an *inference*, and the spec says elsewhere that it is
+ *   an unreliable one — phone sessions have no heartbeat at all precisely
+ *   because "mobile browsers freeze background tabs and would register false
+ *   abandons". Desktop browsers freeze tabs now too, and a sleeping laptop
+ *   always did, so a page that is open and a page that is pinging are no longer
+ *   the same thing — while §3's own rule is about existence: "Other tabs do not
+ *   matter. Only the page's existence is checked." A frozen tab exists.
+ *
+ *   `pause_budget` and `pause_count` no longer end a session at all. Running
+ *   out of pause time restarts the clock (see `evaluate`), and pressing Pause
+ *   with nothing left is refused rather than forfeited. They survive as labels
+ *   because rows on the books still carry them.
+ *
+ * So this is the one question worth asking about an abandon, and three things
+ * read it: the penalty, the completion ratio, and the streak.
  */
-export function abandonPenalty(reason: AbandonReason): number {
-  return reason === "heartbeat_lost" ? 0 : ABANDON_XP_PENALTY;
+export function abandonWasChosen(reason: AbandonReason): boolean {
+  return reason === "gave_up" || reason === "superseded";
 }
 
-/** The reasons that count toward the two-in-a-day that breaks a streak (§3). */
-export function abandonCountsAgainstStreak(reason: AbandonReason): boolean {
-  return reason !== "heartbeat_lost";
+/**
+ * What an abandon costs. The session ends either way — the server cannot
+ * witness focus it was not shown, and will not take a client's word for it
+ * later — but the −30 is for giving up, and nobody gave up.
+ */
+export function abandonPenalty(reason: AbandonReason): number {
+  return abandonWasChosen(reason) ? ABANDON_XP_PENALTY : 0;
+}
+
+/**
+ * Whether it counts as a failed session: against the completion ratio, and
+ * toward the two-in-a-day that breaks a streak (§3).
+ *
+ * The same answer as the penalty, deliberately. A free abandon that still broke
+ * a streak and still dragged a ratio down would be the same punishment wearing
+ * a different name.
+ */
+export function abandonIsAFailure(reason: AbandonReason): boolean {
+  return abandonWasChosen(reason);
 }
 
 /* ------------------------- how many at a time ------------------------- */

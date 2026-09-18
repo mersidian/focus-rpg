@@ -23,7 +23,19 @@ export type EngineSession = {
 };
 
 export type Verdict =
-  | { kind: "running"; elapsedMs: number; remainingMs: number; completeAt: number }
+  | {
+      kind: "running";
+      elapsedMs: number;
+      remainingMs: number;
+      completeAt: number;
+      /**
+       * Set when the session is running because its pause budget ran out rather
+       * than because anybody pressed Resume. The stored row still says
+       * "paused", so `reconcile` writes the resume back at this moment; every
+       * other reader can ignore it and simply see a running session.
+       */
+      resumedAt?: number;
+    }
   | { kind: "paused"; elapsedMs: number; remainingMs: number; pauseExhaustAt: number }
   | { kind: "complete"; at: number }
   | { kind: "abandon"; reason: AbandonReason; at: number }
@@ -33,11 +45,23 @@ export function requiredMs(plannedMinutes: number): number {
   return plannedMinutes * 60_000;
 }
 
-/** Focused milliseconds banked so far, excluding all paused time. */
+/**
+ * Paused milliseconds actually spent, which can never exceed the budget.
+ *
+ * The cap is what makes the budget a budget. A pause that runs past five
+ * minutes does not keep banking paused time — the five minutes are spent and
+ * the clock is running again, so everything after that counts as focus whether
+ * or not anybody has pressed Resume.
+ */
+export function pausedMsUsed(s: EngineSession, now: number): number {
+  const live = s.pausedAt !== null ? Math.max(0, now - s.pausedAt) : 0;
+  return Math.min(MAX_PAUSED_MS, s.pausedMs + live);
+}
+
+/** Focused milliseconds banked so far, excluding paused time up to the budget. */
 export function focusedMs(s: EngineSession, now: number): number {
   const gross = now - s.startedAt;
-  const paused = s.pausedMs + (s.pausedAt !== null ? now - s.pausedAt : 0);
-  return Math.max(0, Math.min(gross - paused, requiredMs(s.plannedMinutes)));
+  return Math.max(0, Math.min(gross - pausedMsUsed(s, now), requiredMs(s.plannedMinutes)));
 }
 
 /**
@@ -54,22 +78,37 @@ export function evaluate(s: EngineSession, now: number): Verdict {
 
   const need = requiredMs(s.plannedMinutes);
 
+  /**
+   * Running out of pause time restarts the clock. It does not end the session.
+   *
+   * It used to abandon, at −30 XP and the loss of everything focused so far —
+   * so stepping away for six minutes cost more than never having started, and
+   * the punishment landed on somebody who had already told the app they were
+   * taking a break. A budget that ends the session is not a budget, it is a
+   * trap with a timer on it.
+   *
+   * Five minutes is still five minutes: `pausedMsUsed` caps what the pause can
+   * bank, so the time past it counts as focus and the session finishes later
+   * than it would have. That is the whole of the cost, and it is the shape the
+   * rule was always described as having.
+   */
+  let resumedAt: number | undefined;
   if (s.status === "paused") {
     const pausedSince = s.pausedAt ?? now;
-    const pauseExhaustAt = pausedSince + (MAX_PAUSED_MS - s.pausedMs);
-    if (now >= pauseExhaustAt) {
-      return { kind: "abandon", reason: "pause_budget", at: pauseExhaustAt };
+    const pauseExhaustAt = pausedSince + Math.max(0, MAX_PAUSED_MS - s.pausedMs);
+    if (now < pauseExhaustAt) {
+      const elapsed = focusedMs(s, now);
+      return {
+        kind: "paused",
+        elapsedMs: elapsed,
+        remainingMs: need - elapsed,
+        pauseExhaustAt,
+      };
     }
-    const elapsed = focusedMs(s, now);
-    return {
-      kind: "paused",
-      elapsedMs: elapsed,
-      remainingMs: need - elapsed,
-      pauseExhaustAt,
-    };
+    resumedAt = pauseExhaustAt;
   }
 
-  const completeAt = s.startedAt + need + s.pausedMs;
+  const completeAt = s.startedAt + need + pausedMsUsed(s, now);
   // The heartbeat requirement is suspended while paused and absent on mobile (§3).
   const abandonAt =
     s.ruleset === "desktop" ? s.lastHeartbeatAt + HEARTBEAT_GRACE_MS : Infinity;
@@ -87,6 +126,7 @@ export function evaluate(s: EngineSession, now: number): Verdict {
     elapsedMs: elapsed,
     remainingMs: need - elapsed,
     completeAt,
+    resumedAt,
   };
 }
 

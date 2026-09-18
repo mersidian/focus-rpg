@@ -1,10 +1,10 @@
 /**
  * Gives back the XP taken for abandons nobody chose.
  *
- *   node --env-file=.env.local scripts/refund-heartbeat-abandons.mjs [--apply]
+ *   npm run db:refund-abandons -- --apply
  *
- * `heartbeat_lost` no longer carries the −30 (see `abandonPenalty`), and that
- * change is not retroactive on its own: the penalty was written into the
+ * Only `gave_up` and `superseded` still carry the −30 (see `abandonWasChosen`),
+ * and that change is not retroactive on its own: the penalty was written into the
  * session row as `xp_awarded` and into `game_state.xp` at the moment it fired.
  * Rows already on the books still say a person gave up when they had not.
  *
@@ -25,20 +25,30 @@
  */
 import { randomUUID } from "node:crypto";
 import { neon } from "@neondatabase/serverless";
+import { abandonPenalty } from "../src/lib/constants.ts";
 
 const apply = process.argv.includes("--apply");
 const sql = neon(process.env.DATABASE_URL);
 
+/*
+ * Every abandon still carrying a penalty the rules no longer charge. The list
+ * is derived from `abandonWasChosen` rather than typed here, so moving a reason
+ * between chosen and not-chosen moves what this refunds with it.
+ */
+const FREE = ["gave_up", "pause_count", "pause_budget", "heartbeat_lost", "superseded"].filter(
+  (r) => abandonPenalty(r) === 0,
+);
+
 const wrong = await sql`
-  select user_id, id, started_at, xp_awarded
+  select user_id, id, started_at, abandon_reason, xp_awarded
   from focus_session
   where status = 'abandoned'
-    and abandon_reason = 'heartbeat_lost'
+    and abandon_reason = any(${FREE})
     and xp_awarded < 0
   order by started_at`;
 
 if (wrong.length === 0) {
-  console.log("Nothing to refund — no lost-heartbeat abandon is still carrying a penalty.");
+  console.log("Nothing to refund — no free abandon is still carrying a penalty.");
   process.exit(0);
 }
 
@@ -48,7 +58,7 @@ for (const row of wrong) {
   byUser.get(row.user_id).push(row);
   console.log(
     `  ${row.started_at.toISOString().slice(0, 16).replace("T", " ")}  ` +
-      `${row.id.slice(0, 8)}  ${row.xp_awarded} XP`,
+      `${row.abandon_reason.padEnd(15)} ${row.xp_awarded} XP`,
   );
 }
 
@@ -85,7 +95,7 @@ for (const [userId, rows] of byUser) {
     // no database default — the application supplies it.
     sql`insert into game_state_backup (id, user_id, version, device_id, payload, reason)
         values (${randomUUID()}, ${userId}, ${prev.version}, ${prev.device_id},
-                ${JSON.stringify(prev)}::jsonb, 'refund:heartbeat-abandon')`,
+                ${JSON.stringify(prev)}::jsonb, 'refund:free-abandon')`,
     sql`update focus_session
            set xp_awarded = 0, updated_at = now()
          where id = any(${ids})`,

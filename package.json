@@ -14,7 +14,8 @@
     "db:studio": "drizzle-kit studio",
     "test": "node --test --experimental-strip-types --import ./tests/register.mjs \"tests/*.test.ts\"",
     "db:recompute": "node --env-file=.env.local --experimental-strip-types --import ./tests/register.mjs scripts/recompute-state.mjs",
-    "test:integration": "node --env-file=.env.local --experimental-strip-types --import ./tests/register.mjs scripts/integration-probe.mjs"
+    "test:integration": "node --env-file=.env.local --experimental-strip-types --import ./tests/register.mjs scripts/integration-probe.mjs",
+    "db:refund-abandons": "node --env-file=.env.local --experimental-strip-types --import ./tests/register.mjs scripts/refund-free-abandons.mjs"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",

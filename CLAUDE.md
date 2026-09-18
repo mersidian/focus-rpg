@@ -11,7 +11,7 @@ checks below before pushing anything.
 ## Before pushing
 
 ```bash
-npm test                   # 370 unit tests, no database needed
+npm test                   # 372 unit tests, no database needed
 node --env-file=.env.local scripts/schema-check.mjs   # the live schema matches the code
 npm run test:integration   # 54 probes against the real database
 npx tsc --noEmit
@@ -134,16 +134,29 @@ before `git push`, and this says whether it took.
   the statuses a running session can be in, exactly one caller comes away having changed the
   row, and only that one pays. An integration probe races four reconciles at one session;
   without the guard it banks four.
-- **An abandon is only charged to whoever decided it.** §3 lists four triggers under one −30,
-  but three are decisions and the fourth is an inference: a desktop heartbeat gap. Browsers
-  freeze backgrounded tabs, so a page that has gone quiet is not a person who gave up — and the
-  spec already knows this signal is unreliable, because phone sessions have no heartbeat at all
-  to avoid "false abandons". §3's own rule is about existence: *"Other tabs do not matter. Only
-  the page's existence is checked."* A frozen tab exists. So `heartbeat_lost` ends the session,
-  costs nothing, and does not count toward the two-in-a-day that breaks a streak — filtered in
-  `loadActivity`, the query the walk reads, because `db:recompute` rebuilds counts off that same
-  table and a rule applied only where the row is written would last until the next rebuild.
-  Everything else keeps the −30.
+- **An abandon is only charged to whoever decided it.** §3 lists four triggers under one −30
+  and treats them as one thing. Two of them are a person choosing to stop — `gave_up` and
+  `superseded` — and those keep the penalty. The other two were the app deciding on somebody's
+  behalf, and neither can happen any more. `heartbeat_lost` is an *inference*, and the spec
+  already knows it is unreliable: phone sessions have no heartbeat at all to avoid "false
+  abandons", and desktop browsers freeze backgrounded tabs now too, while §3's own rule is about
+  existence — *"Other tabs do not matter. Only the page's existence is checked."* A frozen tab
+  exists. `pause_budget` and `pause_count` no longer end anything either; see below.
+  `abandonWasChosen` is the single question, and three things read it: the penalty, the
+  completion ratio, and the streak. It is applied in `abandonRow`, in `loadActivity` and in
+  `db:recompute` — all three, because a rule enforced where the row is written but not where the
+  counters are rebuilt survives exactly until the next rebuild.
+- **The pause budget is a budget, not a trap.** Running out of the five minutes used to abandon
+  at −30 and lose everything focused so far, so a six-minute break cost more than never having
+  started — and it landed on somebody who had told the app they were stepping away. It restarts
+  the clock instead: `pausedMsUsed` caps what a pause can bank, the time past the cap counts as
+  focus, and the session finishes five minutes later than it would have. That is the whole cost.
+  `evaluate` returns a running verdict carrying `resumedAt` so every reader simply sees a running
+  session, and `reconcile` writes the resume back under a status guard before judging again —
+  without that the row stays `paused` for ever, the pause and resume actions gate on a status
+  that is no longer true, and the session can never complete. Pressing Pause with nothing left is
+  refused rather than forfeited: the button is already disabled, so abandoning there was a trap
+  behind a control you could not press.
 - **A milestone is paid once, ever, and the marker proves it.** `applyDelta` does not
   deduplicate by reason, so anything paying a lump into the ladder inserts a `world_progress`
   marker with `onConflictDoNothing` and pays only when it created a row. Never trust a caller

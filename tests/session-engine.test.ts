@@ -5,12 +5,14 @@ import {
   evaluate,
   focusedMs,
   pauseBudgetLeftMs,
+  pausedMsUsed,
   type EngineSession,
 } from "../src/lib/session-engine.ts";
 import {
   ABANDON_REASON_LABEL,
   ABANDON_XP_PENALTY,
-  abandonCountsAgainstStreak,
+  abandonIsAFailure,
+  abandonWasChosen,
   abandonPenalty,
   type AbandonReason,
 } from "../src/lib/constants.ts";
@@ -100,19 +102,63 @@ test("the heartbeat requirement is suspended while paused", () => {
   assert.equal(evaluate(s, T0 + 9 * MIN).kind, "paused");
 });
 
-test("overrunning five minutes of pause abandons at the moment it ran out", () => {
+test("running out of pause time restarts the clock", () => {
+  /*
+   * It used to abandon here, at −30 XP and the loss of everything focused so
+   * far, so a six-minute break cost more than never having started. The budget
+   * is a budget: it runs out, and the session is running again.
+   *
+   * Two minutes already spent, so the remaining three run out at T0+8. The
+   * heartbeat is kept alive because this is a desktop session whose page is
+   * still open — a page that went away is a separate question, answered below.
+   */
   const s = session({
     status: "paused",
     pausedAt: T0 + 5 * MIN,
     pausedMs: 2 * MIN,
     pauseCount: 2,
-    lastHeartbeatAt: T0 + 5 * MIN,
+    lastHeartbeatAt: T0 + 9 * MIN,
   });
   assert.equal(evaluate(s, T0 + 7.9 * MIN).kind, "paused");
+
   const v = evaluate(s, T0 + 8.1 * MIN);
-  assert.equal(v.kind, "abandon");
-  assert.equal(v.kind === "abandon" && v.reason, "pause_budget");
-  assert.equal(v.kind === "abandon" && v.at, T0 + 8 * MIN);
+  assert.equal(v.kind, "running");
+  assert.equal(v.kind === "running" && v.resumedAt, T0 + 8 * MIN);
+});
+
+test("the pause budget is spent, never overspent", () => {
+  // The whole cost of overrunning: the session finishes five minutes later than
+  // it would have, and not a millisecond more however long the pause sat there.
+  const s = session({ status: "paused", pausedAt: T0 + 1 * MIN, pausedMs: 0, pauseCount: 1 });
+  assert.equal(pausedMsUsed(s, T0 + 3 * MIN), 2 * MIN);
+  assert.equal(pausedMsUsed(s, T0 + 90 * MIN), 5 * MIN);
+
+  // 25 minutes of focus plus the five it may bank, whenever anybody looks.
+  const fresh = session({
+    status: "paused",
+    pausedAt: T0 + 1 * MIN,
+    pausedMs: 0,
+    pauseCount: 1,
+    lastHeartbeatAt: T0 + 400 * MIN,
+  });
+  const v = evaluate(fresh, T0 + 20 * MIN);
+  assert.equal(v.kind === "running" && v.completeAt, T0 + 30 * MIN);
+  assert.equal(focusedMs(fresh, T0 + 20 * MIN), 15 * MIN);
+});
+
+test("a pause left until the session would have finished completes it", () => {
+  // The clock has been running since the budget ran out, so one pass resumes
+  // and settles: nobody has to come back and press Resume to be paid.
+  const s = session({
+    status: "paused",
+    pausedAt: T0 + 1 * MIN,
+    pausedMs: 0,
+    pauseCount: 1,
+    lastHeartbeatAt: T0 + 400 * MIN,
+  });
+  const v = evaluate(s, T0 + 31 * MIN);
+  assert.equal(v.kind, "complete");
+  assert.equal(v.kind === "complete" && v.at, T0 + 30 * MIN);
 });
 
 test("a third pause is refused", () => {
@@ -147,29 +193,28 @@ test("settled sessions are left alone", () => {
 
 test("only the abandons somebody chose carry the penalty", () => {
   /*
-   * §3 lists four triggers under one −30, but three of them are decisions and
-   * the fourth is an inference. A desktop tab that the browser froze stops
-   * pinging and looks, from the server, exactly like a tab that was closed —
-   * which is the same false-abandon the spec already switched the heartbeat off
-   * on phones to avoid. It ends the session; it does not fine anyone.
+   * §3 lists four triggers under one −30 and treats them as one thing. Two are
+   * a person choosing to stop. The other two were the app deciding on their
+   * behalf, and neither can happen any more: a frozen tab looks exactly like a
+   * closed one, and running out of pause time now restarts the clock.
    */
   assert.equal(abandonPenalty("gave_up"), ABANDON_XP_PENALTY);
-  assert.equal(abandonPenalty("pause_count"), ABANDON_XP_PENALTY);
-  assert.equal(abandonPenalty("pause_budget"), ABANDON_XP_PENALTY);
   assert.equal(abandonPenalty("superseded"), ABANDON_XP_PENALTY);
   assert.equal(abandonPenalty("heartbeat_lost"), 0);
+  assert.equal(abandonPenalty("pause_budget"), 0);
+  assert.equal(abandonPenalty("pause_count"), 0);
 });
 
-test("the streak counts the abandons somebody chose, and only those", () => {
-  // A streak is a record of showing up, and a frozen page was open. The two
-  // functions have to agree: a free abandon that still broke the streak would
-  // be the same punishment wearing a different name.
+test("charged, counted and streak-breaking are one question asked once", () => {
+  // A free abandon that still broke a streak, or still dragged the completion
+  // ratio down, would be the same punishment wearing a different name.
   for (const reason of REASONS) {
     assert.equal(
-      abandonCountsAgainstStreak(reason),
+      abandonIsAFailure(reason),
       abandonPenalty(reason) > 0,
       `${reason} is charged and counted inconsistently`,
     );
+    assert.equal(abandonIsAFailure(reason), abandonWasChosen(reason));
   }
 });
 

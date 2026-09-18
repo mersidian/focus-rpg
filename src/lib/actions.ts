@@ -396,10 +396,17 @@ export async function pauseSession(sessionId: string, deviceId: string): Promise
     return withSettled(await buildSnapshot(userId, deviceId), earlier);
   }
 
-  const check = canPause(engineOf(row));
-  if (!check.ok) {
-    const earlier = await abandonRow(userId, row, check.reason, new Date(), deviceId);
-    revalidatePath("/log");
+  /*
+   * Out of pauses is a refusal, not a forfeit.
+   *
+   * This used to abandon the session — press Pause a third time, or with the
+   * five minutes already spent, and the whole thing ended at −30 XP. The button
+   * that does it is disabled in both cases, so the only way to reach it was a
+   * race or a stale tab: a trap you could not see, behind a control you could
+   * not press. Nothing happens instead, which is what the disabled button
+   * already promised.
+   */
+  if (!canPause(engineOf(row)).ok) {
     return withSettled(await buildSnapshot(userId, deviceId), earlier);
   }
 

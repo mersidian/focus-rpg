@@ -4,7 +4,9 @@ import { db } from "./db";
 import { focusSessions, projects } from "./db/schema";
 import { applyDelta, loadState } from "./game-state";
 import {
+  abandonIsAFailure,
   abandonPenalty,
+  MAX_PAUSED_MS,
   SESSION_LENGTHS,
   XP_BY_LENGTH,
   type AbandonReason,
@@ -223,15 +225,14 @@ export async function abandonRow(
   if (!claimed) return { settled: null, levelChange: null };
 
   /*
-   * `abandoned: 1` regardless, because that counter is a count of sessions that
-   * did not finish and `db:recompute` rebuilds it by counting exactly those
-   * rows. Making it selective here would put the cache and the rebuild into
-   * permanent disagreement — the streak is where the judgement belongs, and
-   * `loadActivity` makes it there, off the same table.
+   * Only a chosen abandon counts as one. `db:recompute` applies the same test
+   * when it rebuilds this counter from the session rows, so the cache and the
+   * rebuild agree — a rule enforced in only one of those two places survives
+   * until the next rebuild and no longer.
    */
   const result = await applyDelta(userId, deviceId, `session-abandon:${row.id}`, {
     xp: -penalty,
-    abandoned: 1,
+    abandoned: abandonIsAFailure(reason) ? 1 : 0,
   });
 
   return {
@@ -259,10 +260,28 @@ export async function reconcile(
   userId: string,
   deviceId: string | null = null,
 ): Promise<Reconciliation> {
-  const row = await findLive(userId);
+  let row = await findLive(userId);
   if (!row) return { settled: null, levelChange: null };
 
-  const verdict = evaluate(toEngine(row), Date.now());
+  let verdict = evaluate(toEngine(row), Date.now());
+
+  /*
+   * A pause that ran out of budget is already running again as far as the
+   * engine is concerned, but the stored row still says "paused". Write that
+   * back before judging anything else — otherwise the row stays paused for
+   * ever, `pauseSession` and `resumeSession` keep gating on a status that is no
+   * longer true, and the session can never complete.
+   *
+   * And judge it again afterwards, because the clock has been running since the
+   * budget ran out: a pause left overnight resumes and completes in the same
+   * pass.
+   */
+  if (verdict.kind === "running" && verdict.resumedAt !== undefined) {
+    const resumed = await resumeExhaustedPause(row, new Date(verdict.resumedAt));
+    if (!resumed) return { settled: null, levelChange: null };
+    row = resumed;
+    verdict = evaluate(toEngine(row), Date.now());
+  }
 
   if (verdict.kind === "complete") {
     return bankCompletion(userId, row, new Date(verdict.at), deviceId);
@@ -271,6 +290,28 @@ export async function reconcile(
     return abandonRow(userId, row, verdict.reason, new Date(verdict.at), deviceId);
   }
   return { settled: null, levelChange: null };
+}
+
+/**
+ * Puts a spent pause back on the clock.
+ *
+ * Guarded on the status the same way settling is, so two reconciles racing
+ * cannot both spend the budget — the loser gets no row back and leaves the
+ * winner's write alone.
+ */
+async function resumeExhaustedPause(row: Row, at: Date): Promise<Row | null> {
+  const [claimed] = await db
+    .update(focusSessions)
+    .set({
+      status: "active",
+      // Exactly the budget, never more: the pause is spent, not overspent.
+      pausedMs: MAX_PAUSED_MS,
+      pausedAt: null,
+      updatedAt: at,
+    })
+    .where(and(eq(focusSessions.id, row.id), eq(focusSessions.status, "paused")))
+    .returning();
+  return claimed ?? null;
 }
 
 async function listProjects(userId: string): Promise<ProjectSummary[]> {

@@ -281,7 +281,7 @@ days would flatter the number and make the date wrong.
 
 ## Decisions the spec left open
 
-Six things were not settled in the specs and had to be chosen to build. Each is one
+Seven things were not settled in the specs and had to be chosen to build. Each is one
 constant or one commented block, easy to change.
 
 - **Where ranks II–IV sit inside a tier.** The spec's table pins rank I and rank V of
@@ -295,6 +295,12 @@ constant or one commented block, easy to change.
   by how much. Currently half — `SLACKED_XP_MULTIPLIER` in `src/lib/constants.ts`.
 - **Who may sign in.** The spec says single-user, but the app sits on a public URL, so
   `ALLOWED_GITHUB_LOGIN` locks sign-in to one GitHub account. Unset, anyone may sign in.
+- **What running out of pause time costs.** §3 says exceeding the pause budget abandons the
+  session. That made a five-minute allowance into a trap: step away for six and you lose the
+  session, the focus already banked, and 30 XP — a worse outcome than never having started, and
+  one that lands on somebody who told the app they were taking a break. The budget now spends
+  itself and the clock restarts, so the cost is the five minutes and nothing more. Pressing Pause
+  with none left is refused rather than forfeited.
 - **What a lost heartbeat costs.** SPEC-V1.md §3 lists four abandon triggers under one −30 XP.
   Three are decisions; a desktop heartbeat gap is an inference about one, and the same spec
   switches the heartbeat off on phones entirely because it *"would register false abandons"*.

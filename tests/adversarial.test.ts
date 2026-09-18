@@ -275,7 +275,13 @@ test("focused time never exceeds the session that was planned", () => {
   assert.equal(focusedMs(overrun, T + 100 * 60_000), requiredMs(25));
 });
 
-test("a mobile session left paused still blows its budget", () => {
+test("a mobile session left paused spends its budget and runs on", () => {
+  /*
+   * Mobile has no heartbeat, so there is nothing else that could end this — and
+   * ending it was the old behaviour: a phone left paused for six minutes lost
+   * the session and 30 XP with it. It resumes instead, five minutes poorer on
+   * the clock, which is the only thing the budget was ever meant to cost.
+   */
   const paused = sess({
     ruleset: "mobile",
     status: "paused",
@@ -284,8 +290,8 @@ test("a mobile session left paused still blows its budget", () => {
     lastHeartbeatAt: T,
   });
   const verdict = evaluate(paused, T + 6 * 60_000);
-  assert.equal(verdict.kind, "abandon");
-  assert.equal(verdict.kind === "abandon" && verdict.reason, "pause_budget");
+  assert.equal(verdict.kind, "running");
+  assert.equal(verdict.kind === "running" && verdict.resumedAt, T + 5 * 60_000);
 });
 
 test("a heartbeat from a clock running fast does not abandon early", () => {
