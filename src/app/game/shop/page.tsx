@@ -34,9 +34,12 @@ export const dynamic = "force-dynamic";
 export default async function ShopPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/signin");
+  // Started, not awaited, so `bankUsage` shares this read instead of repeating
+  // it and the page still resolves in one wave.
+  const walletPromise = loadWallet(session.user.id);
   const [wallet, usage, state] = await Promise.all([
-    loadWallet(session.user.id),
-    bankUsage(session.user.id),
+    walletPromise,
+    bankUsage(session.user.id, walletPromise),
     loadState(session.user.id),
   ]);
   // The shop stocks a tier above what your hours have opened, so there is always

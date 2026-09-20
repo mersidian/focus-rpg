@@ -301,9 +301,12 @@ export type Overview = {
 };
 
 export async function overview(userId: string): Promise<Overview> {
+  // Started, not awaited: `bankUsage` used to fetch its own copy of this same
+  // row beside this one. Lending the promise keeps everything in one wave.
+  const walletPromise = loadWallet(userId);
   const [wallet, bank, equipped, collected, plots, contractRows, markers] = await Promise.all([
-    loadWallet(userId),
-    bankUsage(userId),
+    walletPromise,
+    bankUsage(userId, walletPromise),
     loadEquipped(userId),
     db
       .select({ n: sql<number>`count(*)::int` })

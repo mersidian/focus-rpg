@@ -196,6 +196,25 @@ before `git push`, and this says whether it took.
   the milestones are ~37,000, both under 8%, and a test holds the line. Anything that pays into
   the ladder competes with focused minutes for the meaning of a level.
 
+- **Latency is waves, not queries.** The Neon HTTP driver sends one request per query, so what
+  a page costs is not how many reads it does but how many of them had to *wait* for an earlier
+  one. `buildSnapshot` — which every button returns and the heartbeat asks for every fifteen
+  seconds — was eight waves deep for thirteen reads, and the depth was all accidental: the
+  prestige view was awaited after a batch that had already loaded the `game_state` it re-read,
+  `chainHistory` looked like it needed the live session but applies that exclusion as a JS
+  filter, and `advanceStreak` sat in front of reads it shares no table with. Two waves now, and
+  a third of the wall time.
+
+  The shape to watch for is a wait that does not look like one: `potions: await potionsHeld(id)`
+  inside a returned object literal was a whole round trip in `loadGateState`, on the path of
+  every timer page load. `const a = await x(); const b = await y();` is the same bug spelled
+  out. Before adding a read, ask what it needs from the one above it — usually nothing, and
+  then it belongs in that `Promise.all`.
+
+  Lend a *promise*, not a value. `bankUsage` takes `Wallet | Promise<Wallet>` because handing it
+  the value forces the caller to await first, spending a wave to save a read — the wrong way
+  round, since a read running beside others is free and a wait never is.
+
 ## Hand-written prose may not quote a figure
 
 The wiki generates everything it can, and the one thing it cannot generate — the doc

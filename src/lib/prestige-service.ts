@@ -44,9 +44,15 @@ function toEngine(row: PrestigeRow) {
 }
 
 /** Notes the moment a cycle first crosses the gate, for the timing achievement. */
-export async function noteLevel(userId: string, level: number): Promise<void> {
+export async function noteLevel(
+  userId: string,
+  level: number,
+  /** The row the caller already loaded, if it has one — this is on the timer's
+      hot path and re-reading it there is a round trip for nothing. */
+  known?: PrestigeRow,
+): Promise<void> {
   if (level < PRESTIGE_LEVEL) return;
-  const row = await loadPrestige(userId);
+  const row = known ?? (await loadPrestige(userId));
   if (row.reachedFiftyAt) return;
   await db
     .update(prestigeState)
@@ -65,33 +71,60 @@ export type PrestigeView = {
   abandonsThisCycle: number;
 };
 
-export async function loadPrestigeView(userId: string): Promise<PrestigeView> {
-  const [row, state] = await Promise.all([loadPrestige(userId), loadState(userId)]);
-  const [{ n: abandons }] = await db
-    .select({ n: count() })
-    .from(focusSessions)
-    .where(
-      and(
-        eq(focusSessions.userId, userId),
-        eq(focusSessions.status, "abandoned"),
-        gte(focusSessions.startedAt, row.cycleStartedAt),
-      ),
-    );
-  const [{ n: cycles }] = await db
-    .select({ n: count() })
-    .from(prestigeCycles)
-    .where(eq(prestigeCycles.userId, userId));
+/** Everything the view needs from the database, and nothing computed. */
+export type PrestigeData = { row: PrestigeRow; cycles: number; abandonsThisCycle: number };
 
+/**
+ * The three reads, in two waits rather than four.
+ *
+ * This was one function that fetched the prestige row, fetched `game_state`
+ * alongside it, and then awaited two independent counts one after the other —
+ * four round trips deep, and `buildSnapshot` awaited the whole thing *after*
+ * its own parallel batch had already loaded `game_state`. So the timer page
+ * paid for the same row twice and for two counts that could have run beside
+ * everything else.
+ *
+ * Splitting the fetch from the arithmetic is what lets a caller put this in its
+ * own `Promise.all` and hand the level in from a state it already has.
+ */
+export async function loadPrestigeData(userId: string): Promise<PrestigeData> {
+  const row = await loadPrestige(userId);
+  // Independent of each other, so they go together.
+  const [[{ n: abandons }], [{ n: cycles }]] = await Promise.all([
+    db
+      .select({ n: count() })
+      .from(focusSessions)
+      .where(
+        and(
+          eq(focusSessions.userId, userId),
+          eq(focusSessions.status, "abandoned"),
+          gte(focusSessions.startedAt, row.cycleStartedAt),
+        ),
+      ),
+    db.select({ n: count() }).from(prestigeCycles).where(eq(prestigeCycles.userId, userId)),
+  ]);
+  return { row, cycles: Number(cycles), abandonsThisCycle: Number(abandons) };
+}
+
+/** Pure: no database, no clock. The offer is the only thing level decides. */
+export function prestigeView(data: PrestigeData, level: number): PrestigeView {
+  const { row } = data;
   return {
     stars: row.stars,
-    bonusPercent: Math.round((Math.min(row.stars * 0.05, 0.5)) * 100),
-    offer: prestigeOffer(state.level, toEngine(row)),
+    bonusPercent: Math.round(Math.min(row.stars * 0.05, 0.5) * 100),
+    offer: prestigeOffer(level, toEngine(row)),
     cycleStartedAt: row.cycleStartedAt.getTime(),
     reachedFiftyAt: row.reachedFiftyAt?.getTime() ?? null,
     declinedAt: row.declinedAt?.getTime() ?? null,
-    cycles: Number(cycles),
-    abandonsThisCycle: Number(abandons),
+    cycles: data.cycles,
+    abandonsThisCycle: data.abandonsThisCycle,
   };
+}
+
+/** For callers with no `game_state` of their own to lend. */
+export async function loadPrestigeView(userId: string): Promise<PrestigeView> {
+  const [data, state] = await Promise.all([loadPrestigeData(userId), loadState(userId)]);
+  return prestigeView(data, state.level);
 }
 
 /** Records the decision to press on, so the offer stops being made (§4.2). */

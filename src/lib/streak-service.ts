@@ -307,15 +307,21 @@ export async function listVacations(userId: string) {
 /** The heatmap's year: judged days from the ledger, plus today, still live. */
 export async function loadHeatmap(userId: string, today: string, timezone: string) {
   const from = addDays(today, -364);
-  const rows = await db
-    .select()
-    .from(dayLedger)
-    .where(and(eq(dayLedger.userId, userId), gte(dayLedger.day, from)));
+  // Four reads and none of them feeds another: the year's ledger, the sessions
+  // in it, the vacations over it and the schedule it is judged against. They
+  // were awaited one after another, so the heatmap cost four round trips of
+  // waiting to draw one picture.
+  const [rows, activity, vacationDays, settings] = await Promise.all([
+    db
+      .select()
+      .from(dayLedger)
+      .where(and(eq(dayLedger.userId, userId), gte(dayLedger.day, from))),
+    loadActivity(userId, timezone),
+    loadVacationDays(userId),
+    loadSettings(userId),
+  ]);
 
   const byDay = new Map(rows.map((r) => [r.day, r]));
-  const activity = await loadActivity(userId, timezone);
-  const vacationDays = await loadVacationDays(userId);
-  const settings = await loadSettings(userId);
 
   /**
    * Days before any history existed are blank, not rest days. A rest day is a

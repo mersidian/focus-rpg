@@ -328,21 +328,31 @@ async function rationCount(userId: string): Promise<number> {
 }
 
 export async function loadGateState(userId: string): Promise<GateState> {
-  const [skills, equipped, state, rations, markers] = await Promise.all([
+  /*
+   * Seven reads in one wait, where there used to be three waits.
+   *
+   * The tools were awaited after this batch and the potions were awaited inside
+   * the returned object literal — `potions: await potionsHeld(userId)` — which
+   * is the easiest kind of sequential round trip to write and the hardest to
+   * see, because it does not look like a step at all. Neither depends on
+   * anything above it, and the gate is on the path of every timer page load.
+   */
+  const [skills, equipped, state, rations, markers, toolRows, potions] = await Promise.all([
     loadSkills(userId),
     loadEquipped(userId),
     loadState(userId),
     rationCount(userId),
     db.select({ marker: worldProgress.marker }).from(worldProgress).where(eq(worldProgress.userId, userId)),
+    db
+      .select({ itemId: sql<string>`item_id`, qty: sql<number>`qty` })
+      .from(sql`inventory_balance`)
+      .where(sql`user_id = ${userId} and item_id like 'tool:%' and qty > 0`),
+    potionsHeld(userId),
   ]);
 
   const tiers = Object.values(equipped).map((e) => e?.spec.tier ?? 0);
   const toolTier: Record<string, number> = {};
   const toolGrade: Record<string, Quality> = {};
-  const toolRows = await db
-    .select({ itemId: sql<string>`item_id`, qty: sql<number>`qty` })
-    .from(sql`inventory_balance`)
-    .where(sql`user_id = ${userId} and item_id like 'tool:%' and qty > 0`);
   for (const row of toolRows) {
     const [, skill, t, grade] = String(row.itemId).split(":");
     const n = Number(t);
@@ -371,7 +381,7 @@ export async function loadGateState(userId: string): Promise<GateState> {
     toolTier,
     toolGrade,
     rations,
-    potions: await potionsHeld(userId),
+    potions,
     keyItems: markers
       .map((m) => m.marker)
       .filter((m) => m.startsWith("key:"))
@@ -768,9 +778,19 @@ export async function resolveActivity(
     summary.bossTooShort =
       !result.killed && boss ? bossKillSeconds(boss.tier, power.offence) > focusedMs / 1000 : false;
   } else if (row.kind === "gathering") {
-    const skills = await loadSkills(userId);
-    const gate = await loadGateState(userId);
-    const mods = await loadModifiers(userId, row.skill, tonicEffectOf(row.tonicItemId));
+    /*
+     * Two waits, and the skills come free.
+     *
+     * These were three sequential round trips, and the first of them was a
+     * repeat: `loadGateState` reads `skill_state` itself and hands it back on
+     * `gate.skills`, so `loadSkills` here was asking the same question twice
+     * and waiting for the answer before asking the next one.
+     */
+    const [gate, mods] = await Promise.all([
+      loadGateState(userId),
+      loadModifiers(userId, row.skill, tonicEffectOf(row.tonicItemId)),
+    ]);
+    const skills = gate.skills;
     const result = resolveYield({
       focusedMs,
       skill: row.skill,

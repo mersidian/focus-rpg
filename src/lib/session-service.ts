@@ -14,9 +14,19 @@ import {
 } from "./constants";
 import { evaluate, requiredMs, type EngineSession } from "./session-engine";
 import { advanceStreak } from "./streak-service";
-import { loadPrestige, loadPrestigeView, noteLevel } from "./prestige-service";
+import {
+  loadPrestige,
+  loadPrestigeData,
+  prestigeView,
+  noteLevel,
+} from "./prestige-service";
 import { xpMultiplier } from "./prestige";
-import { chainState, linksBefore, chainMultiplier, type ChainSession } from "./chain";
+import {
+  chainState,
+  linksBefore,
+  chainMultiplier,
+  type ChainSession,
+} from "./chain";
 import { meterProgress } from "./streak-engine";
 import type {
   ClientSession,
@@ -72,10 +82,18 @@ export function isValidLength(minutes: number): minutes is SessionLength {
  * Settled sessions, newest first, for working out the chain. Excludes the one
  * being asked about, which must never count as its own link.
  */
+/**
+ * The last dozen settled sessions, each carrying its id.
+ *
+ * `ChainSession` is a pure rule type and stays one — the id rides alongside it
+ * rather than inside it, so `chain.ts` still knows nothing about rows. The id
+ * is what lets a caller drop the live session from the list *after* fetching,
+ * which is what frees this from having to wait for one.
+ */
 export async function chainHistory(
   userId: string,
   exclude?: string,
-): Promise<ChainSession[]> {
+): Promise<(ChainSession & { id: string })[]> {
   const rows = await db
     .select({
       status: focusSessions.status,
@@ -87,7 +105,11 @@ export async function chainHistory(
     .where(
       and(
         eq(focusSessions.userId, userId),
-        inArray(focusSessions.status, ["completed", "abandoned", "awaiting_report"]),
+        inArray(focusSessions.status, [
+          "completed",
+          "abandoned",
+          "awaiting_report",
+        ]),
       ),
     )
     .orderBy(desc(focusSessions.endedAt))
@@ -96,6 +118,7 @@ export async function chainHistory(
   return rows
     .filter((r) => r.id !== exclude && r.endedAt !== null)
     .map((r) => ({
+      id: r.id,
       status: r.status as ChainSession["status"],
       startedAt: r.startedAt.getTime(),
       endedAt: r.endedAt!.getTime(),
@@ -106,17 +129,29 @@ async function findLive(userId: string): Promise<Row | undefined> {
   const [row] = await db
     .select()
     .from(focusSessions)
-    .where(and(eq(focusSessions.userId, userId), inArray(focusSessions.status, [...LIVE])))
+    .where(
+      and(
+        eq(focusSessions.userId, userId),
+        inArray(focusSessions.status, [...LIVE]),
+      ),
+    )
     .orderBy(desc(focusSessions.startedAt))
     .limit(1);
   return row;
 }
 
-export async function findAwaitingReport(userId: string): Promise<Row | undefined> {
+export async function findAwaitingReport(
+  userId: string,
+): Promise<Row | undefined> {
   const [row] = await db
     .select()
     .from(focusSessions)
-    .where(and(eq(focusSessions.userId, userId), eq(focusSessions.status, "awaiting_report")))
+    .where(
+      and(
+        eq(focusSessions.userId, userId),
+        eq(focusSessions.status, "awaiting_report"),
+      ),
+    )
     .orderBy(desc(focusSessions.startedAt))
     .limit(1);
   return row;
@@ -135,7 +170,10 @@ async function bankCompletion(
    * start — the rate the user was told when they chose to begin.
    */
   const prestige = await loadPrestige(userId);
-  const links = linksBefore(await chainHistory(userId, row.id), row.startedAt.getTime());
+  const links = linksBefore(
+    await chainHistory(userId, row.id),
+    row.startedAt.getTime(),
+  );
   const xp = Math.round(
     xpForLength(row.plannedMinutes) *
       xpMultiplier(prestige.stars) *
@@ -174,11 +212,16 @@ async function bankCompletion(
   // Somebody else banked it between our read and our write. Their delta stands.
   if (!claimed) return { settled: null, levelChange: null };
 
-  const result = await applyDelta(userId, deviceId, `session-complete:${row.id}`, {
-    xp,
-    focusedMs: requiredMs(row.plannedMinutes),
-    completed: 1,
-  });
+  const result = await applyDelta(
+    userId,
+    deviceId,
+    `session-complete:${row.id}`,
+    {
+      xp,
+      focusedMs: requiredMs(row.plannedMinutes),
+      completed: 1,
+    },
+  );
 
   return {
     settled: {
@@ -230,10 +273,15 @@ export async function abandonRow(
    * rebuild agree — a rule enforced in only one of those two places survives
    * until the next rebuild and no longer.
    */
-  const result = await applyDelta(userId, deviceId, `session-abandon:${row.id}`, {
-    xp: -penalty,
-    abandoned: abandonIsAFailure(reason) ? 1 : 0,
-  });
+  const result = await applyDelta(
+    userId,
+    deviceId,
+    `session-abandon:${row.id}`,
+    {
+      xp: -penalty,
+      abandoned: abandonIsAFailure(reason) ? 1 : 0,
+    },
+  );
 
   return {
     settled: {
@@ -277,7 +325,10 @@ export async function reconcile(
    * pass.
    */
   if (verdict.kind === "running" && verdict.resumedAt !== undefined) {
-    const resumed = await resumeExhaustedPause(row, new Date(verdict.resumedAt));
+    const resumed = await resumeExhaustedPause(
+      row,
+      new Date(verdict.resumedAt),
+    );
     if (!resumed) return { settled: null, levelChange: null };
     row = resumed;
     verdict = evaluate(toEngine(row), Date.now());
@@ -287,7 +338,13 @@ export async function reconcile(
     return bankCompletion(userId, row, new Date(verdict.at), deviceId);
   }
   if (verdict.kind === "abandon") {
-    return abandonRow(userId, row, verdict.reason, new Date(verdict.at), deviceId);
+    return abandonRow(
+      userId,
+      row,
+      verdict.reason,
+      new Date(verdict.at),
+      deviceId,
+    );
   }
   return { settled: null, levelChange: null };
 }
@@ -309,7 +366,9 @@ async function resumeExhaustedPause(row: Row, at: Date): Promise<Row | null> {
       pausedAt: null,
       updatedAt: at,
     })
-    .where(and(eq(focusSessions.id, row.id), eq(focusSessions.status, "paused")))
+    .where(
+      and(eq(focusSessions.id, row.id), eq(focusSessions.status, "paused")),
+    )
     .returning();
   return claimed ?? null;
 }
@@ -328,9 +387,14 @@ async function listProjects(userId: string): Promise<ProjectSummary[]> {
     .from(projects)
     .leftJoin(
       focusSessions,
-      and(eq(focusSessions.projectId, projects.id), eq(focusSessions.status, "completed")),
+      and(
+        eq(focusSessions.projectId, projects.id),
+        eq(focusSessions.status, "completed"),
+      ),
     )
-    .where(and(eq(projects.userId, userId), sql`${projects.archivedAt} is null`))
+    .where(
+      and(eq(projects.userId, userId), sql`${projects.archivedAt} is null`),
+    )
     .groupBy(projects.id, projects.name)
     /*
      * Most recently worked first. The picker this feeds is shown the moment a
@@ -338,7 +402,10 @@ async function listProjects(userId: string): Promise<ProjectSummary[]> {
      * on last — alphabetical put that wherever its name happened to fall.
      * Projects never worked sort last, by name.
      */
-    .orderBy(sql`max(${focusSessions.startedAt}) desc nulls last`, projects.name);
+    .orderBy(
+      sql`max(${focusSessions.startedAt}) desc nulls last`,
+      projects.name,
+    );
 
   return rows.map((r) => ({
     id: r.id,
@@ -415,22 +482,62 @@ export async function buildSnapshot(
 ): Promise<Snapshot> {
   const { settled, levelChange } = await reconcile(userId, deviceId);
 
-  // Catch the calendar up before reporting anything: freezes spend themselves
-  // overnight and the user should see the result, not the stale streak (§7).
-  const advance = await advanceStreak(userId);
-
-  const [state, live, awaiting, projectList, recent] = await Promise.all([
+  /*
+   * One wait, not four.
+   *
+   * The prestige view and the chain used to be awaited one after the other
+   * *after* this batch, and the prestige view was itself four round trips deep
+   * and re-read the `game_state` this batch had already loaded. That put about
+   * 300ms of pure latency on the end of every snapshot — and a snapshot is not
+   * a page load, it is what every button returns and what the heartbeat asks
+   * for every fifteen seconds.
+   *
+   * Neither of them ever needed to be last. `chainHistory` takes its exclusion
+   * as a *filter applied in JavaScript*, so it never depended on `live` at all;
+   * it is passed no id here and the one row it might have dropped is dropped
+   * below, from the same list.
+   */
+  const [
+    advance,
+    state,
+    live,
+    awaiting,
+    projectList,
+    recent,
+    prestigeData,
+    chainRows,
+  ] = await Promise.all([
+    /*
+     * The calendar catches up *beside* this batch rather than in front of it.
+     *
+     * It has to come after `reconcile`, because a session that just completed
+     * changes the day it belongs to — and it does. It does not have to come
+     * before the reads below: `streak-service` writes `user_settings`,
+     * `streak_state` and `day_ledger` and nothing else, and not one of those is
+     * read here. The streak the snapshot reports comes straight back from this
+     * call, not from a re-read, so there is nothing for the two to disagree
+     * about. §7's rule is that the calendar is caught up before anything is
+     * reported, and it still is.
+     */
+    advanceStreak(userId),
     loadState(userId),
     findLive(userId),
     findAwaitingReport(userId),
     listProjects(userId),
     listLog(userId, logLimit),
+    loadPrestigeData(userId),
+    chainHistory(userId),
   ]);
 
-  // Records the first crossing of the gate, which one achievement times.
-  await noteLevel(userId, state.level);
-  const prestige = await loadPrestigeView(userId);
-  const chain = chainState(await chainHistory(userId, live?.id ?? awaiting?.id), Date.now());
+  // Records the first crossing of the gate, which one achievement times. Given
+  // the row the batch above already fetched, so it is free until it fires.
+  await noteLevel(userId, state.level, prestigeData.row);
+  const prestige = prestigeView(prestigeData, state.level);
+  const liveId = live?.id ?? awaiting?.id;
+  const chain = chainState(
+    liveId ? chainRows.filter((r) => r.id !== liveId) : chainRows,
+    Date.now(),
+  );
 
   return {
     serverNow: Date.now(),
@@ -506,7 +613,10 @@ export function withUnlocked(
  * V1's own XP path did not already produce one — the overlay shows a single
  * rank, and the ladder cannot cross two in one session.
  */
-export function withGame(snapshot: Snapshot, game: ResolutionSummary | null): Snapshot {
+export function withGame(
+  snapshot: Snapshot,
+  game: ResolutionSummary | null,
+): Snapshot {
   if (!game) return snapshot;
   return {
     ...snapshot,
@@ -515,7 +625,10 @@ export function withGame(snapshot: Snapshot, game: ResolutionSummary | null): Sn
   };
 }
 
-export function withSettled(snapshot: Snapshot, earlier: Reconciliation | null): Snapshot {
+export function withSettled(
+  snapshot: Snapshot,
+  earlier: Reconciliation | null,
+): Snapshot {
   if (!earlier || (!earlier.settled && !earlier.levelChange)) return snapshot;
   return {
     ...snapshot,

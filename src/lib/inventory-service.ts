@@ -227,28 +227,57 @@ export async function adjustWallet(
 }
 
 /** How many bank slots are in use: one per distinct stack, one per instance. */
-export async function bankUsage(userId: string): Promise<{ used: number; slots: number }> {
-  const wallet = await loadWallet(userId);
-  // Equipped uniques can grant slots. Read from the instances directly rather
-  // than through `activity-service`, which imports this file.
-  const equippedUniques = await db
-    .select({ itemId: equipmentInstances.itemId })
-    .from(equipmentInstances)
-    .where(
-      and(eq(equipmentInstances.userId, userId), sql`${equipmentInstances.equippedSlot} is not null`),
-    );
+/**
+ * Four reads that never needed each other, in one wait instead of four.
+ *
+ * Each of these was awaited in turn — the wallet, then the equipped uniques,
+ * then a count of stacks, then a count of loose instances — and not one of them
+ * feeds the next. On a shop or bank page that was four round trips of pure
+ * waiting for a two-number answer.
+ *
+ * `wallet` takes the row *or the promise of it*, because every caller here
+ * already loads one beside this call. A promise is the useful form: handed the
+ * value, a caller would have to await it first and spend a wait to save a read,
+ * which is the wrong way round — a round trip running beside others is free and
+ * a wait never is. Handed the promise, the whole page stays one wave and the
+ * row is still only fetched once.
+ */
+export async function bankUsage(
+  userId: string,
+  wallet?: Wallet | Promise<Wallet>,
+): Promise<{ used: number; slots: number }> {
+  const [loaded, equippedUniques, stacksRow, instancesRow] = await Promise.all([
+    wallet ?? loadWallet(userId),
+    // Equipped uniques can grant slots. Read from the instances directly rather
+    // than through `activity-service`, which imports this file.
+    db
+      .select({ itemId: equipmentInstances.itemId })
+      .from(equipmentInstances)
+      .where(
+        and(
+          eq(equipmentInstances.userId, userId),
+          sql`${equipmentInstances.equippedSlot} is not null`,
+        ),
+      ),
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(inventoryBalances)
+      .where(and(eq(inventoryBalances.userId, userId), sql`${inventoryBalances.qty} > 0`)),
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(equipmentInstances)
+      .where(
+        and(eq(equipmentInstances.userId, userId), sql`${equipmentInstances.equippedSlot} is null`),
+      ),
+  ]);
+
   const bonusSlots = equippedUniques.reduce((n, row) => {
     if (!row.itemId.startsWith("unique:")) return n;
     const unique = UNIQUE_BY_NAME.get(row.itemId.slice("unique:".length));
     return unique?.effect.kind === "bankSlots" ? n + unique.effect.slots : n;
   }, 0);
-  const [stacks] = await db
-    .select({ n: sql<number>`count(*)::int` })
-    .from(inventoryBalances)
-    .where(and(eq(inventoryBalances.userId, userId), sql`${inventoryBalances.qty} > 0`));
-  const [instances] = await db
-    .select({ n: sql<number>`count(*)::int` })
-    .from(equipmentInstances)
-    .where(and(eq(equipmentInstances.userId, userId), sql`${equipmentInstances.equippedSlot} is null`));
-  return { used: (stacks?.n ?? 0) + (instances?.n ?? 0), slots: wallet.bankSlots + bonusSlots };
+  return {
+    used: (stacksRow[0]?.n ?? 0) + (instancesRow[0]?.n ?? 0),
+    slots: loaded.bankSlots + bonusSlots,
+  };
 }
