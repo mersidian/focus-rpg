@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ARCHETYPES, STYLES, STYLE_FAMILY } from "@/lib/game/archetypes";
 import { BIOMES } from "@/lib/game/biomes";
 import { catalogueBreakdown } from "@/lib/game/items";
@@ -30,16 +31,22 @@ import { groupNumber, tierAccent } from "@/lib/format";
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 
 function Section({
+  id,
   title,
   source,
   lead,
+  shown,
   children,
 }: {
+  id: string;
   title: string;
   source: string;
   lead?: string;
+  /** Whether this is the section being read. */
+  shown: (id: string) => boolean;
   children: React.ReactNode;
 }) {
+  if (!shown(id)) return null;
   return (
     <section className="mt-14">
       <div className="flex items-baseline justify-between gap-4 border-b border-rule pb-2">
@@ -91,11 +98,53 @@ function Table({ head, rows }: { head: string[]; rows: React.ReactNode[][] }) {
   );
 }
 
-export default function WikiGamePage() {
+/**
+ * What each section holds, counted from the modules rather than typed here.
+ *
+ * The page is a reference and it had grown to ten sections, a hundred and
+ * thirty-four table rows and about six thousand pixels — one shape repeated ten
+ * times, with no way to tell from the top whether the thing you came for was on
+ * it. An index that says how big each table is answers that before you scroll.
+ */
+function contents(breakdown: Record<string, number>) {
+  return [
+    { key: "catalogue", title: "The catalogue", source: "items.ts", rows: Object.keys(breakdown).length },
+    { key: "spine", title: "The material spine", source: "tiers.ts", rows: TIERS.length },
+    { key: "wheel", title: "The style wheel", source: "archetypes.ts", rows: STYLES.length },
+    { key: "set", title: "A full set, and what it converts", source: "combat.ts", rows: 3 * 5 },
+    { key: "rarity", title: "Rarity", source: "combat.ts", rows: RARITIES.length },
+    { key: "axes", title: "The four item axes", source: "power.ts", rows: SLOTS.length + QUALITIES.length },
+    { key: "world", title: "The world", source: "biomes.ts", rows: BIOMES.length },
+    { key: "archetypes", title: "The weapon archetypes", source: "archetypes.ts", rows: ARCHETYPES.length },
+    { key: "skills", title: "Skills", source: "skills.ts", rows: SKILLS.length },
+    { key: "sinks", title: "The sinks", source: "economy.ts", rows: 6 },
+  ];
+}
+
+export default async function WikiGamePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ s?: string }>;
+}) {
   const breakdown = catalogueBreakdown();
   const total = Object.values(breakdown).reduce((n, v) => n + v, 0);
   const variants = allVariants();
   const sample = [1, 6, 12, 18, 24];
+
+  /*
+   * One section at a time, chosen in the URL.
+   *
+   * The same answer `/achievements` and `/game/areas` already give to the same
+   * problem: server-rendered links, no JavaScript, and a section you can send
+   * someone. `<details>` would have hidden the scroll and still shipped every
+   * row. `?s=all` keeps the whole page one click away, which is what a
+   * reference page needs when you would rather search it than navigate it.
+   */
+  const { s } = await searchParams;
+  const index = contents(breakdown);
+  const all = s === "all";
+  const one = !all && s && index.some((x) => x.key === s) ? s : null;
+  const shown = (key: string) => all || one === key;
 
   return (
     <main className="mx-auto w-full max-w-4xl px-6 pb-24 pt-14 sm:px-10">
@@ -107,7 +156,51 @@ export default function WikiGamePage() {
         are not. If a number on this page looks wrong, it is the game that is wrong.
       </p>
 
+      {/* The way back, above the section rather than buried under it. */}
+      {(all || one) && (
+        <p className="mt-6 text-body text-faint">
+          <Link href="/wiki/game" className="underline underline-offset-4">
+            All sections
+          </Link>
+        </p>
+      )}
+
+      {!all && !one && (
+        <section className="mt-12">
+          <div className="flex items-baseline justify-between gap-4 border-b border-rule pb-2">
+            <h2 className="text-lead text-text">Sections</h2>
+            <p className="shrink-0 text-note text-faint">
+              <span className="tnum">{index.reduce((n, x) => n + x.rows, 0)}</span> rows in all
+            </p>
+          </div>
+          <ul>
+            {index.map((entry) => (
+              <li key={entry.key} className="border-b border-rule last:border-0">
+                <Link
+                  href={`/wiki/game?s=${entry.key}`}
+                  className="flex items-baseline gap-4 py-3 text-body transition-colors hover:text-text"
+                >
+                  <span className="min-w-0 flex-1 text-dim">{entry.title}</span>
+                  <span className="hidden shrink-0 text-note text-faint sm:block">
+                    {entry.source}
+                  </span>
+                  <span className="tnum w-16 shrink-0 text-right text-faint">{entry.rows}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-8 text-body text-faint">
+            <Link href="/wiki/game?s=all" className="underline underline-offset-4">
+              Show every section at once
+            </Link>{" "}
+            — about six thousand pixels of it, which is what this index exists to spare you.
+          </p>
+        </section>
+      )}
+
       <Section
+        id="catalogue"
+        shown={shown}
         title="The catalogue"
         source="items.ts"
         lead={`${groupNumber(total)} items, every id and every name unique, all of it from axes rather than rows. Nine slots against one weapon is why armour is the bulk of it.`}
@@ -121,6 +214,8 @@ export default function WikiGamePage() {
       </Section>
 
       <Section
+        id="spine"
+        shown={shown}
         title="The material spine"
         source="tiers.ts"
         lead={`One ${MAX_TIER}-tier ladder worn four ways, pinned to V1's own hours: tier 1 at 0 h and tier ${MAX_TIER} at 10,000 h, where Mythic V also lands. Firearms have no material below tier ${GUN_ENTRY_TIER}.`}
@@ -143,6 +238,8 @@ export default function WikiGamePage() {
       </Section>
 
       <Section
+        id="wheel"
+        shown={shown}
         title="The style wheel"
         source="archetypes.ts, power.ts"
         lead="Melee closes on ranged, ranged interrupts magic, magic wards off gunfire, gunfire pierces plate. Four styles in a cycle, so none of them is merely safe — and the affinities carry the upkeep ladder into the numbers rather than leaving it as prose."
@@ -162,6 +259,8 @@ export default function WikiGamePage() {
       </Section>
 
       <Section
+        id="set"
+        shown={shown}
         title="A full set, and what it converts"
         source="combat.ts"
         lead={`Offence decides kill speed and conversion; defence decides what a failure costs. A same-tier Plain set sits near a Common spawn of that tier, which is the balance point everything hangs off — SPAWN_BASE is ${SPAWN_BASE}, and it was moved from 55 when the audit caught a same-tier set converting only a quarter of its own tier.`}
@@ -218,6 +317,8 @@ export default function WikiGamePage() {
       </Section>
 
       <Section
+        id="rarity"
+        shown={shown}
         title="Rarity"
         source="combat.ts"
         lead="Rarity sets both the spawn's power and its loot, so the thing worth killing is also the thing that might get away. Deeper biomes tilt the table, which is how depth pays in kind as well as in degree."
@@ -235,6 +336,8 @@ export default function WikiGamePage() {
       </Section>
 
       <Section
+        id="axes"
+        shown={shown}
         title="The four item axes"
         source="power.ts, quality.ts"
         lead={`Tier, quality window, the rolled band, and refinement up to +${MAX_REFINE}. They are kept apart so an item card can say "51 damage (42–58, 64%)" and have both halves mean something on their own.`}
@@ -253,6 +356,8 @@ export default function WikiGamePage() {
       </Section>
 
       <Section
+        id="world"
+        shown={shown}
         title="The world"
         source="biomes.ts, species.ts, variants.ts"
         lead={`${BIOMES.length} biomes of 10 areas, and ${SPECIES.length} species archetypes crossed with the biomes whose tiers suit them — ${groupNumber(variants.length)} monsters from ninety designs. Every biome past the tutorial has all four styles as the right answer somewhere, which is asserted by a test.`}
@@ -281,7 +386,9 @@ export default function WikiGamePage() {
       </Section>
 
       <Section
-        title="The 24 weapon archetypes"
+        id="archetypes"
+        shown={shown}
+        title="The weapon archetypes"
         source="archetypes.ts"
         lead="The family noun in “{material} {archetype}”. Damage is a coefficient, and the band moves opposite to it — a fast shallow weapon rolls wide, a slow final one rolls tight. Two-handed forgoes the offhand and takes throughput back."
       >
@@ -300,6 +407,8 @@ export default function WikiGamePage() {
       </Section>
 
       <Section
+        id="skills"
+        shown={shown}
         title="Skills"
         source="skills.ts"
         lead={`${SKILLS.length} skills, each 1–99. Level 99 costs ${groupNumber(SKILL_XP[98])} XP, which is ${Math.round(SKILL_XP[98] / 60)} focused hours on that one skill — so twenty-two of them is thirteen thousand hours, and nobody maxes everything. That is deliberate, and it is why there is no achievement for it.`}
@@ -319,6 +428,8 @@ export default function WikiGamePage() {
       </Section>
 
       <Section
+        id="sinks"
+        shown={shown}
         title="The sinks"
         source="economy.ts"
         lead="Everything is priced off one curve, V(T) = 10 × 1.20^(T−1), so value and strength climb at one rate. Refinement never fails, which means the cost curve carries the whole axis on its own."
