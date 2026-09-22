@@ -13,6 +13,8 @@
  * Wolf gives Wolf Pelt and Rime Salt. The variety is in the combination.
  */
 import { QUALITIES, type Quality } from "./quality";
+import { equipmentOptions } from "./items";
+import { STYLES } from "./archetypes";
 import type { Rng } from "./rng";
 import { FAMILY_PARTS } from "./species";
 import { sellPrice, tierValue } from "./economy";
@@ -28,6 +30,13 @@ export type Drop =
       style: string;
       tier: number;
       quality: Quality;
+      /**
+       * Weapons only, and not optional in practice for them: `centre` takes a
+       * weapon's power from `archetype.damage` and `band` its width from
+       * `archetype.bandPct`, so a weapon that arrives without one is rolled
+       * against the flat slot fallback and is not the weapon it says it is.
+       */
+      archetype?: string;
       /** Band percentile, 0-1. The instance's rolled value is derived from it. */
       percentile: number;
     }
@@ -102,15 +111,47 @@ export function rollDrops(input: DropInput): Drop[] {
     // its effect and the reason it is worth a slot.
     const first = rng.next();
     const percentile = input.rollTwice ? Math.max(first, rng.next()) : first;
-    out.push({
-      kind: "equipment",
-      itemId: `${slot === "weapon" ? "weapon" : "armour"}:${style}:${slot}:${t}:${quality.key}`,
-      slot,
-      style,
-      tier: t,
-      quality: quality.key,
-      percentile,
-    });
+
+    /*
+     * Ask the catalogue what this shape actually is, rather than spelling an id
+     * out here. The spelling was wrong for every weapon ever dropped: a weapon
+     * is keyed by archetype and the template wrote the style and the slot, so
+     * `weapon:melee:weapon:7:fine` went into the bank, the collection log and
+     * the result screen, and rendered as "melee weapon 7 fine".
+     *
+     * `chosen` also carries the archetype, which the old path had no way to
+     * know — and a weapon without one is rolled against a flat fallback band
+     * instead of its own, and never gives up the offhand a two-hander is
+     * supposed to cost.
+     */
+    let options = equipmentOptions(slot, style, t, quality.key);
+    if (options.length === 0) {
+      /*
+       * Dropped gear *favours* your style; it cannot always be it. Firearms
+       * have no material below tier 6, so a gun player fighting shallow water
+       * has no gun of that tier to be paid in. Falling through the styles in
+       * order is deliberate — a second rng draw here would move every roll
+       * after it for the sake of a case that only arises below tier 6.
+       */
+      for (const alt of STYLES) {
+        options = equipmentOptions(slot, alt, t, quality.key);
+        if (options.length > 0) break;
+      }
+    }
+    const chosen = options.length === 1 ? options[0] : options[rng.int(0, options.length - 1)];
+    // Nothing exists at this shape in any style, so there is nothing to give.
+    if (chosen) {
+      out.push({
+        kind: "equipment",
+        itemId: chosen.id,
+        slot,
+        style: chosen.style ?? style,
+        tier: t,
+        quality: quality.key,
+        archetype: chosen.archetype,
+        percentile,
+      });
+    }
   }
 
   // Coins scale with rarity, because a Legendary should be worth the trip even

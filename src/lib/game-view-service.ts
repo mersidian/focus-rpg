@@ -15,6 +15,7 @@ import { loadWallet, bankUsage } from "./inventory-service";
 import type { ResolutionSummary } from "./game-types";
 import { loadEquipped, loadSkillXp, loadGateState } from "./activity-service";
 import { loadoutPower, percentile, type Equipped } from "./game/power";
+import { ARCHETYPE_BY_NAME } from "./game/archetypes";
 import { SKILLS, skillLevel, skillFloorXp, skillNextXp } from "./game/skills";
 import { BIOME_BY_INDEX } from "./game/biomes";
 import { BIOME_UNLOCK_XP, FIRST_REFINE_TEN_XP, skillLevelXp } from "./game/milestones";
@@ -159,12 +160,19 @@ export async function instances(userId: string): Promise<InstanceRow[]> {
     .orderBy(desc(equipmentInstances.tier));
   const index = itemIndex();
   return rows.map((row) => {
+    /*
+     * With the archetype, because `percentile` reads `band` and a weapon's band
+     * is its archetype's. Left out, every weapon on the equipment page was
+     * measured against a band it was never rolled from, so the percentile shown
+     * was not the percentile stored.
+     */
     const spec = {
       slot: row.slot as never,
       style: row.style as never,
       tier: row.tier,
       quality: row.quality as never,
       refine: row.refine,
+      archetype: row.archetype ? ARCHETYPE_BY_NAME.get(row.archetype) : undefined,
     };
     return {
       id: row.id,

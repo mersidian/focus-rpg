@@ -938,12 +938,20 @@ export async function resolveActivity(
         }
         continue;
       }
+      /*
+       * The archetype comes through with the drop now, and it has to: `centre`
+       * takes a weapon's power from `archetype.damage` and `band` its width
+       * from `archetype.bandPct`, so a found weapon built without one was
+       * rolled against the flat slot fallback — the wrong power, in the wrong
+       * band, under a name that did not exist.
+       */
       const spec: ItemSpec = {
         slot: piece.slot as Slot,
         style: piece.style as Style,
         tier: piece.tier,
         quality: piece.quality,
         refine: 0,
+        archetype: piece.archetype ? ARCHETYPE_BY_NAME.get(piece.archetype) : undefined,
       };
       const { lo, hi } = band(spec);
       await db.insert(equipmentInstances).values({
@@ -953,6 +961,9 @@ export async function resolveActivity(
         style: piece.style as Style,
         tier: piece.tier,
         quality: piece.quality,
+        // Without this a found two-hander never gives up the offhand, which is
+        // the whole of what a two-hander costs.
+        archetype: piece.archetype ?? null,
         rolled: Math.round((lo + (hi - lo) * piece.percentile) * 1000),
         sessionId,
       });

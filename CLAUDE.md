@@ -11,7 +11,7 @@ checks below before pushing anything.
 ## Before pushing
 
 ```bash
-npm test                   # 372 unit tests, no database needed
+npm test                   # 375 unit tests, no database needed
 node --env-file=.env.local scripts/schema-check.mjs   # the live schema matches the code
 npm run test:integration   # 54 probes against the real database
 npx tsc --noEmit
@@ -192,6 +192,23 @@ before `git push`, and this says whether it took.
   farming or another recipe, and every gathering skill's output is consumed by something —
   and it has no exemptions left: excavation was the last one, and relics refine into upgrade
   stones now.
+- **An id is spelled in one place, and the catalogue is that place.** `rollDrops` built its
+  equipment ids from a string template, and for weapons the template was wrong: a weapon is keyed
+  by ARCHETYPE — `weapon:Snapedge:7:fine` — while the template wrote the style and the slot, so
+  every weapon ever dropped came out as `weapon:melee:weapon:7:fine`, a row that has never
+  existed. Armour was correct only by coincidence, its own id being exactly what the template
+  happened to write. It went to the bank, the collection log and the result screen and rendered
+  as "melee weapon 7 fine", and from the other end it meant 2,184 of the 2,730 weapons in the
+  catalogue — every quality above Plain, the ones that can only be *found* — were obtainable by
+  nothing at all. `equipmentOptions` asks the catalogue what exists instead, so there is no
+  second copy of the naming rule to drift; an empty answer is a real answer, since firearms have
+  no material below tier 6. A test sweeps every shape a kill can mint.
+
+  It also carries the ARCHETYPE, which the template had no way to know. That is not cosmetic:
+  `centre` takes a weapon's power from `archetype.damage` and `band` its width from
+  `archetype.bandPct`, so a found weapon was rolled against the flat slot fallback and was not
+  the weapon it claimed to be — and `equipItem` reads the same field to decide whether a
+  two-hander gives up the offhand, which is the whole of what a two-hander costs.
 - **Milestone XP stays a garnish.** The ladder is ~600,000 XP; V1's achievements are ~27,000 and
   the milestones are ~37,000, both under 8%, and a test holds the line. Anything that pays into
   the ladder competes with focused minutes for the meaning of a level.

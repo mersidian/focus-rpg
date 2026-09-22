@@ -489,6 +489,43 @@ let INDEX: Map<string, ItemDef> | null = null;
  * `activity-service` simply gave up and wrote the raw id into a session
  * summary. It is pure: no clock, no database, just the generated catalogue.
  */
+/**
+ * The catalogue rows that match a shape a drop can roll.
+ *
+ * Built FROM the catalogue rather than alongside it, which is the point: the
+ * drop table used to mint equipment ids by string template, and for weapons the
+ * template was wrong. A weapon is keyed by its ARCHETYPE — `weapon:Snapedge:7:fine`
+ * — while the template produced `weapon:melee:weapon:7:fine`, a row that has
+ * never existed. Armour survived only by coincidence, its own id being
+ * `armour:{style}:{slot}:{tier}:{quality}`, exactly what the template wrote.
+ *
+ * Asking the catalogue what exists cannot drift the way a second copy of the
+ * naming rule can. An empty answer is a real answer: firearms have no material
+ * below tier 6, so a gun player fighting shallow water genuinely has no gun of
+ * that tier to be paid in, and the caller decides what to do about it.
+ */
+let EQUIP_SHAPES: Map<string, ItemDef[]> | null = null;
+
+export function equipmentOptions(
+  slot: string,
+  style: string,
+  t: number,
+  quality: string,
+): ItemDef[] {
+  if (!EQUIP_SHAPES) {
+    EQUIP_SHAPES = new Map();
+    for (const item of itemIndex().values()) {
+      if (item.cls !== "weapon" && item.cls !== "armour") continue;
+      if (!item.slot || !item.style || !item.quality) continue;
+      const key = `${item.slot}:${item.style}:${item.tier}:${item.quality}`;
+      const bucket = EQUIP_SHAPES.get(key);
+      if (bucket) bucket.push(item);
+      else EQUIP_SHAPES.set(key, [item]);
+    }
+  }
+  return EQUIP_SHAPES.get(`${slot}:${style}:${t}:${quality}`) ?? [];
+}
+
 export function itemIndex(): Map<string, ItemDef> {
   if (!INDEX) INDEX = new Map(generateCatalogue().map((i) => [i.id, i]));
   return INDEX;

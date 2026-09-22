@@ -25,7 +25,7 @@ import {
   tierValue, refineStoneCost, refineCoinCost, refineTotal, bankSlotCost, bankSlotsTotalCost,
   BANK_SLOTS_BASE, BANK_SLOTS_MAX, AMMO_COST, processFuelCost, FUEL_BY_LENGTH,
 } from "../src/lib/game/economy.ts";
-import { generateCatalogue, catalogueBreakdown, tiersFor, TOOL_SKILLS } from "../src/lib/game/items.ts";
+import { generateCatalogue, catalogueBreakdown, tiersFor, TOOL_SKILLS, itemIndex, equipmentOptions } from "../src/lib/game/items.ts";
 import { rollDrops, foldDrops, salvageDecision, salvageValue } from "../src/lib/game/drops.ts";
 import {
   allRecipes,
@@ -2331,4 +2331,85 @@ test("grade never moves a gate", () => {
     });
   assert.deepEqual(at("crude"), at("fine"), "grade changed what the gate asked for");
   assert.equal(at("crude").open, true, "a tier-3 tool cannot reach tier 4");
+});
+
+test("every equipment id a kill can mint is a real catalogue row", () => {
+  /*
+   * It was not. `rollDrops` spelled its ids out by template, and for weapons
+   * the template was wrong — a weapon is keyed by archetype, so a dropped one
+   * came out as `weapon:melee:weapon:7:fine`, which has never existed. It went
+   * into the bank, the collection log and the result screen and rendered as
+   * "melee weapon 7 fine". Armour survived only because its own id happens to
+   * be exactly what the template wrote.
+   *
+   * Sweeping every shape a drop can roll, rather than a sample: the whole point
+   * is that one class was wrong at every tier and quality and nothing said so.
+   */
+  const index = itemIndex();
+  const missing: string[] = [];
+  for (const variant of allVariants()) {
+    for (const rarity of RARITIES) {
+      for (let seed = 0; seed < 6; seed++) {
+        for (const style of STYLES) {
+          for (const drop of rollDrops({ variant, rarity, style, rng: rng(`${variant.name}:${seed}`) })) {
+            if (drop.kind !== "equipment") continue;
+            if (!index.has(drop.itemId)) missing.push(drop.itemId);
+          }
+        }
+      }
+    }
+  }
+  assert.deepEqual([...new Set(missing)].slice(0, 5), [], `${missing.length} minted ids are not items`);
+});
+
+test("a dropped weapon knows its archetype, and everything else does not", () => {
+  // `centre` takes a weapon's power from `archetype.damage` and `band` its
+  // width from `archetype.bandPct`. A weapon that arrives without one is rolled
+  // against the flat slot fallback, so it is not the weapon it claims to be —
+  // and `equipItem` reads the same field to decide whether a two-hander gives
+  // up the offhand, which is the whole of what a two-hander costs.
+  const index = itemIndex();
+  let weapons = 0;
+  for (const variant of allVariants().slice(0, 40)) {
+    for (const rarity of RARITIES) {
+      for (let seed = 0; seed < 8; seed++) {
+        for (const drop of rollDrops({ variant, rarity, style: "melee", rng: rng(`arch:${variant.name}:${seed}`) })) {
+          if (drop.kind !== "equipment") continue;
+          const def = index.get(drop.itemId)!;
+          if (drop.slot === "weapon") {
+            weapons++;
+            assert.ok(drop.archetype, `${drop.itemId} dropped without an archetype`);
+            assert.equal(drop.archetype, def.archetype);
+          } else {
+            assert.equal(drop.archetype, undefined, `${drop.itemId} is not a weapon`);
+          }
+        }
+      }
+    }
+  }
+  assert.ok(weapons > 0, "the sweep never rolled a weapon, so it proved nothing");
+});
+
+test("every quality of every weapon can actually be obtained", () => {
+  /*
+   * Crafting only makes Plain — "quality above Plain is found, not made" — so
+   * the other four qualities have exactly one source, and for weapons it was
+   * broken. 2,184 of the 2,730 weapons in the catalogue could not be had by
+   * any means, while the same 3,276 armour variants could.
+   */
+  const index = itemIndex();
+  const madeOrFound = new Set<string>(allRecipes().map((r) => r.outputId));
+  for (const slot of SLOTS) {
+    for (const style of STYLES) {
+      for (const t of tiersFor(style)) {
+        for (const q of QUALITIES) {
+          for (const def of equipmentOptions(slot, style, t, q.key)) madeOrFound.add(def.id);
+        }
+      }
+    }
+  }
+  const unreachable = [...index.values()].filter(
+    (i) => (i.cls === "weapon" || i.cls === "armour") && !madeOrFound.has(i.id),
+  );
+  assert.deepEqual(unreachable.slice(0, 5).map((i) => i.id), []);
 });
