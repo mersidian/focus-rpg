@@ -2002,6 +2002,81 @@ test("a skill that opens with nothing to do is a skill written down", () => {
   }
 });
 
+test("a weapon can be made by the level the first fight opens", () => {
+  /*
+   * The test above passed for as long as this was broken, because Smithing
+   * could make a pickaxe the day it opened. What it could not make was the
+   * thing it opens FOR: every weapon took a plank, planks are Fletching's, and
+   * Fletching arrived six levels after the first area did. The gate for that
+   * area asks for no gear, so it let the character in at offence zero.
+   *
+   * Walked as a fresh account would: only the tier-1 gathering the gate opens
+   * at that level, only recipes `canCraft` allows a level-1 skill, no shop and
+   * no starter kit. The level is read off the areas rather than typed, so
+   * moving either end of this moves the test with it.
+   */
+  const firstFight = Math.min(
+    ...allAreas().map(
+      (a) => requirementFor({ kind: "combat", biome: a.biome.index, area: a.index }).characterLevel ?? 1,
+    ),
+  );
+  const state = { ...freshAccount(), characterLevel: firstFight };
+
+  const held = new Set<string>();
+  for (const skill of SKILLS.filter((s) => s.kind === "gathering")) {
+    if (!checkGate(requirementFor({ kind: "gathering", skill: skill.key, tier: 1 }), state).open) continue;
+    held.add(gatheredItemId(skill.key, 1));
+    const byproduct = BYPRODUCT[skill.key];
+    if (byproduct) held.add(`raw:${byproduct.line}:1`);
+  }
+
+  const recipes = allRecipes();
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const r of recipes) {
+      if (held.has(r.outputId)) continue;
+      const check = canCraft(r, (id) => (held.has(id) ? 99 : 0), 9999, { skill: 1, character: firstFight });
+      if (!check.ok) continue;
+      held.add(r.outputId);
+      grew = true;
+    }
+  }
+
+  const made = recipes.filter((r) => r.outputId.startsWith("weapon:") && held.has(r.outputId));
+  const short = recipes.find((r) => r.outputId === `weapon:Snapedge:1:${CRAFTED_QUALITY}`)!;
+  assert.ok(
+    made.length > 0,
+    `the first area opens at character level ${firstFight} and no weapon can be made by then — ` +
+      `${short.outputName} is short of ${short.inputs.filter((i) => !held.has(i.itemId)).map((i) => i.itemId).join(", ")}`,
+  );
+
+  // And worth making: on its own, with nine slots still empty, it has to move
+  // the odds off the floor an unarmed character is standing on.
+  const common = spawnPower(1, RARITIES[0]);
+  const best = Math.max(
+    ...made.map((r) => {
+      const archetype = ARCHETYPES.find((a) => a.name === r.outputId.split(":")[1])!;
+      const spec = { slot: "weapon" as const, style: archetype.style, tier: 1, quality: CRAFTED_QUALITY, refine: 0, archetype };
+      return successChance(loadoutPower({ weapon: { spec, rolled: band(spec).centre } }).offence, common);
+    }),
+  );
+  assert.ok(best > MIN_SUCCESS, "the first weapon a character can make changes nothing about the first fight");
+});
+
+test("a skill that makes weapons can make one the day it opens", () => {
+  // The same deadlock, asked of every rung rather than the bottom one: a second
+  // input made by a skill that opens later is a recipe list nobody can run.
+  const weapons = allRecipes().filter((r) => r.outputId.startsWith("weapon:"));
+  for (const key of new Set(weapons.map((r) => r.skill))) {
+    const skill = SKILLS.find((s) => s.key === key)!;
+    const have = reachableAt(skill.unlock);
+    assert.ok(
+      weapons.some((r) => r.skill === key && r.inputs.every((i) => have.has(i.itemId))),
+      `${skill.label} opens at character level ${skill.unlock} and cannot make a single weapon`,
+    );
+  }
+});
+
 test("every unlock is paid in focused minutes and nothing else", () => {
   // The property that makes it safe to put an unlock inside the requirement
   // gate. Every other line in that gate can be blocked by something you do not
@@ -2571,7 +2646,7 @@ test("an unarmed character is told to make a weapon, and what it takes", () => {
   const steps = nextSteps(guideState({ held: (id) => held.get(id) ?? 0 }));
   const first = steps[0];
   assert.equal(first.key, "weapon");
-  assert.match(first.detail, /3 Copper Bar and 1 Pine Plank — you hold 1 and 0/);
+  assert.match(first.detail, /3 Copper Bar and 1 Pine Charcoal — you hold 1 and 0/);
   assert.deepEqual(first.progress, { have: 1, need: 4 });
   assert.match(first.href, /^\/game\/crafting\?q=/);
   // The recipe it names is a real one, and one the character may run today.

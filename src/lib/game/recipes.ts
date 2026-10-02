@@ -106,15 +106,33 @@ export function refiningRecipes(): Recipe[] {
   return out;
 }
 
-/** Which refined good and which skill each style's armour is made from. */
 /** The two slots a jeweller makes, in every style. */
 export const JEWELLERY_SLOTS: Slot[] = ["amulet", "ring"];
 
-const ARMOUR_SOURCE: Record<Style, { skill: string; from: string }> = {
-  melee: { skill: "smithing", from: "Bar" },
-  ranged: { skill: "leatherworking", from: "Leather" },
-  magic: { skill: "tailoring", from: "Cloth" },
-  gun: { skill: "gunsmithing", from: "Leather" },
+/**
+ * Which refined good and which skill each style's gear is made from, and the
+ * second thing its weapons take.
+ *
+ * Every weapon used to take a plank. Planks are Fletching's, and Fletching
+ * opens six character levels after Smithing does — so the skill that opens
+ * beside the first area, to arm you for it, could make a pickaxe and no weapon,
+ * and the gate for that area asks for no gear and waved the character in at
+ * offence zero. The ladder test stayed green on the pickaxe.
+ *
+ * A blade is forged, so it takes the forge's charcoal instead. §4 already drew
+ * it that way: bars go to "melee plate, tools" and planks to "bows, staves,
+ * arrows". A charcoal and a plank are both two logs and one refining action,
+ * so a melee weapon costs exactly the ore, wood and fuel it always did; what
+ * changed is which skill does the last of the work, and when it opens.
+ *
+ * The rule is that `weaponTakes` must come from a skill open no later than
+ * `skill` is, and a test asks it of every style rather than of this one.
+ */
+const ARMOUR_SOURCE: Record<Style, { skill: string; from: string; weaponTakes: string }> = {
+  melee: { skill: "smithing", from: "Bar", weaponTakes: "Charcoal" },
+  ranged: { skill: "leatherworking", from: "Leather", weaponTakes: "Plank" },
+  magic: { skill: "tailoring", from: "Cloth", weaponTakes: "Plank" },
+  gun: { skill: "gunsmithing", from: "Leather", weaponTakes: "Plank" },
 };
 
 /**
@@ -154,7 +172,7 @@ export function equipmentRecipes(): Recipe[] {
           tier: t.tier,
           inputs: [
             { itemId: refined(source.from, t.tier), qty: 3 },
-            { itemId: refined("Plank", t.tier), qty: 1 },
+            { itemId: refined(source.weaponTakes, t.tier), qty: 1 },
           ],
           fuel: processFuelCost(t.tier) * 3,
           level: tierSkillRequirement(t.tier),

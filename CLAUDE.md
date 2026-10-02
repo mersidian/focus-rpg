@@ -75,6 +75,16 @@ before `git push`, and this says whether it took.
   same rule as *"a skill with no recipes is a skill written down"* applied to the calendar
   rather than the catalogue. `game-audit.mjs` prints the ladder in hours, which is the only
   unit an unlock can honestly be judged in — level 20 reads very differently from 93 hours.
+- **The first weapon can be made the day the first fight opens.** "Each skill can run one
+  recipe on the day it opens" was true of Smithing because of the pickaxe, and it hid that
+  every weapon took a plank: Smithing opens at 2, beside the first area, and Fletching at 8,
+  so the gate that asks for no gear let a character in at offence zero for the first eleven
+  hours with no way to make anything to hold. A melee weapon takes charcoal now, which is what
+  §4's chain always drew — planks go to bows, staves and arrows — and since a charcoal and a
+  plank are both two logs and one refining action, the weapon costs what it always did. The
+  unlock ladder did not move. Two tests hold it: one walks a fresh account, with no shop and
+  no starter kit, to the level the first area asks for and makes a weapon that lifts the odds
+  off the floor; the other asks every skill that makes weapons to make one the day it opens.
 - **Nothing is hard-deleted.** Superseded state goes to `game_state_backup`; a merged
   project keeps its row pointing at where its hours went.
 - **Levels ratchet.** XP can fall; the level cannot. Prestige is the single sanctioned

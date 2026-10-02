@@ -73,6 +73,12 @@ export const SKILLS: Skill[] = [
    * of it — a skill that unlocks with nothing to make is the `AMMO_COST`
    * mistake wearing a different hat. The test walks every recipe to prove it:
    * each skill has at least one it can actually run the minute it opens.
+   *
+   * One recipe is not enough for a skill that makes weapons. Smithing opens
+   * beside the first area and passed that test on a pickaxe while every weapon
+   * it had wanted a plank from Fletching, six levels on. So a second test asks
+   * the sharper question: a skill that makes weapons can make a WEAPON the day
+   * it opens.
    */
   { key: "firemaking", label: "Firemaking", kind: "processing", note: "logs to charcoal", unlock: 1 },
   { key: "smelting", label: "Smelting", kind: "processing", note: "ore and charcoal to bars", unlock: 1 },

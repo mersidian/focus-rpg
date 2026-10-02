@@ -89,7 +89,7 @@ function recipeFor(slot: Slot, style: Style, t: number): Recipe | null {
   return GEAR_RECIPES.find((r) => r.outputId === `armour:${style}:${slot}:${t}:plain`) ?? null;
 }
 
-/** "3 Copper Bar and 1 Pine Plank — you hold 1 and 0". */
+/** "3 Copper Bar and 1 Pine Charcoal — you hold 1 and 0". */
 function shoppingList(recipe: Recipe, held: (id: string) => number): string {
   const wants = recipe.inputs.map((i) => `${i.qty} ${itemName(i.itemId)}`).join(" and ");
   const short = recipe.inputs.some((i) => held(i.itemId) < i.qty);
