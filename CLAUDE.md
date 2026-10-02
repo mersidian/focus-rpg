@@ -302,6 +302,20 @@ before `git push`, and this says whether it took.
   link looks, at a size a thumb cannot hit; `.btn-quiet` and `.chip` are the two shapes they
   take now, and the one filled button on a screen is still the primary action.
 
+- **A list says one fact a row, and the rest lives behind the row.** Crafting was 379 rows, each
+  two lines tall with its own quantity box, max button and Make button — a thousand controls,
+  the forty usable ones above three hundred that were not. Search-first had fixed the version
+  before it and left everything on the page. Now a kind is always chosen (a skill, a shelf
+  category — there is no "all", because the only question that spans kinds is the search box),
+  what you can use leads and is capped, and the rest is folded by tier in native `<details>`.
+  A recipe's inputs, counts and controls are in the popup that opens when you pick it.
+- **An action answers.** `craftAction` returns what was made, the XP and any milestone, and the
+  button that called it looked for a `note` the action never sends — so making something
+  changed two numbers in a row and said nothing. The recipe popup reports it and stays open.
+  It is a native `<dialog>` opened with `showModal`, so focus trapping, Escape and the inert
+  page behind are the browser's; `.popup` needs `margin: auto` because Tailwind's reset
+  removes the margins a modal centres itself with.
+
 - **Milestone XP stays a garnish.** The ladder is ~600,000 XP; V1's achievements are ~27,000 and
   the milestones are ~37,000, both under 8%, and a test holds the line. Anything that pays into
   the ladder competes with focused minutes for the meaning of a level.

@@ -8,7 +8,6 @@ import {
   buyFuelCapAction,
   buyPlotAction,
   buyStockAction,
-  craftAction,
   dropContractAction,
   equipAction,
   harvestPlotAction,
@@ -22,7 +21,7 @@ import {
   setSalvageOutputAction,
   exchangeStonesAction,
 } from "@/lib/actions";
-import { MAX_BUY_AT_ONCE, MAX_CRAFT_AT_ONCE } from "@/lib/constants";
+import { MAX_BUY_AT_ONCE } from "@/lib/constants";
 
 /**
  * The buttons, one per action.
@@ -87,31 +86,6 @@ function Quantity({
           max {ceiling}
         </button>
       )}
-    </span>
-  );
-}
-
-export function CraftButton({
-  recipeId,
-  label,
-  max,
-}: {
-  recipeId: string;
-  label?: string;
-  /** The most the materials and the fuel allow, worked out by the caller. */
-  max?: number;
-}) {
-  const [times, setTimes] = useState(1);
-  return (
-    <span className="inline-flex flex-wrap items-center gap-2">
-      <Quantity
-        value={times}
-        onChange={setTimes}
-        max={max}
-        cap={MAX_CRAFT_AT_ONCE}
-        label="How many to make"
-      />
-      <ActionButton quiet label={label ?? "Make"} run={() => craftAction(recipeId, times)} />
     </span>
   );
 }
