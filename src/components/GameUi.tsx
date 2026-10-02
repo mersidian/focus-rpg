@@ -459,7 +459,9 @@ function weakest(s: SlotView, all: SlotView[]): boolean {
 /** The compact rack: ten small slots, for a panel that summarises the loadout. */
 export function SlotGrid({ slots, steps = MAX_TIER }: { slots: SlotView[]; steps?: number }) {
   return (
-    <ul className="mt-4 grid grid-cols-5 gap-2">
+    // Capped, because the squares scale with the column: on a tablet the panel
+    // is the full page wide and five uncapped squares were 150px apiece.
+    <ul className="mt-4 grid max-w-md grid-cols-5 gap-2">
       {slots.map((s) => {
         const filled = s.tier > 0;
         return (
