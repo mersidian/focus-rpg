@@ -509,6 +509,7 @@ export const inventoryEntries = pgTable(
         | "salvage"
       | "exchanged"
         | "gate_entry"
+        | "contract"
         | "correction"
       >()
       .notNull(),

@@ -236,6 +236,40 @@ export type ResolutionSummary = {
   /** True when the session was simply not long enough to land the kill. */
   bossTooShort?: boolean;
 
+  /** Whether this was the kill that gave up the signature. */
+  bossFirstKill?: boolean;
+  /** Seconds this loadout needed to reach the roll, so "too short" has a figure. */
+  bossSeconds?: number;
+
+  /* --- what the session moved, beyond what it banked ---------------------- */
+
+  /**
+   * The skill's running total after this session.
+   *
+   * With `skillXp` it gives the level before and the level after, which is the
+   * difference between "+25 XP" and "Mining 13 → 14". A total, not a level, so
+   * the rail can be drawn from it and a curve change cannot strand a stored
+   * level that no longer matches.
+   */
+  skillXpTotal?: number;
+
+  /** The open contract, when this session's kills counted toward it. */
+  contract?: {
+    name: string;
+    before: number;
+    after: number;
+    required: number;
+    done: boolean;
+    /** Set only when `done`: what finishing it paid. */
+    coins?: number;
+    stones?: number;
+    xp?: number;
+    unique?: string;
+  };
+
+  /** Plots that moved a stage, and how many of them that finished. */
+  plots?: { advanced: number; ready: number };
+
   /** A rank arriving off a milestone lump, so the overlay can still fire. */
   levelChange?: LevelChange | null;
 };

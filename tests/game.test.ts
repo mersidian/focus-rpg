@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { MAX_TIER, GUN_ENTRY_TIER, LINE_WORDS, TIERS, tier, tierForHours, familiesAt } from "../src/lib/game/tiers.ts";
-import { ARCHETYPES, STYLES, archetypesFor, wheel, BEATS, STYLE_FAMILY } from "../src/lib/game/archetypes.ts";
+import { ARCHETYPES, STYLES, archetypesFor, wheel, BEATS, STYLE_FAMILY, answerTo } from "../src/lib/game/archetypes.ts";
 import { SPECIES, PARTS, FAMILY_PARTS } from "../src/lib/game/species.ts";
 import { BIOMES, BIOME_MATERIALS, AREAS_PER_BIOME, areaTier } from "../src/lib/game/biomes.ts";
 import { allAreas, allVariants, areasIn, variantsIn, wheelStep } from "../src/lib/game/variants.ts";
 import { QUALITIES, quality, type Quality } from "../src/lib/game/quality.ts";
 import {
   SLOTS, SLOT_KIND, affinity, band, centre, percentile, refineMultiplier,
-  loadoutPower, MAX_REFINE,
+  loadoutPower, MAX_REFINE, gateTier, emptySlots, referenceLoadout,
 } from "../src/lib/game/power.ts";
 import {
   RARITIES, spawnPower, successChance, MIN_SUCCESS, wheelFactor,
@@ -19,8 +19,9 @@ import { resolveYield } from "../src/lib/game/yield.ts";
 import { rng, sessionSeed } from "../src/lib/game/rng.ts";
 import {
   SKILLS, SKILL_XP, MAX_SKILL_LEVEL, skillLevel, tierSkillRequirement,
-  skillsOpenAt, nextSkillUnlock,
+  skillsOpenAt, nextSkillUnlock, nextTierUnlock,
 } from "../src/lib/game/skills.ts";
+import { nextSteps, type GuideState } from "../src/lib/game/guide.ts";
 import {
   tierValue, refineStoneCost, refineCoinCost, refineTotal, bankSlotCost, bankSlotsTotalCost,
   BANK_SLOTS_BASE, BANK_SLOTS_MAX, AMMO_COST, processFuelCost, FUEL_BY_LENGTH,
@@ -39,7 +40,9 @@ import {
   upkeepRecipes,
 } from "../src/lib/game/recipes.ts";
 import { UNIQUES } from "../src/lib/game/uniques.ts";
-import { BOSSES, bossesIn } from "../src/lib/game/bosses.ts";
+import {
+  BOSSES, BOSS_KILL_SECONDS, BOSS_REPEAT_UNIQUE_CHANCE, bossFight, bossPurse, bossTable, bossesIn, rollBossRepeat,
+} from "../src/lib/game/bosses.ts";
 import { resolveBoss } from "../src/lib/game/combat.ts";
 import { IMPLEMENTED, describeEffect, foldEffects, isImplemented } from "../src/lib/game/effects.ts";
 import { ACHIEVEMENTS, ALL_ACHIEVEMENTS } from "../src/lib/achievements/definitions.ts";
@@ -63,7 +66,10 @@ import {
   growthStages,
   plotCost,
 } from "../src/lib/game/farm.ts";
-import { contractDepth, rollContract } from "../src/lib/game/contracts.ts";
+import {
+  BIOME_TRINKET, CONTRACT_UNIQUES, contractAreas, contractDepth, contractPurse, rollContract,
+  rollContractUnique,
+} from "../src/lib/game/contracts.ts";
 import {
   TONICS,
   WARDS,
@@ -904,6 +910,9 @@ test("no boss demands a gun before guns exist", () => {
   for (const boss of BOSSES) {
     if (boss.tier < GUN_ENTRY_TIER) {
       assert.notEqual(boss.style, "gun", `${boss.name} is a gun fight at tier ${boss.tier}`);
+      // And the other direction, which is the one that was missed: the style
+      // that beats this boss has to exist at its tier.
+      assert.notEqual(answerTo(boss.style), "gun", `${boss.name} wants a gun at tier ${boss.tier}`);
     }
   }
 });
@@ -2412,4 +2421,243 @@ test("every quality of every weapon can actually be obtained", () => {
     (i) => (i.cls === "weapon" || i.cls === "armour") && !madeOrFound.has(i.id),
   );
   assert.deepEqual(unreachable.slice(0, 5).map((i) => i.id), []);
+});
+
+/* ------------------- bosses, contracts and what they give up --------------- */
+
+test("a two-handed weapon stands in for the offhand at the gate", () => {
+  /*
+   * "hands: 2 may move throughput and conversion but NEVER access." The gate
+   * counted filled slots and wanted ten, a two-hander unequips the offhand, and
+   * so a full set built around a Fellmaul read as tier 0.
+   */
+  const two = referenceLoadout("melee", 7).equipped;
+  assert.equal(two.weapon?.spec.archetype?.hands, 1, "the reference archetype moved");
+  const maul = ARCHETYPES.find((a) => a.hands === 2)!;
+  const set: typeof two = { ...two, weapon: { ...two.weapon!, spec: { ...two.weapon!.spec, archetype: maul } } };
+  delete set.offhand;
+  assert.equal(gateTier(set), 7, "a two-hander read as an empty slot");
+  assert.deepEqual(emptySlots(set), []);
+
+  // And an empty offhand under a ONE-handed weapon is still an empty slot.
+  const one = { ...two };
+  delete one.offhand;
+  assert.equal(gateTier(one), 0);
+  assert.deepEqual(emptySlots(one), ["offhand"]);
+
+  // The shallowest slot is the reading, however deep the rest go.
+  const mixed = { ...two, ring: referenceLoadout("melee", 3).equipped.ring };
+  assert.equal(gateTier(mixed), 3);
+});
+
+test("a boss fight is as long as the loadout makes it", () => {
+  /*
+   * Resolution passed a boss power of 1, so the clamp made every boss a
+   * 450-second fight against every loadout, and the result screen worked the
+   * time out a second way that always came to 2,700.
+   */
+  for (const boss of BOSSES) {
+    const plain = referenceLoadout(boss.style, boss.tier).power.offence;
+    const refined = referenceLoadout(boss.style, boss.tier, "fine", 5).power.offence;
+    const neutral = bossFight(boss, plain, boss.style);
+    assert.ok(
+      bossFight(boss, refined, boss.style).seconds < neutral.seconds,
+      `${boss.name}: better gear did not shorten the fight`,
+    );
+    const answer = answerTo(boss.style);
+    const right = bossFight(boss, plain, answer);
+    assert.ok(right.seconds < neutral.seconds, `${boss.name}: the right style did not shorten it`);
+    assert.ok(right.chance > neutral.chance);
+    // A boss is the wall: the set that only just passes the gate is slower
+    // than parity, and a fifty always reaches the roll whatever was brought.
+    assert.ok(neutral.seconds > BOSS_KILL_SECONDS, `${boss.name} is at parity with a gate-minimum set`);
+    assert.ok(bossFight(boss, 1, boss.style).seconds <= 50 * 60, `${boss.name} cannot be reached in a fifty`);
+  }
+});
+
+test("every unique can be obtained by something", () => {
+  /*
+   * Only a boss's first kill ever granted one, so 40 of the 250 existed in
+   * play — and three of the five "find N uniques" achievements asked for more
+   * than that.
+   */
+  const fromBosses = new Set(BOSSES.flatMap((b) => bossTable(b).map((u) => u.name)));
+  const trinkets = new Set([...BIOME_TRINKET.values()].map((u) => u.name));
+  const loose = new Set(CONTRACT_UNIQUES.map((u) => u.name));
+  for (const u of UNIQUES) {
+    const ways = [fromBosses, trinkets, loose].filter((set) => set.has(u.name)).length;
+    assert.equal(ways, 1, `${u.name} has ${ways} sources`);
+  }
+  assert.equal(BIOME_TRINKET.size, BIOMES.length, "a biome has no trinket of its own");
+  for (const boss of BOSSES) {
+    assert.equal(bossTable(boss)[0], boss.signature, `${boss.name}'s signature is not first on its table`);
+  }
+  // The deepest contract can reach every loose unique, and the shallowest none
+  // it should not.
+  assert.ok(CONTRACT_UNIQUES.every((u) => u.tier <= MAX_TIER));
+});
+
+test("a repeat kill rolls the boss's own table, and the same session rolls the same thing", () => {
+  const boss = BOSSES[6];
+  const names = new Set(bossTable(boss).map((u) => u.name));
+  let hits = 0;
+  for (let i = 0; i < 400; i++) {
+    const a = rollBossRepeat(boss, rng(sessionSeed(`s${i}`, "boss-table")));
+    const b = rollBossRepeat(boss, rng(sessionSeed(`s${i}`, "boss-table")));
+    assert.deepEqual(a, b);
+    if (a) {
+      hits += 1;
+      assert.ok(names.has(a.unique.name), `${a.unique.name} is not ${boss.name}'s to drop`);
+      assert.ok(a.percentile >= 0 && a.percentile < 1);
+    }
+  }
+  assert.ok(Math.abs(hits / 400 - BOSS_REPEAT_UNIQUE_CHANCE) < 0.08, `${hits} of 400`);
+  assert.ok(bossPurse(boss) > 0);
+});
+
+test("a contract says where to go and pays for going", () => {
+  const index = itemIndex();
+  for (let level = 1; level <= MAX_SKILL_LEVEL; level += 7) {
+    for (let n = 0; n < 12; n++) {
+      const offer = rollContract(`u:contract:${n}`, level);
+      assert.ok(offer);
+      // A target with nowhere to find it is a contract that cannot be finished.
+      assert.ok(
+        contractAreas(offer.variantName, offer.biome).length > 0,
+        `${offer.variantName} lives in no area of biome ${offer.biome}`,
+      );
+      const purse = contractPurse(offer.tier, offer.required);
+      assert.ok(purse.coins > 0 && purse.stones > 0 && purse.xp > 0);
+      assert.ok(index.has(purse.stoneItemId), `${purse.stoneItemId} is not in the catalogue`);
+    }
+  }
+  // Deeper pays more, and a loose unique never comes from a shallower contract.
+  assert.ok(contractPurse(12, 40).coins > contractPurse(6, 40).coins);
+  assert.equal(rollContractUnique(rng("x"), 1), null);
+  for (let i = 0; i < 300; i++) {
+    const found = rollContractUnique(rng(`c${i}`), 9);
+    if (found) assert.ok(found.unique.tier <= 9);
+  }
+});
+
+/* ------------------------------ what to do next ---------------------------- */
+
+function guideState(over: Partial<GuideState> = {}): GuideState {
+  return {
+    gate: {
+      skills: {}, equipmentTier: 0, toolTier: {}, toolGrade: {}, rations: 10,
+      potions: new Map(), keyItems: [], characterLevel: 22,
+    },
+    equipped: {},
+    spare: [],
+    held: () => 0,
+    skillXp: {},
+    fuel: 0,
+    fuelCap: 500,
+    plots: [],
+    seeds: 0,
+    contract: null,
+    markers: new Set(),
+    ...over,
+  };
+}
+
+test("an unarmed character is told to make a weapon, and what it takes", () => {
+  /*
+   * The account this was written for: level 22, five pieces of copper armour,
+   * no weapon, one bar in the bank — on a page that said none of it.
+   */
+  const held = new Map([["refined:Bar:1", 1]]);
+  const steps = nextSteps(guideState({ held: (id) => held.get(id) ?? 0 }));
+  const first = steps[0];
+  assert.equal(first.key, "weapon");
+  assert.match(first.detail, /3 Copper Bar and 1 Pine Plank — you hold 1 and 0/);
+  assert.deepEqual(first.progress, { have: 1, need: 4 });
+  assert.match(first.href, /^\/game\/crafting\?q=/);
+  // The recipe it names is a real one, and one the character may run today.
+  const named = decodeURIComponent(first.href.split("q=")[1]);
+  const recipe = allRecipes().find((r) => r.outputName === named);
+  assert.ok(recipe, `${named} is not a recipe`);
+  assert.equal(recipe.level, 1);
+});
+
+test("a weapon already owned is equipped, not made again", () => {
+  const steps = nextSteps(guideState({ spare: [{ slot: "weapon", tier: 1, name: "Copper Snapedge" }] }));
+  assert.equal(steps[0].title, "Equip your Copper Snapedge");
+  assert.equal(steps[0].href, "/game/equipment");
+});
+
+test("the route follows the loadout: empty slots, then the shallowest one, then nothing", () => {
+  const full = referenceLoadout("melee", 4).equipped;
+  const missing = { ...full };
+  delete missing.ring;
+  delete missing.cape;
+  const gear = (equipped: typeof full) => nextSteps(guideState({ equipped })).find((s) => ["weapon", "slots", "floor"].includes(s.key));
+
+  assert.equal(gear(missing)?.key, "slots");
+  assert.deepEqual(gear(missing)?.progress, { have: 8, need: 10 });
+  assert.match(gear(missing)!.detail, /cape, ring/);
+
+  const shallow = { ...full, boots: referenceLoadout("melee", 2).equipped.boots };
+  assert.equal(gear(shallow)?.key, "floor");
+  assert.match(gear(shallow)!.title, /boots/);
+
+  // A finished set is not a problem, and the route must not invent one.
+  assert.equal(gear(full), undefined);
+});
+
+test("a contract step names the place, and a finished route still points somewhere real", () => {
+  const offer = rollContract("u:contract:0", 1)!;
+  const steps = nextSteps(
+    guideState({
+      equipped: referenceLoadout("melee", 4).equipped,
+      contract: { variantName: offer.variantName, biome: offer.biome, killed: 3, required: offer.required },
+    }),
+  );
+  const contract = steps.find((s) => s.key === "contract")!;
+  assert.match(contract.title, new RegExp(offer.variantName));
+  assert.match(contract.detail, new RegExp(BIOMES[offer.biome - 1].name));
+  assert.equal(contract.href, `/game/areas?b=${offer.biome}`);
+  assert.deepEqual(contract.progress, { have: 3, need: offer.required });
+
+  for (const step of steps) {
+    assert.match(step.href, /^\/game(\/|$)/, `${step.key} leaves the game`);
+    assert.ok(step.title.length > 0 && step.detail.length > 0);
+  }
+  assert.equal(new Set(steps.map((s) => s.key)).size, steps.length, "two steps share a key");
+});
+
+test("the route does not ask for what is already done", () => {
+  const steps = nextSteps(
+    guideState({
+      equipped: referenceLoadout("melee", 4).equipped,
+      markers: new Set(BOSSES.map((b) => `boss:${b.biome}:${b.role}`)),
+      fuel: 0,
+      plots: [{ seedItemId: "seed:Herb:1", stagesLeft: 2 }],
+      seeds: 5,
+    }),
+  );
+  assert.equal(steps.find((s) => s.key === "boss"), undefined, "every boss is down");
+  assert.equal(steps.find((s) => s.key === "fuel"), undefined, "the tank is empty");
+  assert.equal(steps.find((s) => s.key === "sow"), undefined, "the only plot is growing");
+  // And a full tank, a grown crop and no rations are each said.
+  const urgent = nextSteps(
+    guideState({
+      equipped: referenceLoadout("melee", 4).equipped,
+      gate: { ...guideState().gate, rations: 0 },
+      fuel: 500,
+      plots: [{ seedItemId: "seed:Herb:1", stagesLeft: 0 }],
+    }),
+  ).map((s) => s.key);
+  assert.deepEqual(urgent.slice(0, 3), ["rations", "harvest", "fuel"]);
+});
+
+test("a skill says what its next level opens", () => {
+  assert.deepEqual(nextTierUnlock(1), { tier: 2, level: tierSkillRequirement(2) });
+  assert.equal(nextTierUnlock(MAX_SKILL_LEVEL), null);
+  for (let level = 1; level < MAX_SKILL_LEVEL; level++) {
+    const next = nextTierUnlock(level)!;
+    assert.ok(next.level > level);
+    assert.ok(tierSkillRequirement(next.tier - 1) <= level, `level ${level} skipped a tier`);
+  }
 });

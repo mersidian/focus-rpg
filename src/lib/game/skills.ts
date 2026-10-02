@@ -152,6 +152,22 @@ export function tierSkillRequirement(t: number): number {
   return Math.max(1, Math.round(MAX_SKILL_LEVEL * Math.pow((clamped - 1) / 23, 1.2)));
 }
 
+/**
+ * The next material tier a skill opens, and the level it opens at.
+ *
+ * Null at the top. This is the one thing a skill's level is FOR — a tier is
+ * gated on it and on nothing else a player can grind — and the skills screen
+ * showed the level, the XP and the distance to the next number without ever
+ * saying what a number bought.
+ */
+export function nextTierUnlock(level: number): { tier: number; level: number } | null {
+  for (let t = 1; t <= 24; t++) {
+    const need = tierSkillRequirement(t);
+    if (need > level) return { tier: t, level: need };
+  }
+  return null;
+}
+
 /** A processing action's XP, priced off the tier of what was made. */
 export function processingXp(t: number): number {
   return Math.round(6 * Math.pow(1.2, Math.max(0, t - 1)));

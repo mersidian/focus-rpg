@@ -11,17 +11,24 @@ import {
   worldProgress,
 } from "./db/schema";
 import { append, adjustWallet, have, loadWallet, logCollected, type Grant } from "./inventory-service";
-import { ARCHETYPE_BY_NAME, type Style } from "./game/archetypes";
+import { ARCHETYPE_BY_NAME, answerTo, type Style } from "./game/archetypes";
 import { BIOME_BY_INDEX } from "./game/biomes";
-import { resolveCombat } from "./game/combat";
+import {
+  MIN_SUCCESS,
+  RARITIES,
+  resolveCombat,
+  spawnPower,
+  successChance,
+  wheelFactor,
+} from "./game/combat";
 import { foldDrops, rollDrops, salvageDecision, salvageValue } from "./game/drops";
 import { FUEL_BY_LENGTH, salvageStoneYield } from "./game/economy";
 import { checkGate, type GateState } from "./game/gate";
 import { requirementFor } from "./game/requirements";
 import { acceptableWards, tonicEffect, type Ward } from "./game/potions";
-import { band, loadoutPower, type Equipped, type ItemSpec, type Slot } from "./game/power";
+import { band, gateTier, loadoutPower, type Equipped, type ItemSpec, type Slot } from "./game/power";
 import { rng, sessionSeed } from "./game/rng";
-import { SKILLS, processingXp, skillLevel } from "./game/skills";
+import { SKILLS, skillLevel } from "./game/skills";
 import {
   BIOME_UNLOCK_XP,
   milestoneMarker,
@@ -30,8 +37,22 @@ import {
 } from "./game/milestones";
 import { applyDelta, loadState } from "./game-state";
 import { tier as tierAt } from "./game/tiers";
-import { areasIn } from "./game/variants";
-import { BOSS_POWER_MULTIPLIER, bossKillSeconds, bossMarker, bossesIn } from "./game/bosses";
+import { areasIn, type Variant } from "./game/variants";
+import {
+  BOSS_KILL_SECONDS,
+  BOSS_POWER_MULTIPLIER,
+  bossFight,
+  bossMarker,
+  bossPurse,
+  bossesIn,
+  rollBossRepeat,
+} from "./game/bosses";
+import {
+  BIOME_TRINKET,
+  contractPurse,
+  rollContractUnique,
+  trinketMarker,
+} from "./game/contracts";
 import { resolveBoss } from "./game/combat";
 import { UNIQUE_BY_NAME, uniqueItemId, type Unique } from "./game/uniques";
 import { describeEffect, foldEffects, type Effect, type Modifiers } from "./game/effects";
@@ -124,7 +145,13 @@ export async function loadEquipped(userId: string): Promise<Equipped> {
  * `equipment_instance` can be equipped. A boss's signature rolls at the TOP of
  * its band: it is guaranteed, so there is nothing to be unlucky about.
  */
-async function grantUnique(userId: string, unique: Unique, sessionId: string): Promise<void> {
+async function grantUnique(
+  userId: string,
+  unique: Unique,
+  sessionId: string,
+  /** Where in its band it lands. A guaranteed drop takes the top. */
+  percentile = 1,
+): Promise<void> {
   const spec: ItemSpec = {
     slot: unique.slot,
     // A style-agnostic unique has to resolve to something for affinity, and the
@@ -136,7 +163,7 @@ async function grantUnique(userId: string, unique: Unique, sessionId: string): P
     refine: 0,
     archetype: undefined,
   };
-  const { hi } = band(spec);
+  const { lo, hi } = band(spec);
   await db.insert(equipmentInstances).values({
     userId,
     itemId: uniqueItemId(unique),
@@ -144,10 +171,10 @@ async function grantUnique(userId: string, unique: Unique, sessionId: string): P
     style: spec.style,
     tier: unique.tier,
     quality: "masterwork",
-    rolled: Math.round(hi * 1000),
+    rolled: Math.round((lo + (hi - lo) * percentile) * 1000),
     sessionId,
   });
-  await logCollected(userId, uniqueItemId(unique), 1);
+  await logCollected(userId, uniqueItemId(unique), percentile);
 }
 
 /**
@@ -350,7 +377,6 @@ export async function loadGateState(userId: string): Promise<GateState> {
     potionsHeld(userId),
   ]);
 
-  const tiers = Object.values(equipped).map((e) => e?.spec.tier ?? 0);
   const toolTier: Record<string, number> = {};
   const toolGrade: Record<string, Quality> = {};
   for (const row of toolRows) {
@@ -377,7 +403,7 @@ export async function loadGateState(userId: string): Promise<GateState> {
   return {
     skills,
     // A loadout is only as good as its weakest slot: an empty slot is tier 0.
-    equipmentTier: tiers.length === 10 ? Math.min(...tiers) : 0,
+    equipmentTier: gateTier(equipped),
     toolTier,
     toolGrade,
     rations,
@@ -397,6 +423,8 @@ export type ActivityOffer = {
   activity: Activity;
   /** Everything the picker needs, so the client never imports the world. */
   label: string;
+  /** What the character does to it: "gathers", "fights in", "fights". */
+  verb: string;
   detail: string;
   group: string;
   tier: number;
@@ -415,20 +443,36 @@ export async function offers(userId: string): Promise<ActivityOffer[]> {
   // Cheap and idempotent after the first call, and the one place every player
   // passes through before they can do anything at all.
   await ensureStarterKit(userId);
-  const state = await loadGateState(userId);
+  // The loadout rides beside the gate, so the list can say what a fight would
+  // come to and not only whether you may start it.
+  const [state, equipped] = await Promise.all([loadGateState(userId), loadEquipped(userId)]);
+  const power = loadoutPower(equipped);
+  const style = equipped.weapon?.spec.style ?? null;
   const out: ActivityOffer[] = [];
 
   for (const skill of SKILLS.filter((s) => s.kind === "gathering")) {
     const best = Math.max(1, state.toolTier[skill.key] ?? 1);
-    for (let t = 1; t <= Math.min(24, best + 1); t++) {
+    /*
+     * Deepest first, under the skill's own heading, and named for what comes
+     * out of the ground.
+     *
+     * All six skills shared one group called "Gather", and the picker shows
+     * twelve rows a group: woodcutting, fishing and mining filled it, so
+     * Hunting and Excavation could not be chosen at any tier by a character
+     * who had opened both. The rows that did show were named by gluing the
+     * tier's metal onto the skill's note — "Copper logs", "Iron fish" — for
+     * things the catalogue calls Pine Log and Pike.
+     */
+    for (let t = Math.min(24, best + 1); t >= 1; t--) {
       const activity: Activity = { kind: "gathering", skill: skill.key, tier: t };
       const requirement = requirementFor(activity);
       const gate = checkGate(requirement, state, label);
       out.push({
         activity,
-        label: `${label(skill.key)} · tier ${t}`,
-        detail: `${tierAt(t).metal} ${skill.note.split(",")[0]}`,
-        group: "Gather",
+        label: itemName(gatheredItemId(skill.key, t)),
+        verb: "gathers",
+        detail: `tier ${t}`,
+        group: label(skill.key),
         tier: t,
         ...gate,
       });
@@ -442,7 +486,14 @@ export async function offers(userId: string): Promise<ActivityOffer[]> {
       out.push({
         activity,
         label: area.name,
-        detail: `tier ${area.tier} · ${area.roster.length} monsters`,
+        verb: "fights in",
+        /*
+         * The odds, before the minutes are spent. The gate for the first two
+         * tiers asks for no gear at all, so it would wave an unarmed character
+         * into a fifty-minute fight they would lose nineteen times in twenty —
+         * and "6 monsters" was the only thing the row said about it.
+         */
+        detail: `tier ${area.tier} · ${landing(area.roster, power.offence, style)}`,
         group: biome.name,
         tier: area.tier,
         ...gate,
@@ -455,8 +506,11 @@ export async function offers(userId: string): Promise<ActivityOffer[]> {
       out.push({
         activity,
         label: boss.name,
-        detail: `boss · tier ${boss.tier} · weak to ${
-          boss.style === "melee" ? "gun" : boss.style === "ranged" ? "melee" : boss.style === "magic" ? "ranged" : "magic"
+        verb: "fights",
+        detail: `boss · tier ${boss.tier} · weak to ${answerTo(boss.style)}${
+          style
+            ? ` · ${Math.round(bossFight(boss, power.offence, style).seconds / 60)} min, then ${Math.round(bossFight(boss, power.offence, style).chance * 100)}%`
+            : " · unarmed"
         }`,
         group: biome.name,
         tier: boss.tier,
@@ -465,6 +519,24 @@ export async function offers(userId: string): Promise<ActivityOffer[]> {
     }
   }
   return out;
+}
+
+/**
+ * "you land 81% of commons", averaged across an area's roster.
+ *
+ * Averaged because the wheel differs monster to monster and a session draws
+ * from all of them; against a common because that is most of what spawns.
+ */
+function landing(roster: Variant[], offence: number, style: Style | null): string {
+  if (style === null) return `unarmed: ${Math.round(MIN_SUCCESS * 100)}% of fights land`;
+  if (roster.length === 0) return "nothing lives here";
+  const mean =
+    roster.reduce(
+      (n, v) =>
+        n + successChance(offence * wheelFactor(style, v.style), spawnPower(v.tier, RARITIES[0])),
+      0,
+    ) / roster.length;
+  return `you land ${Math.round(mean * 100)}% of commons`;
 }
 
 /** Record the choice. Refuses if the gate is shut — it is checked, not trusted. */
@@ -597,6 +669,14 @@ async function addSkillXp(
   userId: string,
   skill: string,
   xp: number,
+  /**
+   * Told the skill's total after the add, when a caller wants to draw it.
+   *
+   * The result screen printed "+25 Mining XP" in its smallest type and could
+   * not say whether that was a level, because the one statement that knew the
+   * running total returned it and nothing kept it.
+   */
+  onTotal?: (total: number) => void,
 ): Promise<MilestonePaid[]> {
   if (xp <= 0) return [];
   const [row] = await db
@@ -608,6 +688,7 @@ async function addSkillXp(
     })
     .returning({ xp: skillStates.xp });
 
+  onTotal?.(row?.xp ?? xp);
   const after = skillLevel(row?.xp ?? xp);
   const before = skillLevel(Math.max(0, (row?.xp ?? xp) - xp));
 
@@ -711,12 +792,15 @@ export async function resolveActivity(
           .limit(1)
       : [];
 
+    // How long this loadout needs, worked out once and read by both the
+    // resolver and the screen that explains what the resolver did.
+    const needed = boss ? bossFight(boss, power.offence, style).seconds : BOSS_KILL_SECONDS;
     const result = resolveBoss({
       focusedMs,
       bossTier: boss?.tier ?? row.tier,
       bossStyle: boss?.style ?? "melee",
       bossPowerMultiplier: BOSS_POWER_MULTIPLIER,
-      killSeconds: bossKillSeconds(power.offence, 1),
+      killSeconds: needed,
       loadoutPower: power,
       style,
       rations,
@@ -724,21 +808,46 @@ export async function resolveActivity(
       rng: rng(sessionSeed(sessionId, "boss")),
     });
 
-    const grants: Grant[] = [];
-    if (result.rationsUsed > 0) {
-      grants.push({
-        itemId: `ration:${row.tier}`,
-        delta: -result.rationsUsed,
-        reason: "consumed",
-        sessionId,
-      });
+    /*
+     * Spent from what is held, like every other ration in the game.
+     *
+     * This was `ration:${row.tier}` — the id the invariant names as the bug,
+     * fixed in the area fight and left standing here. The gate counts rations
+     * at any tier, so losing to a tier-9 boss on tier-3 rations spent a stack
+     * that did not exist and drove its balance negative.
+     */
+    await append(
+      userId,
+      (await spendRations(userId, result.rationsUsed)).map((g) => ({ ...g, sessionId })),
+    );
+    // A lost fight wears the weapon. `resolveBoss` has always returned this and
+    // nothing applied it, so only an area could ever dull an edge.
+    if (result.durabilityUsed > 0) {
+      await db
+        .update(equipmentInstances)
+        .set({
+          durability: sql`greatest(0, ${equipmentInstances.durability} - ${result.durabilityUsed})`,
+        })
+        .where(
+          and(eq(equipmentInstances.userId, userId), eq(equipmentInstances.equippedSlot, "weapon")),
+        );
     }
+
     // The signature is guaranteed on the first kill and never rolled — and
-    // `world_progress` is what stops a guarantee firing twice.
+    // `world_progress` is what stops a guarantee firing twice. Every kill after
+    // it rolls the rest of the boss's table, seeded from the session.
+    const taken: string[] = [];
     if (result.firstKill && boss?.signature) {
       await grantUnique(userId, boss.signature, sessionId);
+      taken.push(boss.signature.name);
+    } else if (result.killed && boss) {
+      const again = rollBossRepeat(boss, rng(sessionSeed(sessionId, "boss-table")));
+      if (again) {
+        await grantUnique(userId, again.unique, sessionId, again.percentile);
+        taken.push(again.unique.name);
+      }
     }
-    await append(userId, grants);
+    const purse = result.killed && boss ? bossPurse(boss) : 0;
 
     if (result.killed && boss) {
       await db
@@ -759,12 +868,21 @@ export async function resolveActivity(
       }
     }
 
-    await adjustWallet(userId, { fuel });
-    summary.milestones.push(...(await addSkillXp(userId, style, Math.round(focusedMs / 60_000))));
+    await adjustWallet(userId, { coins: purse, fuel });
+    summary.milestones.push(
+      ...(await addSkillXp(userId, style, Math.round(focusedMs / 60_000), (total) => {
+        summary.skillXpTotal = total;
+      })),
+    );
     summary.kills = result.killed ? 1 : 0;
     summary.failures = result.killed ? 0 : 1;
     summary.skillXp = Math.round(focusedMs / 60_000);
-    summary.items = result.firstKill && boss?.signature ? [{ name: boss.signature.name, qty: 1 }] : [];
+    summary.skill = style;
+    summary.coins = purse;
+    summary.coinsFromDrops = purse;
+    summary.items = taken.map((name) => ({ itemId: `unique:${name}`, name, qty: 1 }));
+    summary.bossFirstKill = result.firstKill;
+    summary.bossSeconds = Math.round(needed);
     summary.bossDown = result.killed;
     summary.bossProgress = result.progress;
     summary.bossName = boss?.name;
@@ -775,8 +893,7 @@ export async function resolveActivity(
     // A fifty that fell short of the kill and a fifty that was simply too short
     // for one are different problems with different answers, so the screen has
     // to be able to tell them apart.
-    summary.bossTooShort =
-      !result.killed && boss ? bossKillSeconds(boss.tier, power.offence) > focusedMs / 1000 : false;
+    summary.bossTooShort = !result.killed && focusedMs / 1000 < needed;
   } else if (row.kind === "gathering") {
     /*
      * Two waits, and the skills come free.
@@ -818,7 +935,11 @@ export async function resolveActivity(
         ? [{ itemId: extraId, delta: result.byproduct, reason: "session_yield" as const, sessionId }]
         : []),
     ]);
-    summary.milestones.push(...(await addSkillXp(userId, row.skill, result.skillXp)));
+    summary.milestones.push(
+      ...(await addSkillXp(userId, row.skill, result.skillXp, (total) => {
+        summary.skillXpTotal = total;
+      })),
+    );
     summary.units = result.units;
     summary.skillXp = result.skillXp;
     // The NAME, not the id. This was `name: itemId`, so a gathering result
@@ -982,7 +1103,11 @@ export async function resolveActivity(
 
     if (salvageStones.length > 0) await append(userId, salvageStones);
     await adjustWallet(userId, { coins: folded.coins + salvageCoins, fuel });
-    summary.milestones.push(...(await addSkillXp(userId, style, Math.round(focusedMs / 60_000))));
+    summary.milestones.push(
+      ...(await addSkillXp(userId, style, Math.round(focusedMs / 60_000), (total) => {
+        summary.skillXpTotal = total;
+      })),
+    );
     summary.milestones.push(...(await addSkillXp(userId, "slaying", Math.round(combat.kills / 4))));
 
     summary.kills = combat.kills;
@@ -996,6 +1121,7 @@ export async function resolveActivity(
     summary.coinsFromDrops = folded.coins;
     summary.coinsFromSalvage = salvageCoins;
     summary.skillXp = Math.round(focusedMs / 60_000);
+    summary.skill = style;
     summary.equipmentKept = kept;
     summary.equipmentSalvaged = salvaged;
     summary.salvageStones = salvageStones.reduce((n, g) => n + g.delta, 0);
@@ -1020,7 +1146,15 @@ export async function resolveActivity(
       qty: i.qty,
     }));
 
-    await advanceContract(userId, combat.spawns.filter((s) => s.killed).map((s) => s.variant.name));
+    const contract = await advanceContract(
+      userId,
+      sessionId,
+      combat.spawns.filter((s) => s.killed).map((s) => s.variant.name),
+    );
+    if (contract) {
+      summary.contract = contract.progress;
+      summary.milestones.push(...contract.milestones);
+    }
   }
 
   if (row.kind === "gathering") await adjustWallet(userId, { fuel });
@@ -1061,7 +1195,7 @@ export async function resolveActivity(
   summary.levelChange =
     [...summary.milestones].reverse().find((m) => m.levelChange)?.levelChange ?? null;
 
-  await advancePlots(userId);
+  summary.plots = await advancePlots(userId);
   /*
    * The summary is written in the same statement that sets `resolved_at`, so
    * there is no window where a session is settled but has no record of what it
@@ -1094,32 +1228,100 @@ export { gatheredItemId } from "./game/items";
  * Farming advances one stage per COMPLETED SESSION, whatever the session was
  * doing. Never by elapsed time: the user's focus is the only clock here.
  */
-async function advancePlots(userId: string): Promise<void> {
-  await db
+async function advancePlots(userId: string): Promise<{ advanced: number; ready: number }> {
+  const moved = await db
     .update(farmPlots)
     .set({ stagesLeft: sql`greatest(0, ${farmPlots.stagesLeft} - 1)` })
-    .where(and(eq(farmPlots.userId, userId), sql`${farmPlots.stagesLeft} > 0`));
+    .where(and(eq(farmPlots.userId, userId), sql`${farmPlots.stagesLeft} > 0`))
+    .returning({ stagesLeft: farmPlots.stagesLeft });
+  return { advanced: moved.length, ready: moved.filter((p) => p.stagesLeft === 0).length };
 }
 
-async function advanceContract(userId: string, killed: string[]): Promise<void> {
-  if (killed.length === 0) return;
+/**
+ * Count a session's kills against the open contract, and pay it if that
+ * finishes it.
+ *
+ * One conditional UPDATE does the counting and the claiming, the same shape as
+ * a session settling: the WHERE narrows to a contract that is still open, the
+ * row comes back with `completed_at` set exactly once, and only the caller
+ * holding that row pays. A contract read, compared and then written could be
+ * finished twice by two reconciles overlapping.
+ *
+ * It returns what it did. It used to return nothing, so the one event a
+ * contract exists for — finishing it — happened in silence, on a screen that
+ * was already telling the player about the same kills.
+ */
+async function advanceContract(
+  userId: string,
+  sessionId: string,
+  killed: string[],
+): Promise<{
+  progress: NonNullable<ResolutionSummary["contract"]>;
+  milestones: MilestonePaid[];
+} | null> {
+  if (killed.length === 0) return null;
   const [contract] = await db
     .select()
     .from(slayingContracts)
     .where(and(eq(slayingContracts.userId, userId), isNull(slayingContracts.completedAt)))
     .limit(1);
-  if (!contract) return;
+  if (!contract) return null;
   const hits = killed.filter((name) => name === contract.variantName).length;
-  if (hits === 0) return;
-  const now = contract.killed + hits;
-  await db
+  if (hits === 0) return null;
+
+  const [claimed] = await db
     .update(slayingContracts)
     .set({
-      killed: now,
-      completedAt: now >= contract.required ? new Date() : null,
+      killed: sql`least(${slayingContracts.required}, ${slayingContracts.killed} + ${hits})`,
+      completedAt: sql`case when ${slayingContracts.killed} + ${hits} >= ${slayingContracts.required} then now() else null end`,
     })
-    .where(eq(slayingContracts.id, contract.id));
-  if (now >= contract.required) {
-    await addSkillXp(userId, "slaying", processingXp(contract.tier) * 4);
+    .where(and(eq(slayingContracts.id, contract.id), isNull(slayingContracts.completedAt)))
+    .returning({ killed: slayingContracts.killed, completedAt: slayingContracts.completedAt });
+  if (!claimed) return null;
+
+  const progress: NonNullable<ResolutionSummary["contract"]> = {
+    name: contract.variantName,
+    before: contract.killed,
+    after: claimed.killed,
+    required: contract.required,
+    done: claimed.completedAt !== null,
+  };
+  if (!progress.done) return { progress, milestones: [] };
+
+  // Ledger first, wallet second, the instance last: a crash part-way leaves a
+  // contract that is closed and under-paid, never one that can be paid twice.
+  const purse = contractPurse(contract.tier, contract.required);
+  await append(userId, [
+    { itemId: purse.stoneItemId, delta: purse.stones, reason: "contract", sessionId },
+  ]);
+  await adjustWallet(userId, { coins: purse.coins });
+  const milestones = await addSkillXp(userId, "slaying", purse.xp);
+
+  // The biome's own trinket, the first time a contract is finished there. The
+  // marker is the claim, so a guarantee cannot be handed out twice.
+  const trinket = BIOME_TRINKET.get(contract.biome);
+  const [first] = trinket
+    ? await db
+        .insert(worldProgress)
+        .values({ userId, marker: trinketMarker(contract.biome) })
+        .onConflictDoNothing()
+        .returning({ marker: worldProgress.marker })
+    : [];
+  let unique: string | undefined;
+  if (trinket && first) {
+    await grantUnique(userId, trinket, sessionId);
+    unique = trinket.name;
+  } else {
+    // Seeded from the contract, not the session: it is the contract being paid.
+    const found = rollContractUnique(rng(`${contract.id}/unique`), contract.tier);
+    if (found) {
+      await grantUnique(userId, found.unique, sessionId, found.percentile);
+      unique = found.unique.name;
+    }
   }
+
+  return {
+    progress: { ...progress, coins: purse.coins, stones: purse.stones, xp: purse.xp, unique },
+    milestones,
+  };
 }

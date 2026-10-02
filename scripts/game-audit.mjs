@@ -8,7 +8,7 @@
  */
 import { generateCatalogue, catalogueBreakdown } from "../src/lib/game/items.ts";
 import { tier } from "../src/lib/game/tiers.ts";
-import { ARCHETYPES, STYLES } from "../src/lib/game/archetypes.ts";
+import { ARCHETYPES, STYLES, answerTo } from "../src/lib/game/archetypes.ts";
 import { SLOTS, band, loadoutPower } from "../src/lib/game/power.ts";
 import { RARITIES, spawnPower, successChance, wheelFactor, resolveCombat, rationsPerFailure } from "../src/lib/game/combat.ts";
 import { allVariants, allAreas, areasIn } from "../src/lib/game/variants.ts";
@@ -18,6 +18,10 @@ import { LEVEL_XP } from "../src/lib/levels.ts";
 import { refineTotal, bankSlotsTotalCost, tierValue, ammoUnitPrice, sellPrice, rationPrice } from "../src/lib/game/economy.ts";
 import { rng } from "../src/lib/game/rng.ts";
 import { BYPRODUCT, resolveYield } from "../src/lib/game/yield.ts";
+import { BOSSES, BOSS_REPEAT_UNIQUE_CHANCE, bossFight, bossPurse, bossTable } from "../src/lib/game/bosses.ts";
+import { BIOME_TRINKET, CONTRACT_UNIQUES, CONTRACT_UNIQUE_CHANCE, contractPurse } from "../src/lib/game/contracts.ts";
+import { referenceLoadout } from "../src/lib/game/power.ts";
+import { UNIQUES } from "../src/lib/game/uniques.ts";
 
 const line = (s) => console.log(s);
 
@@ -191,6 +195,38 @@ for (const s of [...SKILLS].sort((a, b) => a.unlock - b.unlock || a.key.localeCo
   line(`  lv ${String(s.unlock).padStart(2)} ${hours.toFixed(1).padStart(6)}h  ${s.label} (${s.kind})`);
 }
 line(`  ${SKILLS.filter((s) => s.unlock <= 1).length} open at the first minute, all ${SKILLS.length} by ${(LEVEL_XP[Math.max(...SKILLS.map((s) => s.unlock)) - 1] / 60).toFixed(0)}h`);
+
+line("\n=== BOSSES ===");
+line("  A boss should be a wall for the set that only just passes its gate, and");
+line("  fall to the right style or to refinement. Minutes to reach the roll, and");
+line("  the chance the roll lands.");
+const mins = (s) => `${Math.round(s / 60)}min`;
+for (const boss of [BOSSES[0], BOSSES[11], BOSSES[23], BOSSES[39]]) {
+  const answer = answerTo(boss.style);
+  const own = referenceLoadout(boss.style, boss.tier).power.offence;
+  // The answering style's own set, since that is what bringing it means.
+  const right = referenceLoadout(answer, boss.tier).power.offence;
+  const fine = referenceLoadout(answer, boss.tier, "fine", 5).power.offence;
+  const a = bossFight(boss, own, boss.style);
+  const b = bossFight(boss, right, answer);
+  const c = bossFight(boss, fine, answer);
+  const parts = [
+    `same style ${mins(a.seconds)} ${Math.round(a.chance * 100)}%`,
+    `${answer} ${mins(b.seconds)} ${Math.round(b.chance * 100)}%`,
+    `${answer} fine+5 ${mins(c.seconds)} ${Math.round(c.chance * 100)}%`,
+  ];
+  line(`  ${boss.name.padEnd(18)} t${String(boss.tier).padStart(2)} ${boss.style.padEnd(6)} | ${parts.join(" | ")} | purse ${bossPurse(boss).toLocaleString()}`);
+}
+const tables = BOSSES.map((b) => bossTable(b).length);
+line(`  tables hold ${Math.min(...tables)}-${Math.max(...tables)} uniques; a repeat kill gives one up ${Math.round(BOSS_REPEAT_UNIQUE_CHANCE * 100)}% of the time`);
+
+line("\n=== CONTRACTS ===");
+line("  The purse should be worth following and not worth more than the kills.");
+for (const t of [1, 6, 12, 24]) {
+  const purse = contractPurse(t, 40);
+  line(`  40 kills at tier ${String(t).padStart(2)}: ${purse.coins.toLocaleString()} coins, ${purse.stones} stones, ${purse.xp} Slaying xp`);
+}
+line(`  uniques: ${BOSSES.reduce((n, b) => n + bossTable(b).length, 0)} off bosses, ${BIOME_TRINKET.size} first-contract trinkets, ${CONTRACT_UNIQUES.length} loose at ${Math.round(CONTRACT_UNIQUE_CHANCE * 100)}% a contract — ${UNIQUES.length} in all`);
 
 line("\n=== CURVES ===");
 line(`skill 99 costs ${SKILL_XP[98]} xp = ${(SKILL_XP[98] / 60).toFixed(0)} focused hours on that skill`);

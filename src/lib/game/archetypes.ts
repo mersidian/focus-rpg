@@ -90,6 +90,16 @@ export const BEATS: Record<Style, Style> = {
   gun: "melee",
 };
 
+/**
+ * The style to bring against one: whichever the wheel puts ahead of it.
+ *
+ * Spelled once, here. The activity list carried its own copy as a four-way
+ * ternary, and a rule about bosses was written against the wrong end of it.
+ */
+export function answerTo(style: Style): Style {
+  return STYLES.find((s) => BEATS[s] === style) ?? style;
+}
+
 export type WheelResult = "advantage" | "neutral" | "disadvantage";
 
 export function wheel(attacker: Style, defender: Style): WheelResult {

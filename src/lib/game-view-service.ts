@@ -11,11 +11,13 @@ import {
   slayingContracts,
   worldProgress,
 } from "./db/schema";
-import { loadWallet, bankUsage } from "./inventory-service";
+import { balances, loadWallet, bankUsage } from "./inventory-service";
+import { nextSteps, type Step } from "./game/guide";
 import type { ResolutionSummary } from "./game-types";
 import { loadEquipped, loadSkillXp, loadGateState } from "./activity-service";
 import { loadoutPower, percentile, type Equipped } from "./game/power";
-import { ARCHETYPE_BY_NAME } from "./game/archetypes";
+import { ARCHETYPE_BY_NAME, type Style } from "./game/archetypes";
+import type { GateState } from "./game/gate";
 import { SKILLS, skillLevel, skillFloorXp, skillNextXp } from "./game/skills";
 import { BIOME_BY_INDEX } from "./game/biomes";
 import { BIOME_UNLOCK_XP, FIRST_REFINE_TEN_XP, skillLevelXp } from "./game/milestones";
@@ -176,7 +178,10 @@ export async function instances(userId: string): Promise<InstanceRow[]> {
     };
     return {
       id: row.id,
-      name: index.get(row.itemId)?.name ?? row.itemId,
+      // `itemName`, not the raw id: a unique is not a catalogue row, so the
+      // fallback here printed "unique:Thistlemaw's Grin" on the one piece of
+      // gear a player is most likely to look at.
+      name: index.get(row.itemId)?.name ?? itemName(row.itemId),
       slot: row.slot,
       style: row.style,
       tier: row.tier,
@@ -299,9 +304,14 @@ export type Overview = {
   plots: { slot: number; seedItemId: string | null; stagesLeft: number }[];
   contract: {
     variantName: string;
+    /** Where the target lives, which the row always stored and nothing read. */
+    biome: number;
+    tier: number;
     killed: number;
     required: number;
   } | null;
+  /** Every `world_progress` marker: bosses down, keys held, trinkets claimed. */
+  markers: string[];
   keyItems: string[];
   bossesDown: number;
   /** Lumps already paid into V1's ladder, newest first (§11). */
@@ -352,8 +362,15 @@ export async function overview(userId: string): Promise<Overview> {
     catalogue: itemIndex().size,
     plots,
     contract: contract
-      ? { variantName: contract.variantName, killed: contract.killed, required: contract.required }
+      ? {
+          variantName: contract.variantName,
+          biome: contract.biome,
+          tier: contract.tier,
+          killed: contract.killed,
+          required: contract.required,
+        }
       : null,
+    markers: markerList,
     keyItems: markerList.filter((m) => m.startsWith("key:")).map((m) => m.slice(4)),
     bossesDown: markerList.filter((m) => m.startsWith("boss:")).length,
     milestones: recentMilestones(markers),
@@ -394,6 +411,91 @@ function recentMilestones(
     }
   }
   return out.sort((a, b) => b.at.getTime() - a.at.getTime());
+}
+
+/**
+ * The overview and the route through it, in one wait.
+ *
+ * `nextSteps` is pure and wants a lot — the gate, the bank, the skills, the
+ * spare gear — and none of it depends on anything else here, so it all rides
+ * in the same wave as the overview it is drawn above.
+ */
+export async function overviewWithGuide(
+  userId: string,
+): Promise<{ overview: Overview; steps: Step[] }> {
+  const [o, gate, held, skillXp, owned] = await Promise.all([
+    overview(userId),
+    loadGateState(userId),
+    balances(userId),
+    loadSkillXp(userId),
+    instances(userId),
+  ]);
+  const steps = nextSteps({
+    gate,
+    equipped: o.equipped,
+    spare: owned
+      .filter((i) => !i.equippedSlot)
+      .map((i) => ({ slot: i.slot, tier: i.tier, name: i.name })),
+    held: (id) => held.get(id) ?? 0,
+    skillXp,
+    fuel: o.fuel,
+    fuelCap: o.fuelCap,
+    plots: o.plots,
+    seeds: [...held.entries()].reduce(
+      (n, [id, qty]) => n + (id.startsWith("seed:") && qty > 0 ? qty : 0),
+      0,
+    ),
+    contract: o.contract,
+    markers: new Set(o.markers),
+  });
+  return { overview: o, steps };
+}
+
+export type WorldView = {
+  gate: GateState;
+  power: { offence: number; defence: number };
+  /** Null with no weapon, and then every fight is fought at zero offence. */
+  style: Style | null;
+  /** Marker to how many times it has happened: a boss's kill count lives here. */
+  markers: Map<string, number>;
+  /** Every item id ever obtained. */
+  found: Set<string>;
+  contract: Overview["contract"];
+};
+
+/** What the areas screen needs to say what a fight would be, in one wait. */
+export async function worldView(userId: string): Promise<WorldView> {
+  const [gate, equipped, markers, found, contractRows] = await Promise.all([
+    loadGateState(userId),
+    loadEquipped(userId),
+    db
+      .select({ marker: worldProgress.marker, count: worldProgress.count })
+      .from(worldProgress)
+      .where(eq(worldProgress.userId, userId)),
+    collectionProgress(userId),
+    db
+      .select()
+      .from(slayingContracts)
+      .where(and(eq(slayingContracts.userId, userId), isNull(slayingContracts.completedAt)))
+      .limit(1),
+  ]);
+  const contract = contractRows[0];
+  return {
+    gate,
+    power: loadoutPower(equipped),
+    style: equipped.weapon?.spec.style ?? null,
+    markers: new Map(markers.map((m) => [m.marker, m.count])),
+    found: new Set(found.keys()),
+    contract: contract
+      ? {
+          variantName: contract.variantName,
+          biome: contract.biome,
+          tier: contract.tier,
+          killed: contract.killed,
+          required: contract.required,
+        }
+      : null,
+  };
 }
 
 export async function collectionProgress(userId: string): Promise<Map<string, number>> {

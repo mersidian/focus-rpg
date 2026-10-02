@@ -198,6 +198,36 @@ export function loadoutPower(equipped: Equipped): LoadoutPower {
   };
 }
 
+/**
+ * The tier the requirement gate reads off a loadout: its shallowest slot.
+ *
+ * An empty slot is tier 0, so a full set matters before a better one does. The
+ * one slot allowed to be empty is the offhand under a two-handed weapon, which
+ * stands in for it at the weapon's own tier.
+ *
+ * That exception is the rule the archetypes already state — "`hands: 2` may
+ * move throughput and conversion but NEVER access" — and it was not being
+ * kept. The gate counted filled slots and wanted ten, a two-hander unequips
+ * the offhand, and so every Fellmaul ever worn read as tier 0 and shut each
+ * area past the meadow. It lived inline in a service where no test could ask.
+ */
+export function gateTier(equipped: Equipped): number {
+  const twoHanded = equipped.weapon?.spec.archetype?.hands === 2;
+  return Math.min(
+    ...SLOTS.map((slot) =>
+      slot === "offhand" && twoHanded
+        ? (equipped.weapon?.spec.tier ?? 0)
+        : (equipped[slot]?.spec.tier ?? 0),
+    ),
+  );
+}
+
+/** The slots the gate is counting as empty, in the game's own order. */
+export function emptySlots(equipped: Equipped): Slot[] {
+  const twoHanded = equipped.weapon?.spec.archetype?.hands === 2;
+  return SLOTS.filter((slot) => !equipped[slot] && !(slot === "offhand" && twoHanded));
+}
+
 /** The style a loadout fights as, taken from its weapon. */
 export function loadoutStyle(equipped: Equipped): Style | null {
   return equipped.weapon?.spec.style ?? null;

@@ -28,6 +28,12 @@ import {
   resolveActivity,
 } from "../src/lib/activity-service.ts";
 
+import { BIOMES } from "../src/lib/game/biomes.ts";
+import { areasIn } from "../src/lib/game/variants.ts";
+import { SLOTS } from "../src/lib/game/power.ts";
+import { BIOME_TRINKET, contractPurse } from "../src/lib/game/contracts.ts";
+import { bossPurse, bossTable, bossesIn } from "../src/lib/game/bosses.ts";
+
 const sql = neon(process.env.DATABASE_URL);
 const userId = `probe-${crypto.randomUUID()}`;
 let failures = 0;
@@ -429,7 +435,118 @@ console.log("\n13. a spent pause budget puts the clock back on");
         done.status);
 }
 
-console.log("\n14. XP can never go negative");
+console.log("\n14. a contract pays once, and a boss gives up what is on its table");
+/*
+ * The whole reward half of combat had no probe. Contracts paid a quarter of
+ * what the spec lists and in silence, a boss's second kill paid nothing, and
+ * its rations were spent from an id the character might not hold — none of
+ * which a pure test can see, because every one of them is a write.
+ */
+{
+  // Enough rank to enter an area and to stand in front of the first boss.
+  await applyDelta(userId, null, "probe", { xp: 2_000 });
+  const meadow = BIOMES[0];
+  const target = areasIn(meadow)[0].roster[0].name;
+  const session = async () => {
+    const id = crypto.randomUUID();
+    await sql`insert into focus_session
+      (id, user_id, planned_minutes, ruleset, device_id, status, started_at, ended_at, last_heartbeat_at, paused_ms, xp_awarded)
+      values (${id}, ${userId}, 50, 'desktop', 'probe', 'completed',
+              ${new Date(Date.now() - 50 * 60_000)}, ${new Date()}, ${new Date()}, 0, 60)`;
+    return id;
+  };
+  const contract = async (required) => {
+    await sql`delete from slaying_contract where user_id = ${userId} and completed_at is null`;
+    await sql`insert into slaying_contract (id, user_id, variant_name, biome, required, tier)
+      values (${crypto.randomUUID()}, ${userId}, ${target}, ${meadow.index}, ${required}, 1)`;
+  };
+  const coins = async () =>
+    Number((await sql`select coins from wallet where user_id = ${userId}`)[0]?.coins ?? 0);
+
+  // A full tier-3 set with a weapon nothing survives, so every roll lands and
+  // the probe is about the bookkeeping rather than the dice.
+  for (const slot of SLOTS) {
+    await sql`insert into equipment_instance
+      (id, user_id, item_id, slot, style, tier, quality, rolled, equipped_slot)
+      values (${crypto.randomUUID()}, ${userId}, ${"probe:" + slot}, ${slot}, 'melee', 3, 'plain',
+              ${slot === "weapon" ? 100_000_000 : 10_000}, ${slot})`;
+  }
+  await sql`insert into farm_plot (id, user_id, slot, seed_item_id, stages_left)
+    values (${crypto.randomUUID()}, ${userId}, 1, 'seed:Herb:1', 1)
+    on conflict (user_id, slot) do update set seed_item_id = 'seed:Herb:1', stages_left = 1`;
+
+  await contract(3);
+  const fightId = await session();
+  const entered = await chooseActivity(userId, fightId, { kind: "combat", biome: meadow.index, area: 1 }, null);
+  check("an armed character may enter the meadow", entered.ok, entered.ok ? "" : entered.missing.join(", "));
+  const before = await coins();
+  const fight = await resolveActivity(userId, fightId);
+  const purse = contractPurse(1, 3);
+  check("the fight counts toward the contract", fight?.contract?.name === target,
+        `${fight?.contract?.before} -> ${fight?.contract?.after} of ${fight?.contract?.required}`);
+  check("and finishes it", fight?.contract?.done === true);
+  check("the result says what finishing it paid",
+        fight?.contract?.coins === purse.coins && fight?.contract?.stones === purse.stones,
+        `${fight?.contract?.coins} coins, ${fight?.contract?.stones} stones`);
+  check("the purse reached the wallet on top of the drops",
+        (await coins()) - before === purse.coins + (fight?.coins ?? 0),
+        `${(await coins()) - before} gained`);
+  const [stones] = await sql`select qty from inventory_balance
+    where user_id = ${userId} and item_id = ${purse.stoneItemId}`;
+  check("and the stones reached the bank", (stones?.qty ?? 0) >= purse.stones, `${stones?.qty} held`);
+  const trinket = BIOME_TRINKET.get(meadow.index);
+  check("the first contract in a biome gives up its trinket",
+        fight?.contract?.unique === trinket?.name, fight?.contract?.unique);
+  check("the result carries the skill's running total",
+        (fight?.skillXpTotal ?? 0) >= (fight?.skillXp ?? 1), `${fight?.skillXpTotal} XP`);
+  check("and the crop the session finished growing",
+        fight?.plots?.advanced === 1 && fight?.plots?.ready === 1,
+        JSON.stringify(fight?.plots));
+
+  // Two sessions finishing the same contract at once: one of them is paid.
+  await contract(1);
+  const [a, b] = [await session(), await session()];
+  for (const id of [a, b]) {
+    await chooseActivity(userId, id, { kind: "combat", biome: meadow.index, area: 1 }, null);
+  }
+  const raced = await Promise.all([resolveActivity(userId, a), resolveActivity(userId, b)]);
+  const finished = raced.filter((r) => r?.contract?.done).length;
+  check("two sessions racing to finish one contract pay it once", finished === 1, `${finished} paid`);
+  const trinkets = await sql`select count(*)::int as n from equipment_instance
+    where user_id = ${userId} and item_id = ${"unique:" + trinket?.name}`;
+  check("and the trinket is not handed out a second time", trinkets[0].n === 1, `${trinkets[0].n} held`);
+
+  // The first boss, twice. It asks for a full set at its own tier, which is
+  // what the ten pieces above are.
+  const boss = bossesIn(meadow.index).find((x) => x.role === "mid");
+  const killBoss = async () => {
+    const id = await session();
+    const gate = await chooseActivity(userId, id, { kind: "boss", biome: meadow.index, role: "mid" }, null);
+    if (!gate.ok) return { gate, result: null };
+    return { gate, result: await resolveActivity(userId, id) };
+  };
+  const first = await killBoss();
+  check("the first boss can be reached", first.gate.ok, first.gate.ok ? "" : first.gate.missing.join(", "));
+  check("it falls", first.result?.bossDown === true);
+  check("its first kill gives up its signature",
+        first.result?.bossFirstKill === true && first.result?.items[0]?.name === boss.signature.name,
+        first.result?.items[0]?.name);
+  check("and pays its purse", first.result?.coins === bossPurse(boss), `${first.result?.coins} coins`);
+  const second = await killBoss();
+  check("a second kill is not a first kill", second.result?.bossDown === true && second.result?.bossFirstKill === false);
+  check("but it still pays", second.result?.coins === bossPurse(boss), `${second.result?.coins} coins`);
+  const table = new Set(bossTable(boss).map((u) => u.name));
+  check("and anything it drops is off that boss's table",
+        (second.result?.items ?? []).every((i) => table.has(i.name)),
+        (second.result?.items ?? []).map((i) => i.name).join(", ") || "nothing this time");
+
+  const negative = await sql`select item_id, qty from inventory_balance
+    where user_id = ${userId} and qty < 0`;
+  check("nothing was spent that was not held", negative.length === 0,
+        negative.map((r) => `${r.item_id} ${r.qty}`).join(", "));
+}
+
+console.log("\n15. XP can never go negative");
 await applyDelta(userId, null, "probe", { xp: -999_999 });
 check("a huge penalty floors at zero", (await loadState(userId)).xp === 0);
 
