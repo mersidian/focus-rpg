@@ -1,16 +1,23 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { Screen, Block, Rows, Empty } from "@/components/GameUi";
+import { Screen, Block, Empty, SlotBoard } from "@/components/GameUi";
 import { SpareGear } from "@/components/SpareGear";
 import { instances } from "@/lib/game-view-service";
 import { loadEquipped } from "@/lib/activity-service";
-import { emptySlots, gateTier, loadoutPower, SLOTS, MAX_REFINE } from "@/lib/game/power";
-import { BEATS } from "@/lib/game/archetypes";
+import {
+  emptySlots,
+  gateTier,
+  loadoutPower,
+  SLOTS,
+  MAX_REFINE,
+  type Slot,
+} from "@/lib/game/power";
+import { ARCHETYPES, BEATS, type Style } from "@/lib/game/archetypes";
+import { SLOT_NOUN } from "@/lib/game/items";
 import { refineStoneCost } from "@/lib/game/economy";
 import { groupNumber } from "@/lib/format";
 import { RefineButton, RepairButton, UnequipButton } from "@/components/GameActions";
-import { GearMark } from "@/components/GearMark";
 
 export const dynamic = "force-dynamic";
 
@@ -24,52 +31,82 @@ export default async function EquipmentPage() {
   const power = loadoutPower(equipped);
   const style = equipped.weapon?.spec.style ?? null;
   const worn = owned.filter((i) => i.equippedSlot);
+  const bySlot = new Map(worn.map((i) => [i.equippedSlot as string, i]));
   const missing = emptySlots(equipped);
   const twoHanded = equipped.weapon?.spec.archetype?.hands === 2;
   const spare = owned.filter((i) => !i.equippedSlot);
+  /*
+   * What to search the bench for to fill a slot: the noun this style's piece
+   * is called, or for a weapon the first one-handed archetype of the style.
+   */
+  const build: Style = style ?? (worn[0]?.style as Style | undefined) ?? "melee";
+  const noun = (slot: string) =>
+    slot === "weapon"
+      ? (ARCHETYPES.find((a) => a.style === build && a.hands === 1)?.name ?? "")
+      : (SLOT_NOUN[build][slot as Slot] ?? slot);
 
   return (
     <Screen
       title="Equipment"
       lead="What you wear decides what you can fight. Refining takes a piece to +10, and nothing you own is ever destroyed."
     >
-      <Block title="Worn" aside={style ? `${style} · strong against ${BEATS[style]}` : "no style"}>
-        <Rows
-          head={["Slot", "Item", "Roll", "Durability", ""]}
-          rows={SLOTS.map((slot) => {
-            const item = worn.find((i) => i.equippedSlot === slot);
-            if (!item) {
-              return [
-                slot,
-                <span key="e" className="text-faint">
-                  {slot === "offhand" && twoHanded ? "held by your two-handed weapon" : "empty"}
-                </span>,
-                "—",
-                "—",
-                "",
-              ];
-            }
-            return [
+      <Block
+        title="Worn"
+        aside={style ? `fighting as ${style}, strong against ${BEATS[style]}` : "unarmed"}
+      >
+        <SlotBoard
+          slots={SLOTS.map((slot) => {
+            const item = bySlot.get(slot);
+            return {
               slot,
-              <span key="n" className="inline-flex items-baseline gap-2 text-dim">
-                <GearMark slot={slot} style={item.style} />
-                {item.name}
-                {item.refine > 0 && (
-                  <span style={{ color: "var(--tier)" }}> +{item.refine}</span>
+              tier: item?.tier ?? 0,
+              name: item?.name,
+              style: item?.style,
+              refine: item?.refine,
+              held: slot === "offhand" && twoHanded,
+            };
+          })}
+          detail={(s) => {
+            const item = bySlot.get(s.slot);
+            if (!item) return null;
+            return (
+              <>
+                {/* Where the roll landed in its own band, and how worn it is —
+                    said in words, because "50%" and "100%" side by side in a
+                    table were two unlabelled percentages. */}
+                rolled <span className="tnum text-dim">{Math.round(item.percentile * 100)}%</span>
+                {item.durability <= 0 ? (
+                  <span style={{ color: "var(--color-warn)" }}>, worn out</span>
+                ) : (
+                  item.durability < 100 && (
+                    <>
+                      , <span className="tnum">{item.durability}%</span> sound
+                    </>
+                  )
                 )}
-              </span>,
-              `${Math.round(item.percentile * 100)}%`,
-              item.durability <= 0 ? "Worn" : `${item.durability}%`,
-              <span key="a" className="inline-flex flex-wrap gap-x-3">
-                <UnequipButton slot={slot} />
+              </>
+            );
+          }}
+          empty={(s) => (
+            // Straight to the recipe that fills it, in the style already worn.
+            <Link href={`/game/crafting?q=${encodeURIComponent(noun(s.slot))}`} className="btn-quiet">
+              Make one
+            </Link>
+          )}
+          actions={(s) => {
+            const item = bySlot.get(s.slot);
+            if (!item) return null;
+            return (
+              <>
                 {item.refine < MAX_REFINE && (
                   <RefineButton instanceId={item.id} step={item.refine + 1} />
                 )}
-              </span>,
-            ];
-          })}
+                <UnequipButton slot={s.slot} />
+              </>
+            );
+          }}
         />
-        <p className="mt-4 max-w-2xl text-body leading-relaxed text-faint">
+        <p className="mt-5 max-w-[62ch] text-body text-faint">
           Offence <span className="tnum text-dim">{groupNumber(Math.round(power.offence))}</span> ·
           defence <span className="tnum text-dim">{groupNumber(Math.round(power.defence))}</span>.{" "}
           {missing.length > 0 ? (

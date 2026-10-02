@@ -69,7 +69,9 @@ export default async function CollectionPage() {
                 key={u.name}
                 className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-rule py-2.5 text-body last:border-0"
               >
-                <span style={{ color: "var(--tier)" }}>{u.name}</span>
+                <span className="named text-lead" style={{ color: "var(--tier)" }}>
+                  {u.name}
+                </span>
                 <span className="text-note text-faint">
                   {u.slot} · tier {u.tier}
                   {u.source && ` · ${u.source}`}

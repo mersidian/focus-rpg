@@ -9,9 +9,8 @@ import {
   Empty,
   Gauge,
   Gauges,
-  SlotRack,
+  SlotGrid,
   StepList,
-  StyleWheel,
 } from "@/components/GameUi";
 import { overviewWithGuide, ledgerHistory, FAUCETS, type Faucet } from "@/lib/game-view-service";
 import { itemName } from "@/lib/game/items";
@@ -22,7 +21,7 @@ import { skillKindHue } from "@/lib/palette";
 import { SKILLS } from "@/lib/game/skills";
 import { sinceLabel } from "@/lib/format";
 import { RARITIES, spawnPower, successChance } from "@/lib/game/combat";
-import { BEATS, STYLES, type Style } from "@/lib/game/archetypes";
+import { BEATS, type Style } from "@/lib/game/archetypes";
 import { SLOTS, emptySlots, gateTier } from "@/lib/game/power";
 import { KEY_NAME } from "@/lib/game/gate";
 import { BIOMES } from "@/lib/game/biomes";
@@ -104,183 +103,209 @@ export default async function GameOverview() {
   const active = history.filter((d) => dayTotal(d) > 0).length;
   const ready = o.plots.filter((p) => p.seedItemId !== null && p.stagesLeft === 0).length;
 
+  const milestones = (
+    <Block
+      title="Milestones"
+      aside={
+        o.milestones.length === 0
+          ? "none yet"
+          : `${groupNumber(o.milestones.reduce((n, m) => n + m.xp, 0))} XP toward your rank`
+      }
+    >
+      {o.milestones.length === 0 ? (
+        <Empty>
+          A skill reaching level 10, a biome opening and a first +10 each pay character XP, once.
+        </Empty>
+      ) : (
+        <Rows
+          head={["Milestone", "Paid", "XP"]}
+        words={[1]}
+          rows={o.milestones.slice(0, 12).map((m) => [
+            <span key="what" className="flex items-center gap-2">
+              <Icon
+                name={milestoneMark(m.label)}
+                className="size-4 shrink-0 text-faint"
+                aria-hidden
+              />
+              <span className="min-w-0">{m.label}</span>
+            </span>,
+            sinceLabel(m.at.getTime(), o.now),
+            `+${groupNumber(m.xp)}`,
+          ])}
+          total={o.milestones.length}
+        />
+      )}
+    </Block>
+  );
+
+  const farm = (
+    <Block
+      title="Farm"
+      aside={ready > 0 ? `${ready} ready` : `${o.plots.length} plots`}
+      icon="farm"
+      href="/game/farm"
+    >
+      {o.plots.length === 0 ? (
+        <Empty>
+          No plots yet.{" "}
+          <Link href="/game/farm" className="text-dim underline underline-offset-2">
+            Open the farm
+          </Link>{" "}
+          to claim your first four.
+        </Empty>
+      ) : (
+        <>
+          {/*
+            A rail per plot rather than a table of "Stages left". A crop is a
+            thing with a length, and "3" in a column says nothing about whether
+            that is nearly done or barely planted.
+          */}
+          <ul className="mt-4 grid gap-x-8 gap-y-4 sm:grid-cols-2">
+            {o.plots.map((p) => {
+              const stages = p.seedItemId
+                ? growthStages(Number(p.seedItemId.split(":")[2] ?? 1))
+                : 1;
+              return (
+                <li key={p.slot} className="min-w-0">
+                  <div className="flex items-baseline justify-between gap-3 text-body">
+                    {/* The seed's name, not its id, and never "ready" on a
+                        plot that has not been sown. */}
+                    <span className={p.seedItemId ? "truncate text-dim" : "text-faint"}>
+                      {p.seedItemId ? itemName(p.seedItemId) : `Plot ${p.slot}`}
+                    </span>
+                    <span className="shrink-0 text-note text-faint">
+                      {p.seedItemId === null ? (
+                        "bare"
+                      ) : p.stagesLeft === 0 ? (
+                        <span style={{ color: "var(--tier)" }}>ready</span>
+                      ) : (
+                        <>
+                          <span className="tnum">{p.stagesLeft}</span>{" "}
+                          {p.stagesLeft === 1 ? "session" : "sessions"}
+                        </>
+                      )}
+                    </span>
+                  </div>
+                  <Rail
+                    progress={p.seedItemId === null ? 0 : 1 - p.stagesLeft / Math.max(1, stages)}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+          <p className="mt-4 text-body text-faint">
+            A crop grows one stage for every session you finish.
+          </p>
+        </>
+      )}
+    </Block>
+  );
+
   return (
     <Screen title="The game" lead="Everything here was earned in a session you finished.">
       {/*
-        The route leads. This page opened on a wallet, then on a loadout, and
-        both times it was a report: accurate about a character with no weapon
-        and no contract, and silent on what to do about either.
+        Two columns once there is room: the route on the left, because it is
+        what the visit is for, and the character beside it, because every step
+        on the route is about what is or is not in that panel. On one column
+        they were a screen apart, so "fill five empty slots" and the five empty
+        slots were never in view together.
       */}
-      <StepList steps={steps.slice(0, STEPS_SHOWN)} />
+      <div className="mt-10 grid gap-x-14 gap-y-12 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
+        <StepList steps={steps.slice(0, STEPS_SHOWN)} />
 
-      <Block
-        title="Loadout"
-        aside={style ? `fighting as ${style}` : "unarmed"}
-        icon="equipment"
-        href="/game/equipment"
-      >
-        <div className="mt-4 flex flex-wrap items-baseline gap-x-10 gap-y-2">
-          {/*
-            Two figures and not one. `power.ts` records why: folding them
-            together made gunfire — highest offence, thinnest coat — come out
-            as the weakest loadout in the game, exactly backwards from the cost
-            ladder.
-          */}
-          <p className="text-body text-faint">
-            <span
-              className="tnum block text-title"
-              style={{ color: o.power.offence > 0 ? "var(--tier)" : "var(--color-warn)" }}
-            >
-              {groupNumber(Math.round(o.power.offence))}
-            </span>
-            offence · how often a fight lands
-          </p>
-          <p className="text-body text-faint">
-            <span className="tnum block text-title text-dim">
-              {groupNumber(Math.round(o.power.defence))}
-            </span>
-            defence · what a miss costs in rations
-          </p>
-        </div>
+        <aside className="space-y-10">
+          <Block
+            flush
+            title="Loadout"
+            aside={style ? `fighting as ${style}` : "unarmed"}
+            icon="equipment"
+            href="/game/equipment"
+          >
+            <SlotGrid slots={slots} />
 
-        <SlotRack slots={slots} />
-
-        <p className="mt-5 max-w-2xl text-body leading-relaxed text-faint">
-          {empty.length === SLOTS.length ? (
-            <>
-              Nothing worn yet. Areas read your shallowest slot, so nothing past tier 2 opens
-              until all ten hold something.
-            </>
-          ) : empty.length > 0 ? (
-            <>
-              <span className="tnum" style={{ color: "var(--color-warn)" }}>
-                {empty.length}
-              </span>{" "}
-              empty: {empty.join(", ")}. Areas read your shallowest slot, so the set counts as
-              tier 0 until they are filled.
-            </>
-          ) : (
-            <>
-              All ten filled. Areas read your shallowest slot, which is{" "}
-              <span className="tnum text-dim">tier {floor}</span> — raising that one opens the
-              next area, not the deepest piece you own.
-            </>
-          )}
-        </p>
-
-        <StyleWheel order={[...STYLES]} yours={style} />
-        <p className="mt-2 max-w-2xl text-body leading-relaxed text-faint">
-          {style === null ? (
-            <>Each style beats the next one round. Your weapon picks yours.</>
-          ) : (
-            <>
-              You beat <span className="text-dim">{BEATS[style]}</span>, and{" "}
-              <span className="text-dim">{beatenBy}</span> beats you. At your own tier you land{" "}
-              <span className="tnum text-dim">{Math.round(ownTier * 100)}%</span> of fights with
-              commons.
-            </>
-          )}
-        </p>
-      </Block>
-
-      <Block title="Held" aside="wallet and bank" icon="bank" href="/game/bank">
-        <p className="mt-4 text-body text-dim">
-          <span className="tnum text-stat" style={{ color: "var(--tier)" }}>
-            {groupNumber(o.coins)}
-          </span>{" "}
-          coins
-        </p>
-        <Gauges>
-          <Gauge label="Fuel" value={o.fuel} cap={o.fuelCap} tone="full" note="Pays for crafting." />
-          <Gauge
-            label="Bank slots"
-            value={o.bank.used}
-            cap={o.bank.slots}
-            note="One per kind of item, however many you stack."
-          />
-          <Gauge
-            label="Collected"
-            value={o.collected}
-            cap={o.catalogue}
-            note="Every kind of item you have ever held."
-          />
-          <Gauge
-            label="Bosses down"
-            value={o.bossesDown}
-            cap={BIOMES.length * 2}
-            note="Two in each biome."
-          />
-        </Gauges>
-        {o.keyItems.length > 0 && (
-          <p className="mt-5 text-body text-faint">
-            Key items{" "}
-            <span className="text-dim">
-              {o.keyItems.map((k) => KEY_NAME[k as BiomeKey] ?? k).join(", ")}
-            </span>
-          </p>
-        )}
-      </Block>
-
-      <Block
-        title="Farm"
-        aside={ready > 0 ? `${ready} ready` : `${o.plots.length} plots`}
-        icon="farm"
-        href="/game/farm"
-      >
-        {o.plots.length === 0 ? (
-          <Empty>
-            No plots yet.{" "}
-            <Link href="/game/farm" className="text-dim underline underline-offset-2">
-              Open the farm
-            </Link>{" "}
-            to claim your first four.
-          </Empty>
-        ) : (
-          <>
             {/*
-              A rail per plot rather than a table of "Stages left". A crop is a
-              thing with a length, and "3" in a column says nothing about
-              whether that is nearly done or barely planted.
+              Two figures and not one. `power.ts` records why: folding them
+              together made gunfire — highest offence, thinnest coat — come out
+              as the weakest loadout in the game.
             */}
-            <ul className="mt-4 grid gap-x-8 gap-y-4 sm:grid-cols-2">
-              {o.plots.map((p) => {
-                const stages = p.seedItemId
-                  ? growthStages(Number(p.seedItemId.split(":")[2] ?? 1))
-                  : 1;
-                return (
-                  <li key={p.slot} className="min-w-0">
-                    <div className="flex items-baseline justify-between gap-3 text-body">
-                      {/* The seed's name, not its id, and never "ready" on a
-                          plot that has not been sown. */}
-                      <span className={p.seedItemId ? "truncate text-dim" : "text-faint"}>
-                        {p.seedItemId ? itemName(p.seedItemId) : `Plot ${p.slot}`}
-                      </span>
-                      <span className="shrink-0 text-note text-faint">
-                        {p.seedItemId === null ? (
-                          "bare"
-                        ) : p.stagesLeft === 0 ? (
-                          <span style={{ color: "var(--tier)" }}>ready</span>
-                        ) : (
-                          <>
-                            <span className="tnum">{p.stagesLeft}</span>{" "}
-                            {p.stagesLeft === 1 ? "session" : "sessions"}
-                          </>
-                        )}
-                      </span>
-                    </div>
-                    <Rail
-                      progress={p.seedItemId === null ? 0 : 1 - p.stagesLeft / Math.max(1, stages)}
-                    />
-                  </li>
-                );
-              })}
-            </ul>
-            <p className="mt-4 text-body text-faint">
-              A crop grows one stage for every session you finish.
+            <dl className="mt-5 grid grid-cols-2 gap-x-6">
+              <div>
+                <dd
+                  className="tnum text-head leading-none"
+                  style={{ color: o.power.offence > 0 ? "var(--tier)" : "var(--color-warn)" }}
+                >
+                  {groupNumber(Math.round(o.power.offence))}
+                </dd>
+                <dt className="mt-1.5 text-note text-faint">offence, how often a fight lands</dt>
+              </div>
+              <div>
+                <dd className="tnum text-head leading-none text-dim">
+                  {groupNumber(Math.round(o.power.defence))}
+                </dd>
+                <dt className="mt-1.5 text-note text-faint">defence, what a miss costs</dt>
+              </div>
+            </dl>
+
+            <p className="mt-5 text-body text-faint">
+              {empty.length === SLOTS.length ? (
+                <>
+                  Nothing worn yet. Areas read your shallowest slot, so nothing past tier 2 opens
+                  until all ten hold something.
+                </>
+              ) : empty.length > 0 ? (
+                <>
+                  <span className="tnum" style={{ color: "var(--color-warn)" }}>
+                    {empty.length}
+                  </span>{" "}
+                  empty. Areas read your shallowest slot, so the set counts as tier 0 until they
+                  are filled.
+                </>
+              ) : (
+                <>
+                  All ten filled. Areas read your shallowest slot, which is{" "}
+                  <span className="tnum text-dim">tier {floor}</span>.
+                </>
+              )}{" "}
+              {style !== null && (
+                <>
+                  You beat <span className="text-dim">{BEATS[style]}</span>,{" "}
+                  <span className="text-dim">{beatenBy}</span> beats you, and at your own tier{" "}
+                  <span className="tnum text-dim">{Math.round(ownTier * 100)}%</span> of fights
+                  with commons land.
+                </>
+              )}
             </p>
-          </>
-        )}
-      </Block>
+          </Block>
+
+          <Block flush title="Held" aside="wallet and bank" icon="bank" href="/game/bank">
+            <p className="mt-4 text-body text-dim">
+              <span className="tnum text-head leading-none" style={{ color: "var(--tier)" }}>
+                {groupNumber(o.coins)}
+              </span>{" "}
+              coins
+            </p>
+            <Gauges>
+              <Gauge label="Fuel" value={o.fuel} cap={o.fuelCap} tone="full" />
+              <Gauge label="Bank slots" value={o.bank.used} cap={o.bank.slots} />
+              <Gauge label="Collected" value={o.collected} cap={o.catalogue} />
+              <Gauge label="Bosses down" value={o.bossesDown} cap={BIOMES.length * 2} />
+            </Gauges>
+            {o.keyItems.length > 0 && (
+              <p className="mt-5 text-body text-faint">
+                Key items{" "}
+                <span className="text-dim">
+                  {o.keyItems.map((k) => KEY_NAME[k as BiomeKey] ?? k).join(", ")}
+                </span>
+              </p>
+            )}
+          </Block>
+        </aside>
+      </div>
+
+      <div className="grid gap-x-14 lg:grid-cols-2">
+        {farm}
+        {milestones}
+      </div>
 
       {/*
         The one thing on this page with a time axis, read off the ledger rather
@@ -340,42 +365,6 @@ export default async function GameOverview() {
         )}
       </Block>
 
-      <Block
-        title="Milestones"
-        aside={
-          o.milestones.length === 0
-            ? "none yet"
-            : `${groupNumber(o.milestones.reduce((n, m) => n + m.xp, 0))} XP toward your rank`
-        }
-      >
-        {o.milestones.length === 0 ? (
-          <Empty>
-            A skill reaching level 10, a biome opening and a first +10 each pay character XP, once.
-          </Empty>
-        ) : (
-          <Rows
-            head={["Milestone", "Paid", "XP"]}
-            rows={o.milestones.slice(0, 12).map((m) => [
-              <span key="what" className="flex items-center gap-2">
-                <Icon
-                  name={milestoneMark(m.label)}
-                  className="size-4 shrink-0 text-faint"
-                  aria-hidden
-                />
-                <span className="min-w-0">{m.label}</span>
-              </span>,
-              // Words, so they keep their own widths — `Rows` sets tabular
-              // figures on every cell but the first, which is right for a
-              // column of numbers and wrong for "3 days ago".
-              <span key="at" className="font-sans normal-nums">
-                {sinceLabel(m.at.getTime(), o.now)}
-              </span>,
-              `+${groupNumber(m.xp)}`,
-            ])}
-            total={o.milestones.length}
-          />
-        )}
-      </Block>
     </Screen>
   );
 }

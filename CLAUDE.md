@@ -262,6 +262,24 @@ before `git push`, and this says whether it took.
   and all six gathering skills shared one group, so Hunting and Excavation could not be chosen
   at any tier by a character who had opened both.
 
+- **The game is set at the size a game is read at, and the timer is not.** The app's type scale
+  was drawn for one number and a button. Ten screens of things to compare, at 13px on the
+  faintest of three greys in a 900px column, was a page you leaned in to. `.game` in
+  `globals.css` moves the three reading sizes up a step and the two quiet inks toward the text,
+  scoped to the game layout so Timer, Streak and the rest keep the scale they were tuned at.
+  Change a size there, not per screen.
+- **The display face marks a name somebody wrote.** §8 gives Fraunces to the earned title "so
+  the name reads as a name". The game has thousands of generated names and a few hundred written
+  ones — biomes, bosses, uniques — and set identically, Thistlemaw's Grin read like one more row
+  of Copper. `.named` extends the rule to the world's proper nouns and nothing else: never a
+  heading, a label or a generated item.
+- **A slot is drawn as a slot, and an action is a button.** Gear was a bar chart and then a
+  table; plots were rows reading "empty". Anything that holds one thing or visibly holds nothing
+  is a box or a dashed outline, and an empty one carries the control that fills it. Second-rank
+  actions were twelve-pixel underlined words — "Sell", "Take off", "max 48" — which is how a
+  link looks, at a size a thumb cannot hit; `.btn-quiet` and `.chip` are the two shapes they
+  take now, and the one filled button on a screen is still the primary action.
+
 - **Milestone XP stays a garnish.** The ladder is ~600,000 XP; V1's achievements are ~27,000 and
   the milestones are ~37,000, both under 8%, and a test holds the line. Anything that pays into
   the ladder competes with focused minutes for the meaning of a level.

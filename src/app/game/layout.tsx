@@ -23,8 +23,12 @@ export default async function GameLayout({ children }: { children: React.ReactNo
   return (
     <>
       <Nav current="/game" compact />
-      <GameNav />
-      {children}
+      {/* `.game` sets the reading sizes and inks for everything below the
+          app's own nav — see globals.css. */}
+      <div className="game">
+        <GameNav />
+        {children}
+      </div>
     </>
   );
 }

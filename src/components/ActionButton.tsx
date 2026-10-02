@@ -26,7 +26,7 @@ export function ActionButton({
   label: string;
   busyLabel?: string;
   disabled?: boolean;
-  /** Renders as plain text rather than a filled button, for lists. */
+  /** The second-rank form: an outlined button, for the many that sit in lists. */
   quiet?: boolean;
 }) {
   const [pending, start] = useTransition();
@@ -50,7 +50,7 @@ export function ActionButton({
     : null;
 
   return (
-    <span className="inline-flex flex-wrap items-baseline gap-x-3 gap-y-1">
+    <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
       <button
         type="button"
         onClick={press}
@@ -58,8 +58,8 @@ export function ActionButton({
         aria-busy={pending || undefined}
         className={
           quiet
-            ? "text-note text-faint underline underline-offset-2 transition-colors hover:text-dim disabled:opacity-40"
-            : "rounded-sm px-3 py-1.5 text-body font-medium text-ground transition-opacity disabled:opacity-50"
+            ? "btn-quiet"
+            : "rounded-sm px-4 py-2 text-body font-medium text-ground transition-opacity hover:opacity-90 disabled:opacity-50"
         }
         style={quiet ? undefined : { backgroundColor: "var(--action)" }}
       >

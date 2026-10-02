@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { ActionButton } from "./ActionButton";
 import {
   buyBankSlotsAction,
@@ -63,7 +64,7 @@ function Quantity({
   const ceiling = Math.max(1, Math.min(cap, max ?? cap));
   const clamp = (n: number) => Math.max(1, Math.min(ceiling, Math.trunc(n || 1)));
   return (
-    <span className="inline-flex items-baseline gap-1.5">
+    <span className="inline-flex items-center gap-1.5">
       <input
         type="number"
         inputMode="numeric"
@@ -72,7 +73,7 @@ function Quantity({
         value={value}
         onChange={(e) => onChange(clamp(Number(e.target.value)))}
         aria-label={label}
-        className="tnum w-12 border-b border-rule bg-transparent py-0.5 text-right text-note text-dim focus:border-current"
+        className="tnum h-8 w-14 rounded-[4px] border border-rule bg-transparent px-2 text-right text-note text-text focus:border-current"
         style={{ caretColor: "var(--tier)" }}
       />
       {/* Only worth offering when it is more than one and not what is already
@@ -81,7 +82,7 @@ function Quantity({
         <button
           type="button"
           onClick={() => onChange(ceiling)}
-          className="text-note text-faint underline underline-offset-2 transition-colors hover:text-dim"
+          className="btn-quiet tnum"
         >
           max {ceiling}
         </button>
@@ -102,7 +103,7 @@ export function CraftButton({
 }) {
   const [times, setTimes] = useState(1);
   return (
-    <span className="inline-flex items-baseline gap-2">
+    <span className="inline-flex flex-wrap items-center gap-2">
       <Quantity
         value={times}
         onChange={setTimes}
@@ -138,7 +139,7 @@ export function SellInstanceButton({ instanceId }: { instanceId: string }) {
 export function SellStackButton({ itemId, held }: { itemId: string; held: number }) {
   const [qty, setQty] = useState(1);
   return (
-    <span className="inline-flex items-baseline gap-2">
+    <span className="inline-flex flex-wrap items-center gap-2">
       {/* Selling had the same preset select, and its "all N" was only ever the
           max of what you hold — which is what the shortcut says now. */}
       <Quantity
@@ -156,7 +157,7 @@ export function SellStackButton({ itemId, held }: { itemId: string; held: number
 export function BuyButton({ itemId, max }: { itemId: string; max?: number }) {
   const [qty, setQty] = useState(1);
   return (
-    <span className="inline-flex items-baseline gap-2">
+    <span className="inline-flex flex-wrap items-center gap-2">
       <Quantity
         value={qty}
         onChange={setQty}
@@ -189,16 +190,21 @@ export function SowButton({
   seeds: { itemId: string; qty: number; line: string; tier: number }[];
 }) {
   const [seed, setSeed] = useState(seeds[0]?.itemId ?? "");
+  // An empty state that says where seed comes from, rather than "no seeds".
   if (seeds.length === 0) {
-    return <span className="text-note text-faint">no seeds</span>;
+    return (
+      <Link href="/game/shop" className="btn-quiet">
+        Buy seed
+      </Link>
+    );
   }
   return (
-    <span className="inline-flex items-baseline gap-2">
+    <span className="inline-flex flex-wrap items-center gap-2">
       <select
         value={seed}
         onChange={(e) => setSeed(e.target.value)}
         aria-label="Which seed"
-        className="border-b border-rule bg-transparent py-0.5 text-note text-dim"
+        className="h-8 rounded-[4px] border border-rule bg-ground px-2 text-note text-text"
       >
         {seeds.map((s) => (
           <option key={s.itemId} value={s.itemId}>
@@ -217,7 +223,7 @@ export function HarvestButton({ slot }: { slot: number }) {
 
 export function SalvageOutputButtons({ current }: { current: "coins" | "stones" }) {
   return (
-    <span className="inline-flex flex-wrap items-baseline gap-4">
+    <span className="inline-flex flex-wrap items-center gap-4">
       <span className="text-note text-faint">
         Salvage pays <span className="text-dim">{current}</span>
       </span>
@@ -236,12 +242,12 @@ export function ExchangeStonesButton({ tiers }: { tiers: number[] }) {
   const [qty, setQty] = useState(1);
   if (tiers.length === 0) return <span className="text-note text-faint">no stones</span>;
   return (
-    <span className="inline-flex flex-wrap items-baseline gap-2">
+    <span className="inline-flex flex-wrap items-center gap-2">
       <select
         value={qty}
         onChange={(e) => setQty(Number(e.target.value))}
         aria-label="How many"
-        className="border-b border-rule bg-transparent py-0.5 text-note text-dim"
+        className="h-8 rounded-[4px] border border-rule bg-ground px-2 text-note text-text"
       >
         {[1, 5, 20, 100].map((n) => (
           <option key={n} value={n}>
@@ -253,7 +259,7 @@ export function ExchangeStonesButton({ tiers }: { tiers: number[] }) {
         value={from}
         onChange={(e) => setFrom(Number(e.target.value))}
         aria-label="From tier"
-        className="border-b border-rule bg-transparent py-0.5 text-note text-dim"
+        className="h-8 rounded-[4px] border border-rule bg-ground px-2 text-note text-text"
       >
         {tiers.map((t) => (
           <option key={t} value={t}>
@@ -265,7 +271,7 @@ export function ExchangeStonesButton({ tiers }: { tiers: number[] }) {
         value={to}
         onChange={(e) => setTo(Number(e.target.value))}
         aria-label="To tier"
-        className="border-b border-rule bg-transparent py-0.5 text-note text-dim"
+        className="h-8 rounded-[4px] border border-rule bg-ground px-2 text-note text-text"
       >
         {Array.from({ length: Math.max(1, from - 1) }, (_, i) => i + 1).map((t) => (
           <option key={t} value={t}>

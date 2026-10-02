@@ -73,28 +73,27 @@ export function ShopFilter({ rows, coins }: { rows: ShopRow[]; coins: number }) 
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search the shelf"
-          className="min-w-0 flex-1 border-b border-rule bg-transparent py-2 text-field text-text placeholder:text-faint focus:border-current"
+          className="h-10 min-w-0 flex-1 rounded-[4px] border border-rule bg-transparent px-3 text-field text-text placeholder:text-faint focus:border-current"
           style={{ caretColor: "var(--tier)" }}
         />
         <button
           type="button"
           onClick={() => setAfford((v) => !v)}
           aria-pressed={afford}
-          className={`py-1 text-note ${afford ? "" : "text-faint transition-colors hover:text-dim"}`}
-          style={afford ? { color: "var(--tier)" } : undefined}
+          className="chip"
         >
           can afford ({affordable})
         </button>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-x-3 text-note">
+      <div className="mt-4 flex flex-wrap gap-2">
         {classes.map((c) => (
           <button
             key={c}
             type="button"
             onClick={() => setCls(c)}
-            className={`py-1 ${c === cls ? "" : "text-faint transition-colors hover:text-dim"}`}
-            style={c === cls ? { color: "var(--tier)" } : undefined}
+            aria-pressed={c === cls}
+            className="chip"
           >
             {CLASS_LABEL[c] ?? c}
           </button>

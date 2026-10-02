@@ -120,28 +120,27 @@ export function CraftFilter({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search what you can make, or what it takes"
-          className="min-w-0 flex-1 border-b border-rule bg-transparent py-2 text-field text-text placeholder:text-faint focus:border-current"
+          className="h-10 min-w-0 flex-1 rounded-[4px] border border-rule bg-transparent px-3 text-field text-text placeholder:text-faint focus:border-current"
           style={{ caretColor: "var(--tier)" }}
         />
         <button
           type="button"
           onClick={() => setReady((v) => !v)}
           aria-pressed={ready}
-          className={`py-1 text-note ${ready ? "" : "text-faint transition-colors hover:text-dim"}`}
-          style={ready ? { color: "var(--tier)" } : undefined}
+          className="chip"
         >
           can make now ({canMake})
         </button>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-x-3 text-note">
+      <div className="mt-4 flex flex-wrap gap-2">
         {skills.map(([key, label]) => (
           <button
             key={key}
             type="button"
             onClick={() => setSkill(key)}
-            className={`py-1 ${key === skill ? "" : "text-faint transition-colors hover:text-dim"}`}
-            style={key === skill ? { color: "var(--tier)" } : undefined}
+            aria-pressed={key === skill}
+            className="chip"
           >
             {label}
           </button>

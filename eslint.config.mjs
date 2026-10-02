@@ -19,8 +19,12 @@ export default [
       Generated or vendored, and none of it is ours to fix. `drizzle/` is
       migration SQL and its meta journal, `public/sw.js` is a built service
       worker, and `next-env.d.ts` is rewritten by the framework on every build.
+
+      `.claude/` holds worktrees: whole second checkouts of this repository,
+      each with its own build output. Linting them from here reported fifteen
+      thousand problems in files that are another session's to fix.
     */
-    ignores: [".next/**", "drizzle/**", "public/sw.js", "next-env.d.ts"],
+    ignores: [".next/**", ".claude/**", "drizzle/**", "public/sw.js", "next-env.d.ts"],
   },
 
   ...coreWebVitals,

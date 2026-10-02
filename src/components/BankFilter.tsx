@@ -38,17 +38,17 @@ export function BankFilter({ rows }: { rows: BankRow[] }) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search the bank"
-          className="min-w-0 flex-1 border-b border-rule bg-transparent py-2 text-body text-text placeholder:text-faint focus:border-current"
+          className="h-10 min-w-0 flex-1 rounded-[4px] border border-rule bg-transparent px-3 text-field text-text placeholder:text-faint focus:border-current"
           style={{ caretColor: "var(--tier)" }}
         />
-        <div className="flex flex-wrap gap-x-3 text-note">
+        <div className="flex flex-wrap gap-2">
           {classes.map((c) => (
             <button
               key={c}
               type="button"
               onClick={() => setCls(c)}
-              className={`py-1 ${c === cls ? "" : "text-faint transition-colors hover:text-dim"}`}
-              style={c === cls ? { color: "var(--tier)" } : undefined}
+              aria-pressed={c === cls}
+              className="chip"
             >
               {c}
             </button>

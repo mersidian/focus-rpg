@@ -1,15 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import {
-  Screen,
-  Block,
-  Rows,
-  Gate,
-  DepthValue,
-  DepthRange,
-  KindMark,
-} from "@/components/GameUi";
+import { Screen, Rows, Gate, DepthValue, Pips } from "@/components/GameUi";
 import { Icon, type IconName } from "@/components/Icon";
 import { MAX_TIER } from "@/lib/game/tiers";
 import { worldView, type WorldView } from "@/lib/game-view-service";
@@ -29,7 +21,6 @@ import {
 import { bossFight, bossMarker, bossTable, bossesIn, type Boss } from "@/lib/game/bosses";
 import { describeEffect } from "@/lib/game/effects";
 import { hazardOf } from "@/lib/game/potions";
-import { skillKindHue } from "@/lib/palette";
 
 export const dynamic = "force-dynamic";
 
@@ -128,62 +119,71 @@ export default async function AreasPage({
       title="Areas"
       lead="Go anywhere your gear can meet the gate. A closed area says exactly what it wants."
     >
-      <BiomeDetail
-        key={selected.biome.index}
-        biome={selected.biome}
-        gates={selected.gates}
-        open={selected.open}
-        world={world}
-      />
+      {/*
+        The twenty biomes as a rail beside the one being read, once there is
+        room. Stacked, the list sat under a table of thirty monsters and
+        choosing another biome was a scroll, a click and a scroll back.
+      */}
+      <div className="mt-10 grid gap-x-14 gap-y-12 lg:grid-cols-[18rem_minmax(0,1fr)]">
+        <nav
+          aria-label="Biomes"
+          className="order-2 lg:sticky lg:top-6 lg:order-1 lg:max-h-[calc(100vh-3rem)] lg:self-start lg:overflow-y-auto"
+        >
+          <p className="border-b border-rule pb-2 text-note text-faint">
+            <span className="tnum text-dim">{reachable}</span> of{" "}
+            <span className="tnum">{BIOMES.length}</span> biomes have an area open
+          </p>
+          <ul>
+            {summaries.map(({ biome, open, bossesDown }) => {
+              const here = selected.biome.index === biome.index;
+              return (
+                <li key={biome.index}>
+                  <Link
+                    href={`/game/areas?b=${biome.index}`}
+                    aria-current={here ? "true" : undefined}
+                    className={`-mx-3 block rounded-md px-3 py-2.5 transition-colors ${
+                      here ? "bg-lift" : "hover:bg-lift/60"
+                    }`}
+                  >
+                    <span className="flex items-baseline justify-between gap-3">
+                      <span
+                        className={`named text-lead ${open > 0 || here ? "text-text" : "text-faint"}`}
+                      >
+                        {biome.name}
+                      </span>
+                      <span className="tnum shrink-0 text-note text-faint">
+                        {biome.tierLo}–{biome.tierHi}
+                      </span>
+                    </span>
+                    <span className="mt-1 flex items-center justify-between gap-3">
+                      <Pips lit={open} label={`${open} of 10 areas open`} />
+                      <span className="text-note text-faint">
+                        {world.contract?.biome === biome.index ? (
+                          <span style={{ color: "var(--tier)" }}>your contract</span>
+                        ) : bossesDown > 0 ? (
+                          <>
+                            <span className="tnum">{bossesDown}</span> of 2 bosses down
+                          </>
+                        ) : null}
+                      </span>
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
 
-      <Block title="All biomes" aside={`${reachable} of ${BIOMES.length} have something open`}>
-        {/*
-          A list rather than a table: at 375px a table pushed the only column
-          that matters — how many areas are open — off the right edge.
-        */}
-        <ul className="mt-2">
-          {summaries.map(({ biome, open, bossesDown }) => {
-            const here = selected.biome.index === biome.index;
-            return (
-              <li key={biome.index} className="border-b border-rule last:border-0">
-                <Link
-                  href={`/game/areas?b=${biome.index}`}
-                  aria-current={here ? "true" : undefined}
-                  className="flex flex-wrap items-baseline gap-x-4 gap-y-1 py-3 text-body transition-colors hover:text-text"
-                >
-                  <span
-                    className={`min-w-0 flex-1 ${open > 0 ? "text-dim" : "text-faint"}`}
-                    style={here ? { color: "var(--tier)" } : undefined}
-                  >
-                    {biome.name}
-                  </span>
-                  <span className="shrink-0 text-body">
-                    <DepthRange lo={biome.tierLo} hi={biome.tierHi} steps={MAX_TIER} />
-                  </span>
-                  <span
-                    className="tnum w-16 shrink-0 text-right"
-                    style={open > 0 ? { color: "var(--tier)" } : { color: "var(--color-faint)" }}
-                  >
-                    {open} / 10
-                  </span>
-                  <span className="w-full text-note text-faint">
-                    {biome.affinity.length > 3
-                      ? "every gathering skill"
-                      : biome.affinity.map(label).join(", ")}
-                    {/* The item's name. This printed the key it is stored
-                        under — "holds sulphurAndSaltpetre". */}
-                    {biome.keyItem && ` · holds ${KEY_NAME[biome.keyItem]}`}
-                    {bossesDown > 0 && ` · ${bossesDown} of 2 bosses down`}
-                    {world.contract?.biome === biome.index && (
-                      <span style={{ color: "var(--tier)" }}> · your contract is here</span>
-                    )}
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </Block>
+        <div className="order-1 min-w-0 lg:order-2">
+          <BiomeDetail
+            key={selected.biome.index}
+            biome={selected.biome}
+            gates={selected.gates}
+            open={selected.open}
+            world={world}
+          />
+        </div>
+      </div>
     </Screen>
   );
 }
@@ -212,11 +212,24 @@ function BiomeDetail({
   const bosses = bossesIn(biome.index);
 
   return (
-    <Block
-      title={biome.name}
-      aside={`tiers ${biome.tierLo}–${biome.tierHi} · ${open > 0 ? `${open} of 10 areas open` : "all closed"}`}
-    >
-      <p className="mt-4 max-w-2xl text-body leading-relaxed text-dim">
+    <section>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+        <h2 className="named text-title leading-tight text-text">{biome.name}</h2>
+        <p className="text-body text-faint">
+          tiers <span className="tnum text-dim">{biome.tierLo}–{biome.tierHi}</span>,{" "}
+          {open > 0 ? (
+            <>
+              <span className="tnum" style={{ color: "var(--tier)" }}>
+                {open}
+              </span>{" "}
+              of 10 areas open
+            </>
+          ) : (
+            "all closed"
+          )}
+        </p>
+      </div>
+      <p className="mt-3 max-w-[62ch] text-body text-dim">
         Everything here can drop {biome.materials[0]}, {biome.materials[1]} and{" "}
         {biome.materials[2]}.
         {hazard && (
@@ -235,20 +248,21 @@ function BiomeDetail({
         )}
       </p>
 
-      <ul className="mt-5 border-t border-rule">
+      <ul className="mt-8 grid gap-x-10 gap-y-8 border-t border-rule pt-6 md:grid-cols-2">
         {bosses.map((boss) => (
           <BossRow key={boss.name} boss={boss} world={world} />
         ))}
       </ul>
 
+      <h3 className="mt-10 border-b border-rule pb-2 text-lead font-medium text-text">Areas</h3>
       {/* The gates, at the grain they differ at. */}
-      <ul className="mt-6">
+      <ul>
         {grouped(gates).map((group) => (
           <li
             key={group.from}
-            className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-rule py-2.5 text-body last:border-0"
+            className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-rule py-3 text-body"
           >
-            <span className="text-dim">
+            <span className="text-text">
               {group.from === group.to ? `Area ${group.from}` : `Areas ${group.from}–${group.to}`}
               <span className="ml-3">
                 <DepthValue
@@ -263,6 +277,7 @@ function BiomeDetail({
         ))}
       </ul>
 
+      <h3 className="mt-10 text-lead font-medium text-text">What lives here</h3>
       {/*
         One table for the biome, not one per area. Rosters overlap almost
         entirely from one area to the next, so three tables of ten were mostly
@@ -270,6 +285,7 @@ function BiomeDetail({
       */}
       <Rows
         head={["Monster", "Areas", "Weak to", "Pace", "You land"]}
+        words={[2, 3]}
         rows={roster(gates.map((g) => g.area)).map(({ variant, from, to }) => {
           const chance = odds(variant, world);
           const target = world.contract?.variantName === variant.name;
@@ -285,9 +301,7 @@ function BiomeDetail({
             </span>,
             from === to ? String(from) : `${from}–${to}`,
             <StyleTag key="w" style={answerTo(variant.style)} yours={world.style} />,
-            <span key="p" className="font-sans normal-nums">
-              {PACE[variant.species.speed]}
-            </span>,
+            PACE[variant.species.speed],
             <span
               key="c"
               style={{
@@ -300,7 +314,7 @@ function BiomeDetail({
           ];
         })}
       />
-      <p className="mt-4 max-w-2xl text-note leading-relaxed text-faint">
+      <p className="mt-4 max-w-[62ch] text-note text-faint">
         {world.style === null ? (
           <>
             Unarmed, so every fight lands one time in{" "}
@@ -314,7 +328,7 @@ function BiomeDetail({
           </>
         )}
       </p>
-    </Block>
+    </section>
   );
 }
 
@@ -331,59 +345,64 @@ function BossRow({ boss, world }: { boss: Boss; world: WorldView }) {
   const fight = world.style ? bossFight(boss, world.power.offence, world.style) : null;
 
   return (
-    <li className="flex items-start gap-3 border-b border-rule py-4">
-      <KindMark name={styleMark(boss.style)} hue={skillKindHue("combat")} />
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-          <p className="text-lead text-text">
-            {boss.name}{" "}
-            <span className="ml-1 text-body text-faint">
-              {boss.role === "lord" ? "biome lord" : "mid-boss"} · tier {boss.tier}
+    <li className="min-w-0">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-note text-faint">
+          {boss.role === "lord" ? "Biome lord" : "Mid-boss"}, tier{" "}
+          <span className="tnum">{boss.tier}</span>
+        </p>
+        <p className="shrink-0 text-note">
+          {kills > 0 ? (
+            <span style={{ color: "var(--tier)" }}>
+              down{kills > 1 && <span className="tnum"> ×{kills}</span>}
             </span>
-          </p>
-          <p className="shrink-0 text-note">
-            {kills > 0 ? (
-              <span style={{ color: "var(--tier)" }}>
-                down{kills > 1 && <span className="tnum"> ×{kills}</span>}
-              </span>
-            ) : (
-              <span className="text-faint">standing</span>
-            )}
-          </p>
-        </div>
-
-        {boss.signature && (
-          <p className="mt-1 text-body leading-relaxed text-dim">
-            {kills > 0 ? "Its first kill gave up " : "Its first kill always gives up "}
-            {/* A colon, because the effect is a phrase written to stand alone —
-                "+14% yield from woodcutting" does not follow "which". */}
-            <span style={{ color: "var(--tier)" }}>{boss.signature.name}</span>:{" "}
-            {describeEffect(boss.signature.effect)}.
-          </p>
-        )}
-
-        <p className="mt-1 text-note leading-relaxed text-faint">
-          Weak to {answer}.{" "}
-          {!gate.open ? (
-            <>Needs {gate.missing.join(", ")}.</>
-          ) : fight === null ? (
-            <>The gate is open, and you are unarmed.</>
           ) : (
-            <>
-              In what you are wearing it takes{" "}
-              <span className="tnum text-dim">{Math.round(fight.seconds / 60)}</span> minutes to
-              wear down, and the finishing blow lands{" "}
-              <span className="tnum text-dim">{Math.round(fight.chance * 100)}%</span> of the time.
-            </>
-          )}{" "}
-          {table.length > 1 && (
-            <>
-              <span className="tnum">{found}</span> of <span className="tnum">{table.length}</span>{" "}
-              of its uniques found.
-            </>
+            <span className="text-faint">standing</span>
           )}
         </p>
       </div>
+      {/* The serif, because a boss is one of the few things here somebody
+          named — and it is the name you will be told you beat. */}
+      <p className="named mt-1 text-head leading-tight text-text">{boss.name}</p>
+
+      {boss.signature && (
+        <p className="mt-3 text-body text-dim">
+          {kills > 0 ? "Its first kill gave up " : "Its first kill always gives up "}
+          {/* A colon, because the effect is a phrase written to stand alone —
+              "+14% yield from woodcutting" does not follow "which". */}
+          <span className="named" style={{ color: "var(--tier)" }}>
+            {boss.signature.name}
+          </span>
+          : {describeEffect(boss.signature.effect)}.
+        </p>
+      )}
+
+      <p className="mt-2 flex items-center gap-2 text-body text-faint">
+        Weak to <StyleTag style={answer} yours={world.style} />
+      </p>
+      <p className="mt-1 text-body text-faint">
+        {!gate.open ? (
+          <>Needs {gate.missing.join(", ")}.</>
+        ) : fight === null ? (
+          <>The gate is open, and you are unarmed.</>
+        ) : (
+          <>
+            In what you are wearing it takes{" "}
+            <span className="tnum text-dim">{Math.round(fight.seconds / 60)}</span> minutes to wear
+            down, and the finishing blow lands{" "}
+            <span className="tnum text-dim">{Math.round(fight.chance * 100)}%</span> of the time.
+          </>
+        )}
+      </p>
+      {table.length > 1 && (
+        <p className="mt-2 flex items-center gap-2 text-note text-faint">
+          <Pips lit={found} of={table.length} label={`${found} of ${table.length} uniques found`} />
+          <span>
+            <span className="tnum">{found}</span> of <span className="tnum">{table.length}</span>{" "}
+            uniques found
+          </span>
+        </p>
+      )}
     </li>
   );
 }
@@ -393,7 +412,7 @@ function StyleTag({ style, yours }: { style: Style; yours: Style | null }) {
   const match = style === yours;
   return (
     <span
-      className={`inline-flex items-center gap-1.5 font-sans normal-nums ${match ? "" : "text-faint"}`}
+      className={`inline-flex items-center gap-1.5 ${match ? "" : "text-dim"}`}
       style={match ? { color: "var(--tier)" } : undefined}
     >
       <Icon name={styleMark(style)} className="size-3.5 shrink-0" />

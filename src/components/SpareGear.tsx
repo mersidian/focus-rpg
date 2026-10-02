@@ -52,17 +52,17 @@ export function SpareGear({ spare }: { spare: InstanceRow[] }) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search spare gear"
-          className="min-w-0 flex-1 border-b border-rule bg-transparent py-2 text-body text-text placeholder:text-faint focus:border-current"
+          className="h-10 min-w-0 flex-1 rounded-[4px] border border-rule bg-transparent px-3 text-field text-text placeholder:text-faint focus:border-current"
           style={{ caretColor: "var(--tier)" }}
         />
-        <div className="flex flex-wrap gap-x-3 text-note">
+        <div className="flex flex-wrap gap-2">
           {slots.map((s) => (
             <button
               key={s}
               type="button"
               onClick={() => setSlot(s)}
-              className={`py-1 ${s === slot ? "" : "text-faint transition-colors hover:text-dim"}`}
-              style={s === slot ? { color: "var(--tier)" } : undefined}
+              aria-pressed={s === slot}
+              className="chip"
             >
               {s}
             </button>

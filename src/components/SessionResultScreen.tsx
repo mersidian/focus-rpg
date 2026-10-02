@@ -152,7 +152,10 @@ function Banked({ result }: { result: ResolutionSummary }) {
             }}
           />
           {!isUnique(item.itemId) && <span className="tnum">{item.qty.toLocaleString()}</span>}
-          <span style={isUnique(item.itemId) ? { color: "var(--tier)" } : undefined}>
+          <span
+            className={isUnique(item.itemId) ? "named" : undefined}
+            style={isUnique(item.itemId) ? { color: "var(--tier)" } : undefined}
+          >
             {item.itemId ? itemName(item.itemId) : item.name}
           </span>
         </li>
@@ -622,7 +625,10 @@ function ContractLine({ contract }: { contract: NonNullable<ResolutionSummary["c
               {contract.unique && (
                 <>
                   {" "}
-                  — and <span style={{ color: "var(--tier)" }}>{contract.unique}</span>
+                  — and{" "}
+                  <span className="named" style={{ color: "var(--tier)" }}>
+                    {contract.unique}
+                  </span>
                 </>
               )}
               .

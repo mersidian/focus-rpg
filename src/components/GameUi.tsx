@@ -25,7 +25,7 @@ export function Screen({
       animate-rise on the shell, so every screen has an entrance without a line
       of JavaScript. The keyframe already existed and was used in one place.
     */
-    <main className="animate-rise mx-auto w-full max-w-4xl px-6 pb-24 pt-14 sm:px-10">
+    <main className="animate-rise mx-auto w-full max-w-6xl px-6 pb-24 pt-12 sm:px-10">
       {/*
         Plex Sans, not Fraunces. §8 gives the display face one job — "Fraunces
         sets the earned title and nothing else, so the name reads as a name" —
@@ -33,7 +33,7 @@ export function Screen({
         every heading cannot mark the one thing that was earned.
       */}
       <h1 className="text-title font-medium tracking-tight sm:text-hero">{title}</h1>
-      {lead && <p className="mt-3 max-w-2xl text-body leading-relaxed text-dim">{lead}</p>}
+      {lead && <p className="mt-3 max-w-[62ch] text-lead text-dim">{lead}</p>}
       {children}
     </main>
   );
@@ -44,6 +44,7 @@ export function Block({
   aside,
   icon,
   href,
+  flush = false,
   children,
 }: {
   title: string;
@@ -61,10 +62,12 @@ export function Block({
    */
   icon?: IconName;
   href?: string;
+  /** Drops the top margin, for a block that leads a column rather than follows one. */
+  flush?: boolean;
   children: ReactNode;
 }) {
   return (
-    <section className="mt-12">
+    <section className={flush ? "" : "mt-12"}>
       <div className="flex items-baseline justify-between gap-4 border-b border-rule pb-2">
         {/*
           One link, not two. The mark and the words go to the same page, so
@@ -72,7 +75,7 @@ export function Block({
           destination side by side — twice the tab stops and twice the
           announcement for one thing to do.
         */}
-        <h2 className="min-w-0 text-lead text-text">
+        <h2 className="min-w-0 text-lead font-medium text-text">
           {href ? (
             <Link href={href} className="group flex min-w-0 items-center gap-2.5">
               {icon && (
@@ -112,10 +115,20 @@ export function Rows({
   head,
   rows,
   total,
+  words = [],
 }: {
   head: string[];
   rows: ReactNode[][];
   total?: number;
+  /**
+   * Columns that hold words rather than figures.
+   *
+   * Every column but the first was set in the numeral face and pushed right,
+   * which is correct for a column of numbers and made "reliable, rather than
+   * whatever biome you visited" a right-aligned line of monospace. A column of
+   * words reads from the left, in the face words are set in.
+   */
+  words?: number[];
 }) {
   const hidden = total !== undefined && total > rows.length;
   // No rows means nothing to scroll to, whatever the column count.
@@ -138,8 +151,12 @@ export function Rows({
             {head.map((h, i) => (
               <th
                 key={i}
-                className={`border-b border-rule pb-2 pr-4 font-medium text-faint last:pr-0 ${
-                  i === 0 ? "sticky left-0 bg-ground text-left" : "text-right"
+                className={`border-b border-rule pb-2 pr-4 text-note font-normal text-faint last:pr-0 ${
+                  i === 0
+                    ? "sticky left-0 bg-ground text-left"
+                    : words.includes(i)
+                      ? "text-left"
+                      : "text-right"
                 }`}
               >
                 {h}
@@ -153,10 +170,12 @@ export function Rows({
               {row.map((cell, i) => (
                 <td
                   key={i}
-                  className={`border-b border-rule py-2 pr-4 align-top last:pr-0 ${
+                  className={`border-b border-rule py-2.5 pr-4 align-top last:pr-0 ${
                     i === 0
-                      ? "sticky left-0 bg-ground text-dim"
-                      : "tnum text-right text-faint"
+                      ? "sticky left-0 bg-ground text-text"
+                      : words.includes(i)
+                        ? "text-left text-dim"
+                        : "tnum text-right text-dim"
                   }`}
                 >
                   {cell}
@@ -210,9 +229,9 @@ export function Gauge({
           <span className="tnum"> / {groupNumber(cap)}</span>
         </p>
       </div>
-      <div className="mt-1.5 h-[3px] w-full bg-rule">
+      <div className="mt-2 h-1 w-full rounded-full bg-rule">
         <div
-          className="h-full transition-[width] duration-700 ease-out"
+          className="h-full rounded-full transition-[width] duration-700 ease-out"
           style={{
             width: `${share * 100}%`,
             backgroundColor: tone === "full" ? "var(--color-ice)" : "var(--tier)",
@@ -386,11 +405,11 @@ export function DepthRange({ lo, hi, steps }: { lo: number; hi: number; steps: n
 /** A progress rail in the tier colour. Used for skills, plots and contracts. */
 export function Rail({ progress }: { progress: number }) {
   return (
-    <div className="mt-1 h-[2px] w-full bg-rule">
+    <div className="mt-1.5 h-[3px] w-full rounded-full bg-rule">
       <div
         // Matching XpRail, which was the only one of the app's four rails that
         // moved. The others arrived already filled and looked like rules.
-        className="h-full transition-[width] duration-700 ease-out"
+        className="h-full rounded-full transition-[width] duration-700 ease-out"
         style={{
           width: `${Math.min(100, Math.max(0, progress * 100))}%`,
           backgroundColor: "var(--tier)",
@@ -401,110 +420,180 @@ export function Rail({ progress }: { progress: number }) {
 }
 
 /**
- * The ten slots, as the thing the requirement gate actually reads.
+ * The ten slots, drawn as slots.
  *
- * The overview used to say `Slots filled 7 / 10` and then, two lines below,
- * explain that "an empty slot counts as tier zero for the requirement gate, so
- * a missing cape can close an area". Both sentences are true and neither is
- * usable: a count cannot say WHICH slot, and which slot is the entire content
- * of the warning.
+ * This was a bar chart: ten bars on a hairline, each as tall as its tier, with
+ * an empty slot as a baseline with nothing on it. It answered the gate's
+ * question — which is shallowest — and lost the first one a player has, which
+ * is what am I wearing and what is missing. Half this character's loadout was
+ * empty and the drawing of it was five short bars and five absences.
  *
- * So the loadout is drawn the way `TierBars` draws the catalogue — a bar per
- * slot, its height its tier against the deepest there is, in the depth colour
- * the rest of the app already reads as "how far down". The gate takes the
- * minimum across all ten, which means the gate reads the SHORTEST BAR, and a
- * shortest bar is a thing you find without counting. An empty slot is an empty
- * track, so it is shortest by construction and needs no separate treatment.
- *
- * No paper doll, no icon boxes: this is the same grammar as every other depth
- * in the app, on a baseline, in hairlines.
+ * A slot holds one thing or visibly holds nothing, so it is a box with a mark
+ * in it or a dashed outline. The tier is still on every one, and the shallowest
+ * is still marked, because the gate still reads it.
  */
-export function SlotRack({
-  slots,
-  steps = MAX_TIER,
-}: {
-  /** In the game's own slot order. A tier of 0 means empty. */
-  slots: { slot: string; tier: number }[];
-  steps?: number;
-}) {
-  const floor = Math.min(...slots.map((s) => s.tier));
-  const deepest = Math.max(...slots.map((s) => s.tier));
+export type SlotView = {
+  slot: string;
+  /** 0 when empty. */
+  tier: number;
+  name?: string;
+  style?: string;
+  refine?: number;
+  /** An offhand given up to a two-handed weapon: empty, and not a problem. */
+  held?: boolean;
+};
+
+function slotMark(s: SlotView): IconName {
+  if (s.slot === "weapon" && s.style) return (s.style === "gun" ? "gunplay" : s.style) as IconName;
+  return "equipment";
+}
+
+/** Whether the gate is reading this slot as the weakest of an uneven set. */
+function weakest(s: SlotView, all: SlotView[]): boolean {
+  const worn = all.filter((x) => !x.held);
+  const floor = Math.min(...worn.map((x) => x.tier));
+  const deepest = Math.max(...worn.map((x) => x.tier));
+  return !s.held && s.tier === floor && floor < deepest;
+}
+
+/** The compact rack: ten small slots, for a panel that summarises the loadout. */
+export function SlotGrid({ slots, steps = MAX_TIER }: { slots: SlotView[]; steps?: number }) {
   return (
-    /*
-     * Scaled against the deepest tier there is, not against the deepest you
-     * own. A rack that renormalised itself would make a full set of tier-1
-     * scrap look exactly like a full set of tier-24 — and the number under each
-     * bar is already the absolute reading, so the height is free to be the
-     * comparison between the ten, which is the only comparison the gate makes.
-     *
-     * A drawn ceiling at tier 24 was tried here and cut: it is a rule, a label
-     * and a band of empty space to say what the numerals underneath already say
-     * exactly.
-     */
-    <div className="mt-5 grid grid-cols-5 gap-x-2 gap-y-5 sm:grid-cols-10">
+    <ul className="mt-4 grid grid-cols-5 gap-2">
       {slots.map((s) => {
-        /*
-         * A floor of 18%, not a proportional height.
-         *
-         * `TierBars` lets a shallow column fade into its track, which is right
-         * when every column is present and depth is the only question. Here the
-         * first question is whether a slot holds anything at all, and a tier-1
-         * piece at a true 1/24 is four pixels of a colour `depthFill` has
-         * already mixed 84% into the track — indistinguishable from empty,
-         * which is the one distinction this rack exists to draw.
-         */
-        const share = s.tier <= 0 ? 0 : 0.18 + 0.82 * ((s.tier - 1) / Math.max(1, steps - 1));
-        /*
-         * Every slot sitting at the floor is marked, not just the first one
-         * found — with three empty slots there is no single weakest link.
-         *
-         * And nothing is marked when they are all level: a uniform tier-7 set
-         * is not ten problems, it is a finished set, and painting the whole
-         * rack the warning colour would say the opposite.
-         */
-        const holds = s.tier === floor && floor < deepest;
+        const filled = s.tier > 0;
         return (
-          <div key={s.slot} className="min-w-0">
+          <li key={s.slot} className="min-w-0">
             <div
-              /*
-               * A bar standing on a hairline, and no track around it.
-               *
-               * A filled track reads a shallow tier as "nearly empty" rather
-               * than "shallow", and boxing all ten turns a rack into ten cards
-               * — which this app does not have anywhere, by rule. A baseline
-               * with nothing on it is unambiguously an empty slot, and it is
-               * the same hairline every other row in the app sits on.
-               */
-              className="flex h-10 w-full items-end border-b border-rule"
-              title={s.tier > 0 ? `${s.slot} · tier ${s.tier}` : `${s.slot} · empty`}
+              className={`flex aspect-square flex-col items-center justify-center gap-1 ${
+                filled ? "slot" : "slot-empty"
+              }`}
+              title={filled ? `${s.name ?? s.slot}, tier ${s.tier}` : `${s.slot}: empty`}
             >
-              <div
-                className="w-full transition-[height] duration-700 ease-out"
-                style={{
-                  height: `${share * 100}%`,
-                  backgroundColor: depthFill(s.tier, steps),
-                }}
+              <Icon
+                name={slotMark(s)}
+                className="size-5"
+                style={{ color: filled ? depthInk(s.tier, steps) : "var(--color-rule)" }}
               />
+              <span
+                className="tnum text-note leading-none"
+                style={{
+                  color: !filled
+                    ? "var(--color-faint)"
+                    : weakest(s, slots)
+                      ? "var(--color-warn)"
+                      : depthInk(s.tier, steps),
+                }}
+              >
+                {filled ? `t${s.tier}` : s.held ? "held" : "empty"}
+              </span>
             </div>
-            <p className="mt-1.5 truncate text-note">
-              {s.tier > 0 ? (
-                <span
-                  className="tnum"
-                  style={{ color: holds ? "var(--color-warn)" : depthInk(s.tier, steps) }}
-                >
-                  t{s.tier}
-                </span>
-              ) : (
-                <span className="tnum text-faint">—</span>
-              )}
-            </p>
-            <p className="truncate text-note text-faint" title={s.slot}>
-              {s.slot}
-            </p>
-          </div>
+            <p className="mt-1.5 truncate text-center text-note text-faint">{s.slot}</p>
+          </li>
         );
       })}
-    </div>
+    </ul>
+  );
+}
+
+/**
+ * The same ten at full size, each with whatever can be done to it.
+ *
+ * The equipment screen was a five-column table whose last column held two
+ * underlined phrases. A piece of gear is an object with a few facts and a few
+ * verbs, which is a slot with its buttons under it.
+ */
+export function SlotBoard({
+  slots,
+  detail,
+  actions,
+  empty,
+  steps = MAX_TIER,
+}: {
+  slots: SlotView[];
+  /** A line of facts under the name: the roll, the wear. */
+  detail?: (s: SlotView) => ReactNode;
+  actions?: (s: SlotView) => ReactNode;
+  /** What an empty slot offers: the way to fill it. */
+  empty?: (s: SlotView) => ReactNode;
+  steps?: number;
+}) {
+  return (
+    <ul className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-5">
+      {slots.map((s) => {
+        const filled = s.tier > 0;
+        return (
+          <li
+            key={s.slot}
+            className={`flex min-h-[9.5rem] flex-col p-3.5 ${filled ? "slot" : "slot-empty"}`}
+          >
+            <div className="flex items-center justify-between gap-2 text-note text-faint">
+              <span className="inline-flex items-center gap-1.5">
+                <Icon
+                  name={slotMark(s)}
+                  className="size-4"
+                  style={{ color: filled ? depthInk(s.tier, steps) : "var(--color-rule)" }}
+                />
+                {s.slot}
+              </span>
+              {filled && (
+                <span
+                  className="tnum"
+                  style={{
+                    color: weakest(s, slots) ? "var(--color-warn)" : depthInk(s.tier, steps),
+                  }}
+                >
+                  tier {s.tier}
+                </span>
+              )}
+            </div>
+            {filled ? (
+              <>
+                <p className="mt-2 text-body leading-snug text-text">
+                  {s.name}
+                  {(s.refine ?? 0) > 0 && (
+                    <span className="tnum" style={{ color: "var(--tier)" }}>
+                      {" "}
+                      +{s.refine}
+                    </span>
+                  )}
+                </p>
+                {detail && <p className="mt-1 text-note text-faint">{detail(s)}</p>}
+                {actions && <div className="mt-auto flex flex-wrap gap-2 pt-3">{actions(s)}</div>}
+              </>
+            ) : (
+              <>
+                <p className="mt-2 text-body text-faint">
+                  {s.held ? "Held by your two-handed weapon" : "Empty"}
+                </p>
+                {!s.held && empty && <div className="mt-auto pt-3">{empty(s)}</div>}
+              </>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/**
+ * Ten of something, as ten marks.
+ *
+ * "3 / 10" is a fraction to read; ten squares with three lit is a thing to see,
+ * and a column of them down a list shows where the open ground stops without
+ * reading a single number.
+ */
+export function Pips({ lit, of = 10, label }: { lit: number; of?: number; label?: string }) {
+  return (
+    <span className="inline-flex items-center gap-[3px]" role="img" aria-label={label ?? `${lit} of ${of}`}>
+      {Array.from({ length: of }, (_, i) => (
+        <span
+          key={i}
+          className="inline-block size-[7px] rounded-[1px]"
+          style={{ backgroundColor: i < lit ? "var(--tier)" : "var(--color-rule)" }}
+        />
+      ))}
+    </span>
   );
 }
 
@@ -558,65 +647,57 @@ export function StyleWheel({
 /**
  * The route: what to do next, most pressing first.
  *
- * The first step is drawn larger than the rest because it is a different kind
- * of thing — the answer to "what now" rather than an entry in a list — and a
- * page that gives five suggestions equal weight has not made one.
+ * The first step is set at headline size because it is a different kind of
+ * thing from the rest — the answer to "what now" rather than an entry in a
+ * list — and it carries the screen's one filled button, named for where it
+ * goes. The others are the horizon: a row each, the whole row a link.
  *
- * Each row is one link, the whole width of it. A step that ended in a small
- * underlined word would be asking for a second, more careful click to do the
- * only thing the row is for.
+ * No label above it and no arrow after it. "Make a weapon" at twenty-eight
+ * pixels does not need to be introduced as the next thing.
  */
 export function StepList({ steps }: { steps: Step[] }) {
   if (steps.length === 0) return null;
   const [first, ...rest] = steps;
   return (
-    <div className="mt-8">
-      <Link
-        href={first.href}
-        className="group flex items-start gap-4 border-y border-rule py-5 transition-colors hover:bg-lift/40"
-      >
+    <div>
+      <Link href={first.href} className="group flex items-start gap-4">
         <KindMark
           name={first.mark as IconName}
           hue={skillKindHue(first.kind)}
-          className="mt-0.5"
+          className="mt-1"
           large
         />
         <div className="min-w-0 flex-1">
-          <p className="text-note uppercase tracking-[0.14em] text-faint">Next</p>
-          <p className="mt-1 text-stat font-medium leading-snug text-text">{first.title}</p>
-          <p className="mt-1.5 max-w-2xl text-body leading-relaxed text-dim">{first.detail}</p>
+          <p className="text-head font-medium leading-tight tracking-tight text-text">
+            {first.title}
+          </p>
+          <p className="mt-2 max-w-[58ch] text-body text-dim">{first.detail}</p>
           {first.progress && <StepRail progress={first.progress} />}
-        </div>
-        <span
-          className="mt-1 hidden shrink-0 items-center gap-1 text-body sm:inline-flex"
-          style={{ color: "var(--action)" }}
-        >
-          {first.go}
-          <span aria-hidden className="transition-transform group-hover:translate-x-0.5">
-            →
+          <span
+            className="mt-5 inline-flex rounded-sm px-4 py-2 text-body font-medium text-ground transition-opacity group-hover:opacity-90"
+            style={{ backgroundColor: "var(--action)" }}
+          >
+            Open {first.go.toLowerCase()}
           </span>
-        </span>
+        </div>
       </Link>
 
       {rest.length > 0 && (
-        <ul>
+        <ul className="mt-8 border-t border-rule">
           {rest.map((step) => (
-            <li key={step.key} className="border-b border-rule last:border-0">
+            <li key={step.key} className="border-b border-rule">
               <Link
                 href={step.href}
-                className="group flex items-start gap-3 py-3.5 transition-colors hover:bg-lift/40"
+                className="group -mx-3 flex items-start gap-3 rounded-md px-3 py-4 transition-colors hover:bg-lift/60"
               >
                 <KindMark name={step.mark as IconName} hue={skillKindHue(step.kind)} />
                 <div className="min-w-0 flex-1">
                   <p className="text-lead text-text">{step.title}</p>
-                  <p className="mt-0.5 max-w-2xl text-body leading-relaxed text-faint">
-                    {step.detail}
-                  </p>
+                  <p className="mt-0.5 max-w-[58ch] text-body text-faint">{step.detail}</p>
                   {step.progress && <StepRail progress={step.progress} />}
                 </div>
-                <span className="mt-1 hidden shrink-0 items-center gap-1 text-note text-faint transition-colors group-hover:text-dim sm:inline-flex">
+                <span className="mt-1 hidden shrink-0 text-note text-faint transition-colors group-hover:text-text sm:block">
                   {step.go}
-                  <span aria-hidden>→</span>
                 </span>
               </Link>
             </li>
@@ -630,22 +711,22 @@ export function StepList({ steps }: { steps: Step[] }) {
 function StepRail({ progress }: { progress: { have: number; need: number } }) {
   const share = progress.need <= 0 ? 0 : Math.min(1, Math.max(0, progress.have / progress.need));
   return (
-    <div className="mt-2.5 flex max-w-md items-center gap-3">
-      <div className="h-[3px] flex-1 bg-rule">
+    <div className="mt-3 flex max-w-md items-center gap-3">
+      <div className="h-1 flex-1 rounded-full bg-rule">
         <div
-          className="animate-hairline h-full"
+          className="animate-hairline h-full rounded-full"
           style={{ width: `${share * 100}%`, backgroundColor: "var(--tier)" }}
         />
       </div>
       <span className="tnum shrink-0 text-note text-faint">
-        {groupNumber(progress.have)} / {groupNumber(progress.need)}
+        {groupNumber(progress.have)} of {groupNumber(progress.need)}
       </span>
     </div>
   );
 }
 
 export function Empty({ children }: { children: ReactNode }) {
-  return <p className="mt-6 text-body leading-relaxed text-faint">{children}</p>;
+  return <p className="mt-5 max-w-[62ch] text-body text-faint">{children}</p>;
 }
 
 /** A gate's verdict, rendered as a shopping list rather than a refusal. */

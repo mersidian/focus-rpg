@@ -77,7 +77,7 @@ export default async function SlayingPage() {
               name and a counter, and finishing it paid XP into a skill nobody
               was shown.
             */}
-            <p className="mt-4 max-w-2xl leading-relaxed text-dim">
+            <p className="mt-4 max-w-[62ch] text-dim">
               Found in{" "}
               <Link
                 href={`/game/areas?b=${c.biome}`}
@@ -98,7 +98,10 @@ export default async function SlayingPage() {
                 <>
                   {" "}
                   — and, as your first in {biome?.name},{" "}
-                  <span style={{ color: "var(--tier)" }}>{trinket.name}</span>.
+                  <span className="named" style={{ color: "var(--tier)" }}>
+                    {trinket.name}
+                  </span>
+                  .
                 </>
               ) : (
                 "."
@@ -114,6 +117,7 @@ export default async function SlayingPage() {
       <Block title="Where contracts send you" aside={`${reach.length} of ${BIOMES.length} biomes`}>
         <Rows
           head={["Biome", "Tiers", "First contract gives"]}
+          words={[2]}
           rows={reach.map((b) => {
             const prize = BIOME_TRINKET.get(b.index);
             const got = claimed.has(trinketMarker(b.index));
@@ -121,10 +125,12 @@ export default async function SlayingPage() {
               b.name,
               <DepthRange key="t" lo={b.tierLo} hi={b.tierHi} steps={MAX_TIER} />,
               prize ? (
-                <span key="p" className="font-sans normal-nums">
-                  <span style={got ? undefined : { color: "var(--tier)" }}>{prize.name}</span>
+                <span key="p">
+                  <span className="named" style={got ? undefined : { color: "var(--tier)" }}>
+                    {prize.name}
+                  </span>
                   <span className="text-faint">
-                    {got ? " · yours" : ` · ${describeEffect(prize.effect)}`}
+                    {got ? ", yours" : `: ${describeEffect(prize.effect)}`}
                   </span>
                 </span>
               ) : (

@@ -163,6 +163,107 @@ body {
   letter-spacing: -0.02em;
 }
 
+/*
+  A name somebody wrote, as opposed to one the generator made.
+
+  The game has eight and a half thousand items and seven hundred monsters, and
+  all but a few hundred of them are a material glued to a noun: Copper Helm,
+  Hushwood Wolf. The rest were written — twenty biomes, forty bosses, two
+  hundred and fifty uniques — and on screen the two kinds were set identically,
+  so Thistlemaw's Grin read like one more row of Copper.
+
+  This is §8's rule extended rather than broken. The display face marks a name
+  that "reads as a name": the rank you earned, and now the proper nouns of the
+  world you earn it in. Still never a heading, a label or a number.
+*/
+.named {
+  font-family: var(--font-display);
+  font-variation-settings: "SOFT" 12, "WONK" 0, "opsz" 40;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+/*
+  The game surface, set at the size a game is read at.
+
+  The app's scale was drawn for the timer, where there is one number and a
+  button. The game is ten screens of things to compare, and at 13px on the
+  faintest of three greys it was a page you leaned in to. Inside `.game` the
+  three reading sizes each move up a step and the two quiet inks move toward
+  the text, so the hierarchy keeps its three steps and its bottom one is no
+  longer where the facts are.
+
+  Scoped rather than changed at the root: Timer, Streak and the rest keep the
+  scale they were tuned at.
+*/
+.game {
+  --text-note: 0.8125rem;
+  --text-body: 0.9375rem;
+  --text-lead: 1.0625rem;
+  --color-dim: oklch(0.78 0.018 268);
+  --color-faint: oklch(0.64 0.022 268);
+}
+
+@layer components {
+  /*
+    A second-rank action. These were twelve-pixel underlined words — "Sell",
+    "Take off", "max 48" — which is how a link looks, in a row of text, at a
+    size a thumb cannot hit. A border makes it a control and the padding makes
+    it a target, without competing with the one filled button a screen has.
+  */
+  .btn-quiet {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2rem;
+    padding: 0.25rem 0.75rem;
+    border: 1px solid var(--color-rule);
+    border-radius: 4px;
+    font-size: var(--text-note);
+    line-height: 1.3;
+    color: var(--color-dim);
+    white-space: nowrap;
+    transition: border-color 120ms, color 120ms, background-color 120ms;
+  }
+  .btn-quiet:hover:not(:disabled) {
+    border-color: var(--color-dim);
+    color: var(--color-text);
+  }
+  .btn-quiet:disabled {
+    opacity: 0.4;
+  }
+
+  /* A filter you can see the state of, rather than a word that changes colour. */
+  .chip {
+    padding: 0.25rem 0.7rem;
+    border: 1px solid var(--color-rule);
+    border-radius: 999px;
+    font-size: var(--text-note);
+    line-height: 1.3;
+    color: var(--color-faint);
+    transition: border-color 120ms, color 120ms, background-color 120ms;
+  }
+  .chip:hover {
+    color: var(--color-text);
+  }
+  .chip[aria-pressed="true"] {
+    border-color: color-mix(in oklch, var(--action) 55%, var(--color-rule));
+    background-color: color-mix(in oklch, var(--action) 16%, transparent);
+    color: var(--color-text);
+  }
+
+  /* A slot: something that holds one thing, or visibly holds nothing. */
+  .slot {
+    border: 1px solid var(--color-rule);
+    border-radius: 6px;
+    background-color: color-mix(in oklch, var(--color-lift) 70%, transparent);
+  }
+  .slot-empty {
+    border: 1px dashed var(--color-rule);
+    border-radius: 6px;
+  }
+}
+
 ::selection {
   background: var(--action);
   color: var(--color-ground);
