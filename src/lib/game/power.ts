@@ -182,11 +182,26 @@ export type LoadoutPower = { offence: number; defence: number };
 const OFFENCE_SLOTS = SLOTS.filter((s) => SLOT_KIND[s] === "offence");
 const GUARD_SLOTS = SLOTS.filter((s) => SLOT_KIND[s] !== "offence");
 
+/**
+ * What a worn piece brings to the sum. A weapon's roll is one hit's worth and
+ * it lands `hits` of them an exchange; everything else is what it rolled.
+ *
+ * The multiplication happens here, at the read, rather than in `centre`. An
+ * instance stores its roll, so folding hits into the band would have left every
+ * multi-hit weapon already made sitting below its own floor, at a percentile of
+ * zero, for ever.
+ */
+function brings(equipped: Equipped, slot: Slot): number {
+  const piece = equipped[slot];
+  if (!piece) return 0;
+  return piece.rolled * (slot === "weapon" ? (piece.spec.archetype?.hits ?? 1) : 1);
+}
+
 function normalised(equipped: Equipped, slots: Slot[], skipOffhand: boolean): number {
   const usable = slots.filter((s) => !(skipOffhand && s === "offhand"));
   const available = usable.reduce((n, s) => n + SLOT_BASE[s], 0);
   if (available <= 0) return 0;
-  const got = usable.reduce((n, s) => n + (equipped[s]?.rolled ?? 0), 0);
+  const got = usable.reduce((n, s) => n + brings(equipped, s), 0);
   return (got / available) * TOTAL_SLOT_BASE;
 }
 

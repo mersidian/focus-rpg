@@ -82,16 +82,20 @@ export const BASE_KILL_SECONDS: Record<Speed, number> = {
 /**
  * The scale a spawn is measured on, calibrated against OFFENCE.
  *
- * This is the number the whole curve hangs off, and it has been moved once
- * already: it was 55 when a loadout was a single figure, and splitting offence
- * from defence dropped a same-tier set to converting 26% of its own tier's
- * commons — three failures in four, at the tier you are supposed to be farming.
+ * This is the number the whole curve hangs off, and it has been moved twice:
+ * it was 55 when a loadout was a single figure, and splitting offence from
+ * defence dropped a same-tier set to converting 26% of its own tier's commons
+ * — three failures in four, at the tier you are supposed to be farming. It was
+ * 33 while offence read one hit of a weapon that lands two; the yardstick set
+ * is built round that weapon, so once the second hit counted the set stood at
+ * a hundred percent of its own tier and nothing was left to want.
  *
- * At 33 a full same-tier Plain melee set converts about four commons in five.
- * That is the balance point: your own tier is farmable but not free, and
- * anything rarer wants better gear, the right style, or both.
+ * At 48 a full same-tier Plain melee set converts about four commons in five,
+ * as it did at 33 before the hits were read. That is the balance point: your
+ * own tier is farmable but not free, and anything rarer wants better gear, the
+ * right style, or both.
  */
-export const SPAWN_BASE = 33;
+export const SPAWN_BASE = 48;
 
 export function spawnPower(atTier: number, rarity: RarityDef): number {
   return SPAWN_BASE * tier(atTier).power * rarity.power;
@@ -157,11 +161,21 @@ export type Spawn = {
  */
 export const MAX_RATIONS_PER_FAILURE = 3;
 
+/**
+ * The defence, per unit of tier power, that holds a common to one ration.
+ *
+ * This is what makes the styles differ at all: rounding the bare ratio of spawn
+ * to defence put every style on one ration and the whole defence axis went
+ * dead. It is its own number rather than a multiple of `SPAWN_BASE` because
+ * that one is calibrated on offence and moves when offence is re-read, and a
+ * coat is not thinner for it.
+ */
+export const GUARD_BASE = 49.5;
+
 export function rationsPerFailure(spawn: number, defence: number): number {
   if (defence <= 0) return MAX_RATIONS_PER_FAILURE;
-  // The 1.5 is what makes the styles differ at all. Rounding the bare ratio put
-  // every style on one ration and the whole defence axis went dead.
-  return Math.min(MAX_RATIONS_PER_FAILURE, Math.max(1, Math.ceil((spawn / defence) * 1.5)));
+  const pressure = (spawn / defence) * (GUARD_BASE / SPAWN_BASE);
+  return Math.min(MAX_RATIONS_PER_FAILURE, Math.max(1, Math.ceil(pressure)));
 }
 
 export type CombatInput = {

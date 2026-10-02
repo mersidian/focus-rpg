@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { MAX_TIER, GUN_ENTRY_TIER, LINE_WORDS, TIERS, tier, tierForHours, familiesAt } from "../src/lib/game/tiers.ts";
-import { ARCHETYPES, STYLES, archetypesFor, wheel, BEATS, STYLE_FAMILY, answerTo } from "../src/lib/game/archetypes.ts";
+import { ARCHETYPES, STYLES, archetypesFor, exchange, wheel, BEATS, STYLE_FAMILY, answerTo } from "../src/lib/game/archetypes.ts";
 import { SPECIES, PARTS, FAMILY_PARTS } from "../src/lib/game/species.ts";
 import { BIOMES, BIOME_MATERIALS, AREAS_PER_BIOME, areaTier } from "../src/lib/game/biomes.ts";
 import { allAreas, allVariants, areasIn, variantsIn, wheelStep } from "../src/lib/game/variants.ts";
@@ -352,6 +352,67 @@ test("a two-handed weapon is not simply worse for holding one fewer item", () =>
     two.offence > build(oneHanded).offence * 0.8,
     "giving up the offhand cost more than the archetype gave back",
   );
+});
+
+test("an exchange is every hit it lands, and offence reads all of them", () => {
+  /*
+   * §16.2 words a fast weapon as "two hits an exchange at D 0.38" and a volley
+   * as "three at D 0.32". Offence read D and nothing else, so the weapon that
+   * hits three times was worth a third of the one that hits once.
+   */
+  for (const style of STYLES) {
+    const six = archetypesFor(style);
+    assert.equal(six.find((a) => a.role === 1)!.hits, 2, `${style}'s fast weapon does not land twice`);
+    assert.equal(six.find((a) => a.role === 4)!.hits, 3, `${style}'s volley does not land three times`);
+    for (const a of six.filter((x) => ![1, 4].includes(x.role))) {
+      assert.equal(a.hits, 1, `${a.name} lands ${a.hits} times and its note says one`);
+    }
+  }
+
+  // The reader: the same stored roll, worn alone, is worth `hits` of itself.
+  const lone = (arch: (typeof ARCHETYPES)[number], rolled: number) =>
+    loadoutPower({
+      weapon: { spec: { slot: "weapon", style: arch.style, tier: 12, quality: "plain", refine: 0, archetype: arch }, rolled },
+    }).offence;
+  const [snap, , pike, lash] = archetypesFor("melee");
+  assert.ok(Math.abs(lone(snap, 100) / lone(pike, 100) - 2) < 1e-9, "a second hit is not being counted");
+  assert.ok(Math.abs(lone(lash, 100) / lone(pike, 100) - 3) < 1e-9, "a third hit is not being counted");
+
+  // And what an item stores is still one hit, so no roll already made moved.
+  assert.ok(
+    Math.abs(band({ slot: "weapon", style: "melee", tier: 12, quality: "plain", refine: 0, archetype: snap }).centre -
+      snap.damage * 10 * tier(12).power) < 1e-9,
+    "hits leaked into the stored band",
+  );
+});
+
+test("six weapons in a style are six choices, not one answer", () => {
+  /*
+   * Every archetype of a tier costs the same to make. While offence read one
+   * hit, a full set built round the best was worth 1.8 times one built round
+   * the worst, and a lone two-hander out-killed a full set three to one.
+   */
+  for (const style of STYLES) {
+    const six = archetypesFor(style);
+    const worth = six.map(exchange);
+    assert.ok(
+      Math.max(...worth) / Math.min(...worth) < 1.7,
+      `${style}: one exchange is worth ${Math.max(...worth).toFixed(2)} at best and ${Math.min(...worth).toFixed(2)} at worst`,
+    );
+    const offence = six.map((arch) => {
+      const equipped: Record<string, { spec: any; rolled: number }> = {};
+      for (const slot of SLOTS) {
+        if (slot === "offhand" && arch.hands === 2) continue;
+        const spec = { slot, style, tier: 12, quality: "plain" as const, refine: 0, archetype: slot === "weapon" ? arch : undefined };
+        equipped[slot] = { spec, rolled: band(spec).centre };
+      }
+      return loadoutPower(equipped as any).offence;
+    });
+    assert.ok(
+      Math.max(...offence) / Math.min(...offence) < 1.4,
+      `${style}: the best full set has ${(Math.max(...offence) / Math.min(...offence)).toFixed(2)} times the offence of the worst`,
+    );
+  }
 });
 
 /* --------------------------------- combat ---------------------------------- */
@@ -2073,6 +2134,49 @@ test("a skill that makes weapons can make one the day it opens", () => {
     assert.ok(
       weapons.some((r) => r.skill === key && r.inputs.every((i) => have.has(i.itemId))),
       `${skill.label} opens at character level ${skill.unlock} and cannot make a single weapon`,
+    );
+  }
+});
+
+test("every slot a gate counts can be made by the level that gate opens", () => {
+  /*
+   * The gate reads the shallowest of ten slots and an empty one is tier zero.
+   * Eight are the armourer's; a ring and an amulet are the jeweller's, and
+   * Jewelcrafting opened eleven levels after the first area that asked for a
+   * set. Until then the two could only drop, one slot in ten off a kill in
+   * fifty, so everything past the meadow was shut behind luck.
+   *
+   * Asked of every area and every boss, at the level each one asks for. Any
+   * style will do: a gate is a tier number and never a maker.
+   */
+  const made = new Map<number, Set<string>>();
+  const madeAt = (level: number) => {
+    if (!made.has(level)) made.set(level, reachableAt(level));
+    return made.get(level)!;
+  };
+  const wanting = [
+    ...allAreas().map((a) => ({
+      name: a.name,
+      req: requirementFor({ kind: "combat", biome: a.biome.index, area: a.index }),
+    })),
+    ...BOSSES.map((b) => ({ name: b.name, req: requirementFor({ kind: "boss", biome: b.biome, role: b.role }) })),
+  ].filter((w) => (w.req.equipmentTier ?? 0) > 0);
+  assert.ok(wanting.length > 0, "no gate asks for gear at all");
+
+  for (const { name, req } of wanting) {
+    const have = madeAt(req.characterLevel ?? 1);
+    const t = req.equipmentTier!;
+    const shut = SLOTS.filter((slot) => {
+      const ids =
+        slot === "weapon"
+          ? ARCHETYPES.map((a) => `weapon:${a.name}:${t}:${CRAFTED_QUALITY}`)
+          : STYLES.map((s) => `armour:${s}:${slot}:${t}:${CRAFTED_QUALITY}`);
+      return !ids.some((id) => have.has(id));
+    });
+    assert.deepEqual(
+      shut,
+      [],
+      `${name} opens at character level ${req.characterLevel} wanting a tier-${t} set, and nothing open by then makes: ${shut.join(", ")}`,
     );
   }
 });

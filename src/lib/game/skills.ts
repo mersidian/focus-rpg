@@ -89,7 +89,16 @@ export const SKILLS: Skill[] = [
   { key: "cooking", label: "Cooking", kind: "processing", note: "fish and meat to rations", unlock: 6 },
   { key: "alchemy", label: "Alchemy", kind: "processing", note: "herbs to potions", unlock: 11 },
   { key: "runecrafting", label: "Runecrafting", kind: "processing", note: "essence to runes", unlock: 14 },
-  { key: "jewelcrafting", label: "Jewelcrafting", kind: "processing", note: "gems to rings and amulets, relics to stones", unlock: 16 },
+  /*
+   * Jewelcrafting opens before the first area that asks for gear, because the
+   * gate counts ten slots and two of them are the jeweller's. It stood at 16
+   * while that area opened at 5: eight slots could be smithed and the other two
+   * could only be found, which took a median of fifty-four sessions in the
+   * meadow and then the same again at every tier after it. Mining feeds it from
+   * the first minute, so it has something to make the day it opens; the relic
+   * half of its note waits for Excavation, as it always did.
+   */
+  { key: "jewelcrafting", label: "Jewelcrafting", kind: "processing", note: "gems to rings and amulets, relics to stones", unlock: 4 },
   { key: "gunsmithing", label: "Gunsmithing", kind: "processing", note: "gunpowder to cartridges and firearms", unlock: 20 },
 ];
 

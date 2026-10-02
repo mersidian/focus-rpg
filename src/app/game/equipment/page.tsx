@@ -34,6 +34,7 @@ export default async function EquipmentPage() {
   const bySlot = new Map(worn.map((i) => [i.equippedSlot as string, i]));
   const missing = emptySlots(equipped);
   const twoHanded = equipped.weapon?.spec.archetype?.hands === 2;
+  const hits = equipped.weapon?.spec.archetype?.hits ?? 1;
   const spare = owned.filter((i) => !i.equippedSlot);
   /*
    * What to search the bench for to fill a slot: the noun this style's piece
@@ -107,7 +108,8 @@ export default async function EquipmentPage() {
           }}
         />
         <p className="mt-5 max-w-[62ch] text-body text-faint">
-          Offence <span className="tnum text-dim">{groupNumber(Math.round(power.offence))}</span> ·
+          Offence <span className="tnum text-dim">{groupNumber(Math.round(power.offence))}</span>
+          {hits > 1 && <>, with every one of your weapon&apos;s {hits === 2 ? "two" : "three"} hits an exchange counted</>} ·
           defence <span className="tnum text-dim">{groupNumber(Math.round(power.defence))}</span>.{" "}
           {missing.length > 0 ? (
             <>

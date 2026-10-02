@@ -85,6 +85,14 @@ before `git push`, and this says whether it took.
   unlock ladder did not move. Two tests hold it: one walks a fresh account, with no shop and
   no starter kit, to the level the first area asks for and makes a weapon that lifts the odds
   off the floor; the other asks every skill that makes weapons to make one the day it opens.
+- **Every slot a gate counts can be made by the level that gate opens.** The gate reads the
+  shallowest of ten slots and an empty one is tier zero. Eight are the armourer's; a ring and an
+  amulet are the jeweller's, and Jewelcrafting opened at 16 while the first area asking for a set
+  opens at 5. Until then the two could only drop — a median of fifty-four sessions in the meadow
+  for the pair, and then again at every tier — so everything past tier 2 sat behind luck for the
+  first fifty hours. Jewelcrafting opens at 4 now. The gate was not touched: making it forgive
+  two slots until a level arrives would have been a gate that asks for something other than a
+  tier. A test asks it of every area and every boss, at the level each one asks for.
 - **Nothing is hard-deleted.** Superseded state goes to `game_state_backup`; a merged
   project keeps its row pointing at where its hours went.
 - **Levels ratchet.** XP can fall; the level cannot. Prestige is the single sanctioned
@@ -232,6 +240,20 @@ before `git push`, and this says whether it took.
   shopping list, and the guide names the next thing worth doing so a status page reads as a
   route. It invents no number — every step is something another module already decides — and
   it is pure, so a test stands a fresh account in front of it and reads what it says.
+- **A weapon lands `hits` times an exchange, and offence reads every one.** §16.2 words a fast
+  weapon as "two hits an exchange at D 0.38" and a volley as "three at D 0.32", and offence read
+  D alone — so six weapons at one price ran from 0.32 to 0.95, a full set built round the best
+  had 1.8 times the offence of one built round the worst, and a lone Fellmaul out-killed a full
+  Snapedge set three to one. `exchange` is damage times hits and `loadoutPower` applies it at the
+  read, not in `centre`: an instance stores its roll, so folding hits into the band would have
+  left every multi-hit weapon already made below its own floor. `SPAWN_BASE` moved from 33 to 48
+  with it, because the yardstick set is built round a two-hit weapon and the rule it is fitted to
+  — a same-tier Plain set converts about four commons in five — is the thing being kept, not the
+  number. `GUARD_BASE` is defence's own scale for the same reason: rations were priced off
+  `SPAWN_BASE`, and a coat is not thinner because offence was re-read. The audit's reference
+  lines came out within a point of where they were. Still prose, and `archetypes.ts` says so:
+  the crit, the free opening hit, the guard, and an ammo bill per hit — ammunition is charged
+  per kill, which the audit decided twice.
 - **A fight says what it will come to before the minutes are spent.** The gate for the first two
   tiers asks for no gear, so it waved an unarmed character into fights they lost nineteen times
   in twenty, and the only thing the activity list said about it was "6 monsters". The list, the

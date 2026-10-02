@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ARCHETYPES, STYLES, STYLE_FAMILY } from "@/lib/game/archetypes";
+import { ARCHETYPES, STYLES, STYLE_FAMILY, exchange } from "@/lib/game/archetypes";
 import { BIOMES } from "@/lib/game/biomes";
 import { catalogueBreakdown } from "@/lib/game/items";
 import { referenceLoadout, MAX_REFINE, SLOTS, SLOT_BASE, affinity } from "@/lib/game/power";
@@ -283,7 +283,7 @@ export default async function WikiGamePage({
         shown={shown}
         title="A full set, and what it converts"
         source="combat.ts"
-        lead={`Offence decides kill speed and conversion; defence decides what a failure costs. A same-tier Plain set sits near a Common spawn of that tier, which is the balance point everything hangs off — SPAWN_BASE is ${SPAWN_BASE}, and it was moved from 55 when the audit caught a same-tier set converting only a quarter of its own tier.`}
+        lead={`Offence decides kill speed and conversion; defence decides what a failure costs. A same-tier Plain set sits near a Common spawn of that tier, which is the balance point everything hangs off — SPAWN_BASE is ${SPAWN_BASE}, and it has been moved each time the audit caught the yardstick set off that mark: once when it was converting only a quarter of its own tier, and again when a weapon's second hit began to count.`}
       >
         <Table
           head={["Tier", "Common spawn", ...STYLES.map((s) => `${s} off/def`)]}
@@ -410,16 +410,18 @@ export default async function WikiGamePage({
         shown={shown}
         title="The weapon archetypes"
         source="archetypes.ts"
-        lead="The family noun in “{material} {archetype}”. Damage is a coefficient, and the band moves opposite to it — a fast shallow weapon rolls wide, a slow final one rolls tight. Two-handed forgoes the offhand and takes throughput back."
+        lead="The family noun in “{material} {archetype}”. Damage is the coefficient of one hit, and an exchange is every hit the weapon lands — which is the figure offence reads. The band moves opposite to damage: a fast shallow weapon rolls wide, a slow final one rolls tight. Two-handed forgoes the offhand and takes throughput back."
       >
         <Table
-          head={["Archetype", "Style", "Damage", "Band", "Hands"]}
+          head={["Archetype", "Style", "Damage", "Hits", "Exchange", "Band", "Hands"]}
           rows={ARCHETYPES.map((a) => [
             a.name,
             <span key="s" className="text-faint">
               {a.style}
             </span>,
             a.damage.toFixed(2),
+            String(a.hits),
+            exchange(a).toFixed(2),
             `±${a.bandPct}%`,
             String(a.hands),
           ])}
