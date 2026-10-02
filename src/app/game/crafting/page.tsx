@@ -8,7 +8,6 @@ import { loadState } from "@/lib/game-state";
 import { allRecipes, canCraft } from "@/lib/game/recipes";
 import { itemIndex } from "@/lib/game/items";
 import { SKILLS, skillUnlock } from "@/lib/game/skills";
-import { groupNumber } from "@/lib/format";
 import { CraftFilter, type CraftRow } from "@/components/CraftFilter";
 
 export const dynamic = "force-dynamic";
@@ -16,9 +15,15 @@ export const dynamic = "force-dynamic";
 const PROCESSING = SKILLS.filter((s) => s.kind === "processing");
 const LABEL = new Map(PROCESSING.map((s) => [s.key, s.label]));
 
-export default async function CraftingPage() {
+export default async function CraftingPage({
+  searchParams,
+}: {
+  /** `?q=` opens the page already searched, so a step can point at one recipe. */
+  searchParams: Promise<{ q?: string }>;
+}) {
   const session = await auth();
   if (!session?.user?.id) redirect("/signin");
+  const { q } = await searchParams;
   const [skills, held, wallet, state] = await Promise.all([
     loadSkills(session.user.id),
     balances(session.user.id),
@@ -87,16 +92,9 @@ export default async function CraftingPage() {
   return (
     <Screen
       title="Crafting"
-      lead={
-        <>
-          {PROCESSING.length} processing skills, {groupNumber(recipes.length)} recipes, all
-          generated from the tier spine — adding a tier adds about forty of them. Fuel pays for
-          every one, which is fuel&apos;s entire job: every <em>meaningful</em> action is a
-          session, and fuel covers the trivia that should never cost twenty-five real minutes.
-        </>
-      }
+      lead="Fuel pays for everything made here. A recipe you cannot make yet says what it is short."
     >
-      <CraftFilter rows={rows} fuel={wallet.fuel} locked={locked} />
+      <CraftFilter rows={rows} fuel={wallet.fuel} locked={locked} initialQuery={q ?? ""} />
     </Screen>
   );
 }

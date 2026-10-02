@@ -10,9 +10,10 @@ import {
   Gauge,
   Gauges,
   SlotRack,
+  StepList,
   StyleWheel,
 } from "@/components/GameUi";
-import { overview, ledgerHistory, FAUCETS, type Faucet } from "@/lib/game-view-service";
+import { overviewWithGuide, ledgerHistory, FAUCETS, type Faucet } from "@/lib/game-view-service";
 import { itemName } from "@/lib/game/items";
 import { groupNumber } from "@/lib/format";
 import { Icon, type IconName } from "@/components/Icon";
@@ -22,10 +23,11 @@ import { SKILLS } from "@/lib/game/skills";
 import { sinceLabel } from "@/lib/format";
 import { RARITIES, spawnPower, successChance } from "@/lib/game/combat";
 import { BEATS, STYLES, type Style } from "@/lib/game/archetypes";
-import { SLOTS } from "@/lib/game/power";
+import { SLOTS, emptySlots, gateTier } from "@/lib/game/power";
 import { KEY_NAME } from "@/lib/game/gate";
 import { BIOMES } from "@/lib/game/biomes";
 import type { BiomeKey } from "@/lib/game/biomes";
+import { growthStages } from "@/lib/game/farm";
 
 export const dynamic = "force-dynamic";
 
@@ -71,11 +73,14 @@ const FAUCET_HUE: Record<Faucet, string> = {
   made: skillKindHue("processing"),
 };
 
+/** How many routes to show. The first is the answer; the rest are the horizon. */
+const STEPS_SHOWN = 5;
+
 export default async function GameOverview() {
   const session = await auth();
   if (!session?.user?.id) redirect("/signin");
-  const [o, history] = await Promise.all([
-    overview(session.user.id),
+  const [{ overview: o, steps }, history] = await Promise.all([
+    overviewWithGuide(session.user.id),
     ledgerHistory(session.user.id, HISTORY_DAYS),
   ]);
 
@@ -85,34 +90,32 @@ export default async function GameOverview() {
 
   /*
    * The ten slots in the game's own order, with an empty one as tier 0 — which
-   * is not a placeholder but the literal value the requirement gate reads. See
-   * `loadoutPower`: an unfilled slot makes the whole loadout tier 0, and that
-   * is the fact this page has always explained in prose and never shown.
+   * is not a placeholder but the literal value the requirement gate reads. The
+   * floor comes from `gateTier`, the same function the gate calls, so the
+   * sentence under the rack cannot disagree with what an area will say.
    */
   const slots = SLOTS.map((slot) => ({ slot, tier: o.equipped[slot]?.spec.tier ?? 0 }));
-  const gateTier = Math.min(...slots.map((s) => s.tier));
-  const empty = slots.filter((s) => s.tier === 0).length;
+  const floor = gateTier(o.equipped);
+  const empty = emptySlots(o.equipped);
   const beatenBy = (Object.entries(BEATS).find(([, v]) => v === style)?.[0] ?? null) as Style | null;
   const dayTotal = (d: (typeof history)[number]) =>
     FAUCETS.reduce((m, f) => m + d.parts[f], 0);
   const earned = history.reduce((n, d) => n + dayTotal(d), 0);
   const active = history.filter((d) => dayTotal(d) > 0).length;
+  const ready = o.plots.filter((p) => p.seedItemId !== null && p.stagesLeft === 0).length;
 
   return (
-    <Screen
-      title="The game"
-      lead="What your character has, and what it can currently take on. Everything here was earned by a timed session — nothing in this app advances while you are away."
-    >
+    <Screen title="The game" lead="Everything here was earned in a session you finished.">
       {/*
-        The loadout leads, because the page's own first sentence promises "what
-        it can currently take on" and this is the thing that decides it. It used
-        to sit third, under the wallet, as a six-row table whose second column
-        was headed "Value" and held two numbers, a ratio, two style names and a
-        percentage.
+        The route leads. This page opened on a wallet, then on a loadout, and
+        both times it was a report: accurate about a character with no weapon
+        and no contract, and silent on what to do about either.
       */}
+      <StepList steps={steps.slice(0, STEPS_SHOWN)} />
+
       <Block
-        title="Standing"
-        aside={style ? `fighting as ${style}` : "no weapon, so no style"}
+        title="Loadout"
+        aside={style ? `fighting as ${style}` : "unarmed"}
         icon="equipment"
         href="/game/equipment"
       >
@@ -121,56 +124,46 @@ export default async function GameOverview() {
             Two figures and not one. `power.ts` records why: folding them
             together made gunfire — highest offence, thinnest coat — come out
             as the weakest loadout in the game, exactly backwards from the cost
-            ladder. They are deliberately `text-title` rather than the page's
-            largest size, because the rack below is the thing worth looking at.
+            ladder.
           */}
           <p className="text-body text-faint">
-            <span className="tnum block text-title" style={{ color: "var(--tier)" }}>
+            <span
+              className="tnum block text-title"
+              style={{ color: o.power.offence > 0 ? "var(--tier)" : "var(--color-warn)" }}
+            >
               {groupNumber(Math.round(o.power.offence))}
             </span>
-            offence
+            offence · how often a fight lands
           </p>
           <p className="text-body text-faint">
             <span className="tnum block text-title text-dim">
               {groupNumber(Math.round(o.power.defence))}
             </span>
-            defence
+            defence · what a miss costs in rations
           </p>
         </div>
-        <p className="mt-3 max-w-2xl text-body leading-relaxed text-faint">
-          Offence decides kill speed and whether a spawn converts. Defence decides what a failure
-          costs in rations.
-        </p>
 
         <SlotRack slots={slots} />
 
         <p className="mt-5 max-w-2xl text-body leading-relaxed text-faint">
-          {empty === 10 ? (
+          {empty.length === SLOTS.length ? (
             <>
-              Nothing worn yet. The gate takes the shallowest of the ten, so until every slot
-              holds something it reads tier 0 and no area opens on gear.{" "}
-              <Link href="/game/crafting" className="text-dim underline underline-offset-2">
-                Smith a piece
-              </Link>{" "}
-              or take one off a kill.
+              Nothing worn yet. Areas read your shallowest slot, so nothing past tier 2 opens
+              until all ten hold something.
             </>
-          ) : empty > 0 ? (
+          ) : empty.length > 0 ? (
             <>
               <span className="tnum" style={{ color: "var(--color-warn)" }}>
-                {empty}
+                {empty.length}
               </span>{" "}
-              {empty === 1 ? "slot is" : "slots are"} empty — {""}
-              {slots
-                .filter((s) => s.tier === 0)
-                .map((s) => s.slot)
-                .join(", ")}
-              . The gate reads the shortest bar, so it reads tier 0 however deep the rest go.
+              empty: {empty.join(", ")}. Areas read your shallowest slot, so the set counts as
+              tier 0 until they are filled.
             </>
           ) : (
             <>
-              All ten filled. The gate reads the shortest bar, so it reads{" "}
-              <span className="tnum text-dim">tier {gateTier}</span> — and the way to open a
-              deeper area is to raise that one, not the deepest you own.
+              All ten filled. Areas read your shallowest slot, which is{" "}
+              <span className="tnum text-dim">tier {floor}</span> — raising that one opens the
+              next area, not the deepest piece you own.
             </>
           )}
         </p>
@@ -178,27 +171,18 @@ export default async function GameOverview() {
         <StyleWheel order={[...STYLES]} yours={style} />
         <p className="mt-2 max-w-2xl text-body leading-relaxed text-faint">
           {style === null ? (
-            <>
-              Four styles in a cycle, so none of them is merely safe. Equipping a weapon picks
-              yours.
-            </>
+            <>Each style beats the next one round. Your weapon picks yours.</>
           ) : (
             <>
-              You fight as <span className="text-dim">{style}</span>: you beat{" "}
-              <span className="text-dim">{BEATS[style]}</span>, and{" "}
-              <span className="text-dim">{beatenBy}</span> beats you. At your own tier you take{" "}
-              <span className="tnum text-dim">{Math.round(ownTier * 100)}%</span> of commons.
+              You beat <span className="text-dim">{BEATS[style]}</span>, and{" "}
+              <span className="text-dim">{beatenBy}</span> beats you. At your own tier you land{" "}
+              <span className="tnum text-dim">{Math.round(ownTier * 100)}%</span> of fights with
+              commons.
             </>
           )}
         </p>
       </Block>
 
-      {/*
-        Four of these five were ratios printed as "1 234 / 5 678" in a
-        two-column table, which is the shape that makes a proportion hardest to
-        read. Coins is the only figure here with no ceiling, so it is the only
-        one that stays a number.
-      */}
       <Block title="Held" aside="wallet and bank" icon="bank" href="/game/bank">
         <p className="mt-4 text-body text-dim">
           <span className="tnum text-stat" style={{ color: "var(--tier)" }}>
@@ -207,125 +191,102 @@ export default async function GameOverview() {
           coins
         </p>
         <Gauges>
-          <Gauge
-            label="Fuel"
-            value={o.fuel}
-            cap={o.fuelCap}
-            tone="full"
-            note="Spent between sessions, on processing."
-          />
+          <Gauge label="Fuel" value={o.fuel} cap={o.fuelCap} tone="full" note="Pays for crafting." />
           <Gauge
             label="Bank slots"
             value={o.bank.used}
             cap={o.bank.slots}
-            note="A slot holds an item type; stacks inside it are unlimited."
+            note="One per kind of item, however many you stack."
           />
           <Gauge
             label="Collected"
             value={o.collected}
             cap={o.catalogue}
-            note="Every type ever obtained, kept whether or not you still hold it."
+            note="Every kind of item you have ever held."
           />
           <Gauge
             label="Bosses down"
             value={o.bossesDown}
             cap={BIOMES.length * 2}
-            note="Two to a biome, and neither comes back."
+            note="Two in each biome."
           />
         </Gauges>
-        <p className="mt-5 text-body text-faint">
-          Key items{" "}
-          <span className="text-dim">
-            {o.keyItems.length > 0
-              ? o.keyItems.map((k) => KEY_NAME[k as BiomeKey] ?? k).join(", ")
-              : "none yet"}
-          </span>
-          {o.keyItems.length === 0 && (
-            <> — a boss drops one, and three biomes will not open without theirs.</>
-          )}
-        </p>
-      </Block>
-
-      <Block title="Contract" aside="Slaying" icon="slaying" href="/game/slaying">
-        {o.contract === null ? (
-          <Empty>No contract taken. One at a time, and it never expires.</Empty>
-        ) : (
-          <div className="mt-4 text-body">
-            <p className="text-dim">
-              {o.contract.variantName}{" "}
-              <span className="tnum text-faint">
-                {o.contract.killed} / {o.contract.required}
-              </span>
-            </p>
-            <Rail progress={o.contract.killed / Math.max(1, o.contract.required)} />
-          </div>
+        {o.keyItems.length > 0 && (
+          <p className="mt-5 text-body text-faint">
+            Key items{" "}
+            <span className="text-dim">
+              {o.keyItems.map((k) => KEY_NAME[k as BiomeKey] ?? k).join(", ")}
+            </span>
+          </p>
         )}
       </Block>
 
       <Block
-        title="Paid into the ladder"
-        aside={`${o.milestones.length} milestone${o.milestones.length === 1 ? "" : "s"}`}
+        title="Farm"
+        aside={ready > 0 ? `${ready} ready` : `${o.plots.length} plots`}
+        icon="farm"
+        href="/game/farm"
       >
-        {o.milestones.length === 0 ? (
+        {o.plots.length === 0 ? (
           <Empty>
-            Nothing yet. A skill level, a biome opening up and a first +10 each pay a lump of
-            character XP on top of the per-minute rate — so the game feeds V1&apos;s ladder rather
-            than competing with it for your afternoon.
+            No plots yet.{" "}
+            <Link href="/game/farm" className="text-dim underline underline-offset-2">
+              Open the farm
+            </Link>{" "}
+            to claim your first four.
           </Empty>
         ) : (
           <>
             {/*
-              When it was paid, which `overview` has always fetched and this
-              page has always dropped. Six rows reading "Woodcutting 10 · +20"
-              are six identical rows; the same six with a day against them are a
-              record of an afternoon.
+              A rail per plot rather than a table of "Stages left". A crop is a
+              thing with a length, and "3" in a column says nothing about
+              whether that is nearly done or barely planted.
             */}
-            <Rows
-              head={["Milestone", "Paid", "XP"]}
-              rows={o.milestones
-                .slice(-12)
-                .map((m) => [
-                  <span key="what" className="flex items-center gap-2">
-                    <Icon
-                      name={milestoneMark(m.label)}
-                      className="size-4 shrink-0 text-faint"
-                      aria-hidden
+            <ul className="mt-4 grid gap-x-8 gap-y-4 sm:grid-cols-2">
+              {o.plots.map((p) => {
+                const stages = p.seedItemId
+                  ? growthStages(Number(p.seedItemId.split(":")[2] ?? 1))
+                  : 1;
+                return (
+                  <li key={p.slot} className="min-w-0">
+                    <div className="flex items-baseline justify-between gap-3 text-body">
+                      {/* The seed's name, not its id, and never "ready" on a
+                          plot that has not been sown. */}
+                      <span className={p.seedItemId ? "truncate text-dim" : "text-faint"}>
+                        {p.seedItemId ? itemName(p.seedItemId) : `Plot ${p.slot}`}
+                      </span>
+                      <span className="shrink-0 text-note text-faint">
+                        {p.seedItemId === null ? (
+                          "bare"
+                        ) : p.stagesLeft === 0 ? (
+                          <span style={{ color: "var(--tier)" }}>ready</span>
+                        ) : (
+                          <>
+                            <span className="tnum">{p.stagesLeft}</span>{" "}
+                            {p.stagesLeft === 1 ? "session" : "sessions"}
+                          </>
+                        )}
+                      </span>
+                    </div>
+                    <Rail
+                      progress={p.seedItemId === null ? 0 : 1 - p.stagesLeft / Math.max(1, stages)}
                     />
-                    <span className="min-w-0">{m.label}</span>
-                  </span>,
-                  // Words, so they keep their own widths — `Rows` sets tabular
-                  // figures on every cell but the first, which is right for a
-                  // column of numbers and wrong for "3 days ago".
-                  <span key="at" className="font-sans normal-nums">
-                    {sinceLabel(m.at.getTime(), o.now)}
-                  </span>,
-                  `+${groupNumber(m.xp)}`,
-                ])}
-              total={o.milestones.length}
-            />
-            <p className="mt-4 text-body leading-relaxed text-faint">
-              <span className="tnum text-dim">
-                {groupNumber(o.milestones.reduce((n, m) => n + m.xp, 0))}
-              </span>{" "}
-              XP in lumps so far. Each is paid once, ever — the record of payment is the same row
-              that records it happened.
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="mt-4 text-body text-faint">
+              A crop grows one stage for every session you finish.
             </p>
           </>
         )}
       </Block>
 
-{/*
-        The one thing on this page with a time axis.
-
-        Everything above is a snapshot — coins now, gear now, plots now — in an
-        app whose whole claim is that it accumulates. The ledger is the only
-        record of what actually arrived and when, so the history is read off it
-        rather than derived from any of the caches above.
+      {/*
+        The one thing on this page with a time axis, read off the ledger rather
+        than derived from any of the caches above.
       */}
-      <Block
-        title="History"
-        aside={`${active} of the last ${HISTORY_DAYS} days`}
-      >
+      <Block title="Last thirty days" aside={`played on ${active} ${active === 1 ? "day" : "days"}`}>
         {earned === 0 ? (
           <Empty>
             Nothing banked in the last {HISTORY_DAYS} days. Pick an activity before a session and
@@ -351,8 +312,7 @@ export default async function GameOverview() {
             {/*
               Two dates under the chart, because without them a run of empty
               columns reads as a broken chart rather than as three weeks you
-              did not play — and the only way to date a bar otherwise is a
-              `<title>` tooltip, which a phone cannot reach.
+              did not play.
             */}
             <div className="mt-1 flex items-baseline justify-between text-note text-faint">
               <span>{dayLabel(history[0]?.day ?? o.now)}</span>
@@ -367,49 +327,53 @@ export default async function GameOverview() {
                 ),
               }))}
             />
+            {/*
+              Still says how the figure is made — a number the user cannot take
+              apart is one they cannot trust — in one sentence instead of four.
+            */}
             <p className="mt-4 max-w-2xl text-body leading-relaxed text-faint">
               <span className="tnum text-dim">{groupNumber(Math.round(earned))}</span> coins&apos;
-              worth, measured at what the shop would pay rather than counted: a day of tier-1
-              mining is twenty ore and a day at the bench is two bars, so counting things would
-              hide the bench entirely. Buying and trading are left out — this is what the game
-              made, not what you shopped for.
+              worth, priced at what the shop would pay so that two bars count for as much as the
+              ore that made them. Purchases are left out.
             </p>
           </>
         )}
       </Block>
 
-      <Block title="Farm" aside={`${o.plots.length} plots`} icon="farm" href="/game/farm">
-        {o.plots.length === 0 ? (
+      <Block
+        title="Milestones"
+        aside={
+          o.milestones.length === 0
+            ? "none yet"
+            : `${groupNumber(o.milestones.reduce((n, m) => n + m.xp, 0))} XP toward your rank`
+        }
+      >
+        {o.milestones.length === 0 ? (
           <Empty>
-            No plots yet. Plots advance one stage per completed session, whatever that session was
-            doing — which is why farming costs patience rather than focus.
+            A skill reaching level 10, a biome opening and a first +10 each pay character XP, once.
           </Empty>
         ) : (
-          <>
-            <Rows
-              head={["Plot", "Sown", "Stages left"]}
-              rows={o.plots.map((p) => [
-                `#${p.slot}`,
-                /*
-                  The seed's name, not its id. This column rendered the raw
-                  `seed:Fibre:3` — the same bug the session result screen had,
-                  in the same shape: an id is not a name just because it is a
-                  string the user can read.
-                */
-                p.seedItemId ? itemName(p.seedItemId) : "empty",
-                /*
-                  And an empty plot is not "ready". `stagesLeft` starts at 0 on
-                  a plot that has never been sown, so four untouched plots all
-                  claimed a harvest was waiting.
-                */
-                p.seedItemId === null ? "—" : p.stagesLeft === 0 ? "ready" : String(p.stagesLeft),
-              ])}
-            />
-            <p className="mt-4 text-body leading-relaxed text-faint">
-              A stage passes per completed session, whatever that session was doing. Nothing here
-              grows while the app is closed.
-            </p>
-          </>
+          <Rows
+            head={["Milestone", "Paid", "XP"]}
+            rows={o.milestones.slice(0, 12).map((m) => [
+              <span key="what" className="flex items-center gap-2">
+                <Icon
+                  name={milestoneMark(m.label)}
+                  className="size-4 shrink-0 text-faint"
+                  aria-hidden
+                />
+                <span className="min-w-0">{m.label}</span>
+              </span>,
+              // Words, so they keep their own widths — `Rows` sets tabular
+              // figures on every cell but the first, which is right for a
+              // column of numbers and wrong for "3 days ago".
+              <span key="at" className="font-sans normal-nums">
+                {sinceLabel(m.at.getTime(), o.now)}
+              </span>,
+              `+${groupNumber(m.xp)}`,
+            ])}
+            total={o.milestones.length}
+          />
         )}
       </Block>
     </Screen>

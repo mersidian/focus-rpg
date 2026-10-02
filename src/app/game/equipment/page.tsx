@@ -1,12 +1,13 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { Screen, Block, Rows, Empty } from "@/components/GameUi";
 import { SpareGear } from "@/components/SpareGear";
 import { instances } from "@/lib/game-view-service";
 import { loadEquipped } from "@/lib/activity-service";
-import { loadoutPower, SLOTS, MAX_REFINE } from "@/lib/game/power";
+import { emptySlots, gateTier, loadoutPower, SLOTS, MAX_REFINE } from "@/lib/game/power";
 import { BEATS } from "@/lib/game/archetypes";
-import { refineStoneCost, refineCoinCost } from "@/lib/game/economy";
+import { refineStoneCost } from "@/lib/game/economy";
 import { groupNumber } from "@/lib/format";
 import { RefineButton, RepairButton, UnequipButton } from "@/components/GameActions";
 import { GearMark } from "@/components/GearMark";
@@ -23,18 +24,14 @@ export default async function EquipmentPage() {
   const power = loadoutPower(equipped);
   const style = equipped.weapon?.spec.style ?? null;
   const worn = owned.filter((i) => i.equippedSlot);
+  const missing = emptySlots(equipped);
+  const twoHanded = equipped.weapon?.spec.archetype?.hands === 2;
   const spare = owned.filter((i) => !i.equippedSlot);
 
   return (
     <Screen
       title="Equipment"
-      lead={
-        <>
-          Ten slots, four styles, one 24-tier spine. Every piece carries three axes that move
-          independently: the tier it is, the quality window it landed in, and how far it has been
-          refined — up to +{MAX_REFINE}. The percentile is where its roll sits in its own band.
-        </>
-      }
+      lead="What you wear decides what you can fight. Refining takes a piece to +10, and nothing you own is ever destroyed."
     >
       <Block title="Worn" aside={style ? `${style} · strong against ${BEATS[style]}` : "no style"}>
         <Rows
@@ -45,7 +42,7 @@ export default async function EquipmentPage() {
               return [
                 slot,
                 <span key="e" className="text-faint">
-                  empty — counts as tier zero at the gate
+                  {slot === "offhand" && twoHanded ? "held by your two-handed weapon" : "empty"}
                 </span>,
                 "—",
                 "—",
@@ -72,16 +69,23 @@ export default async function EquipmentPage() {
             ];
           })}
         />
-        <p className="mt-4 text-body leading-relaxed text-faint">
+        <p className="mt-4 max-w-2xl text-body leading-relaxed text-faint">
           Offence <span className="tnum text-dim">{groupNumber(Math.round(power.offence))}</span> ·
-          defence <span className="tnum text-dim">{groupNumber(Math.round(power.defence))}</span>.
-          An empty slot counts as tier zero at the requirement gate, so a full set matters before
-          a better one does. Worn gear is never destroyed — it is halved until repaired.
-        </p>
-        <p className="mt-3 text-body leading-relaxed text-faint">
-          Gear cannot be changed while a session is running: the loadout is read when the session
-          resolves, so a swap would change a fight already underway — and would let you pass the
-          gate in one set and fight in another.
+          defence <span className="tnum text-dim">{groupNumber(Math.round(power.defence))}</span>.{" "}
+          {missing.length > 0 ? (
+            <>
+              Areas read your shallowest slot, and{" "}
+              <span style={{ color: "var(--color-warn)" }}>{missing.join(", ")}</span>{" "}
+              {missing.length === 1 ? "is" : "are"} empty — so the set counts as tier 0.
+            </>
+          ) : (
+            <>
+              Areas read your shallowest slot:{" "}
+              <span className="tnum text-dim">tier {gateTier(equipped)}</span>.
+            </>
+          )}{" "}
+          Worn-out gear works at half strength until it is mended, and gear cannot be changed
+          while a session is running.
         </p>
         <div className="mt-4">
           <RepairButton />
@@ -95,26 +99,29 @@ export default async function EquipmentPage() {
       */}
       <Block title="In the bank" aside={`${spare.length} pieces, highest tier first`}>
         {spare.length === 0 ? (
-          <Empty>No spare gear. Equipment only drops from things worth fighting.</Empty>
+          <Empty>No spare gear. Kills drop it, and the bench makes it.</Empty>
         ) : (
           <SpareGear spare={spare} />
         )}
       </Block>
 
-      <Block title="Refinement" aside="never fails">
-        <p className="mt-3 text-body leading-relaxed text-faint">
-          Failure costs the stones and the coins and nothing else — no downgrade, and nothing is
-          ever destroyed. So every item reaches +{MAX_REFINE} eventually, and the cost curve is the
-          only thing standing in the way.
+      {/*
+        One sentence and a link. This block carried the whole cost table priced
+        "at tier 12" — reference material, for a tier the reader was not at —
+        under a paragraph beginning "Failure costs the stones and the coins",
+        beside a heading reading "never fails". It never fails.
+      */}
+      <Block title="Refining" aside={`up to +${MAX_REFINE}`}>
+        <p className="mt-3 max-w-2xl text-body leading-relaxed text-faint">
+          Each step costs upgrade stones of the piece&apos;s own tier and coins, and always works.
+          The first step takes <span className="tnum text-dim">{refineStoneCost(1)}</span> stone
+          and the last <span className="tnum text-dim">{refineStoneCost(MAX_REFINE)}</span>. Stones
+          come from salvage, contracts and Jewelcrafting.{" "}
+          <Link href="/wiki/game?s=sinks" className="text-dim underline underline-offset-2">
+            The full cost table
+          </Link>
+          .
         </p>
-        <Rows
-          head={["Step", "Stones", "Coins at tier 12"]}
-          rows={Array.from({ length: MAX_REFINE }, (_, i) => [
-            `+${i + 1}`,
-            String(refineStoneCost(i + 1)),
-            groupNumber(refineCoinCost(i + 1, 12)),
-          ])}
-        />
       </Block>
     </Screen>
   );

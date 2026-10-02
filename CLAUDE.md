@@ -11,9 +11,9 @@ checks below before pushing anything.
 ## Before pushing
 
 ```bash
-npm test                   # 375 unit tests, no database needed
+npm test                   # the unit tests, no database needed
 node --env-file=.env.local scripts/schema-check.mjs   # the live schema matches the code
-npm run test:integration   # 54 probes against the real database
+npm run test:integration   # the probes against the real database
 npx tsc --noEmit
 npm run build
 ```
@@ -88,12 +88,10 @@ before `git push`, and this says whether it took.
   `levels`, `projects`, `chain` and `prestige` have no database and no clock of their own. That is
   what makes them testable; keep new rules that shape.
 
-  Everything under `src/lib/game/` follows it too — `tiers`, `archetypes`, `species`, `biomes`,
-  `variants`, `power`, `quality`, `combat`, `drops`, `yield`, `recipes`, `economy`, `skills`,
-  `gate`, `items`, `rng`, `uniques`, `bosses`, `effects`, `game-stats`, `activity`. Twenty
-  modules, no database and no clock between them. The services (`activity-service`,
-  `inventory-service`, `game-view-service`, `game-stats-service`) are the only things that
-  touch Postgres.
+  Everything under `src/lib/game/` follows it too, with no database and no clock between them.
+  The services (`activity-service`, `inventory-service`, `game-view-service`,
+  `game-stats-service`) are the only things that touch Postgres. The list of modules that used
+  to stand here said "twenty" and named twenty-one, in a directory of twenty-six.
 - **An achievement may only read a statistic something records.** V1 shipped fifteen that could
   never fire. `GameStats` was built before V2's 224 definitions for that reason, and
   `tests/game.test.ts` sweeps every predicate against a maxed game — the deliberately
@@ -209,6 +207,51 @@ before `git push`, and this says whether it took.
   `archetype.bandPct`, so a found weapon was rolled against the flat slot fallback and was not
   the weapon it claimed to be — and `equipItem` reads the same field to decide whether a
   two-hander gives up the offhand, which is the whole of what a two-hander costs.
+- **A game screen talks to the player about their character, not to a reader about the design.**
+  Every `/game` screen opened on a paragraph of rationale: Slaying explained why daily contracts
+  were rejected, the Shop why there is no market, Crafting that its recipes are "generated from
+  the tier spine", and the Shop's upgrades block carried the commit message for salvage-to-stones.
+  Equipment printed its cost curve "at tier 12" and the Shop its price formula. All of it is true
+  and none of it is for the person holding the character. The reasons live in SPEC-V2.md and in
+  comments; the tables live in the wiki; a screen says what you have, what it can do, and what
+  to do next.
+- **The overview leads with a route, and a step is a gate, a recipe or a contract, quoted.** A
+  level-22 character stood on that page with no weapon, five empty slots, no contract and four
+  bare plots, and it reported all of it accurately and suggested nothing. `game/guide.ts` is the
+  requirement gate turned around: the gate names what is missing so a refusal reads as a
+  shopping list, and the guide names the next thing worth doing so a status page reads as a
+  route. It invents no number — every step is something another module already decides — and
+  it is pure, so a test stands a fresh account in front of it and reads what it says.
+- **A fight says what it will come to before the minutes are spent.** The gate for the first two
+  tiers asks for no gear, so it waved an unarmed character into fights they lost nineteen times
+  in twenty, and the only thing the activity list said about it was "6 monsters". The list, the
+  areas screen and the boss rows all print the odds from the loadout actually worn.
+- **A boss fight is one function, and the audit prints it.** Resolution asked
+  `bossKillSeconds(offence, 1)` and the result screen asked `bossKillSeconds(boss.tier, offence)`,
+  so every boss took 450 seconds whatever was worn and every lost roll was reported as "not long
+  enough". `bossFight` is the single account of a fight — power, effective offence, seconds,
+  chance — read by the resolver, both screens and `game-audit.mjs`.
+- **The style that answers a fight has to exist at its tier.** The rule read "guns cannot be the
+  answer before the gun line opens" and then swapped out bosses whose *own* style was gun. The
+  answer to a boss is the style that beats it, and gunfire beats melee: the first boss in the
+  game asked for a firearm three tiers before one exists. `answerTo` is spelled once, in
+  `archetypes.ts`.
+- **Every unique has a source, and a test walks all of them.** Only a boss's first kill ever
+  granted one, so 40 of 250 existed in play and three "find N uniques" achievements could not
+  fire. A boss's repeat kills now roll its own table, the first contract finished in a biome
+  gives up that biome's trinket, and the rest turn up on later contracts. The sweep against a
+  maxed game did not catch this, because a maxed game was assumed to hold all 250.
+- **A contract's claim is one conditional UPDATE, and it says what it paid.** Same shape as a
+  session settling: the WHERE narrows to a contract still open, one caller comes away with
+  `completed_at` set, and only that one pays the purse. §7 lists four rewards and one was paid,
+  in silence — the result screen never mentioned the contract the kills had just finished.
+- **A two-handed weapon stands in for the offhand at the gate.** "`hands: 2` may move throughput
+  and conversion but NEVER access" was the rule, and the gate counted ten filled slots. `gateTier`
+  in `power.ts` is the one reading, and the screens call the same function the gate does.
+- **A list that truncates has to say so, or not truncate.** The picker showed twelve rows a group
+  and all six gathering skills shared one group, so Hunting and Excavation could not be chosen
+  at any tier by a character who had opened both.
+
 - **Milestone XP stays a garnish.** The ladder is ~600,000 XP; V1's achievements are ~27,000 and
   the milestones are ~37,000, both under 8%, and a test holds the line. Anything that pays into
   the ladder competes with focused minutes for the meaning of a level.

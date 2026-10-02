@@ -1,6 +1,11 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { Screen, Block, Rows, Gauge, TierBars } from "@/components/GameUi";
+import Link from "next/link";
+import { Screen, Block, Rows, Empty, Gauge, TierBars } from "@/components/GameUi";
+import { UNIQUES } from "@/lib/game/uniques";
+import { BOSSES, bossTable } from "@/lib/game/bosses";
+import { BIOME_TRINKET, CONTRACT_UNIQUES } from "@/lib/game/contracts";
+import { describeEffect } from "@/lib/game/effects";
 import { Icon } from "@/components/Icon";
 import { markFor } from "@/components/item-mark";
 import { classHue } from "@/lib/palette";
@@ -30,23 +35,61 @@ export default async function CollectionPage() {
     byTier.set(item.tier, t);
   }
 
+  const uniques = UNIQUES.filter((u) => found.has(`unique:${u.name}`));
+  const bossHeld = BOSSES.reduce((n, b) => n + bossTable(b).length, 0);
+
   const total = index.size;
   const got = [...index.values()].filter((i) => found.has(i.id)).length;
 
   return (
     <Screen
       title="Collection"
-      lead={
-        <>
-          Every item type you have <em>ever</em> obtained, permanently. This is deliberately
-          separate from the bank: a limited bank would otherwise make the collection achievements
-          impossible, so they read this instead. Selling a Legendary never erases that you had one.
-        </>
-      }
+      lead="Every kind of item you have ever held. Selling one never takes it off the list."
     >
       <div className="mt-6">
         <Gauge label="Found" value={got} cap={total} />
       </div>
+
+      {/*
+        The uniques, by name. They are the only items in the game that were
+        written rather than generated, each with a rule of its own, and the one
+        screen about collecting things counted them into nothing — they are not
+        catalogue rows, so they were in neither the total nor either chart.
+      */}
+      <Block title="Uniques" aside={`${uniques.length} of ${UNIQUES.length} found`}>
+        {uniques.length === 0 ? (
+          <Empty>
+            None yet. A boss&apos;s first kill always gives one up, and so does the first contract
+            you finish in each biome.
+          </Empty>
+        ) : (
+          <ul className="mt-2">
+            {uniques.map((u) => (
+              <li
+                key={u.name}
+                className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-rule py-2.5 text-body last:border-0"
+              >
+                <span style={{ color: "var(--tier)" }}>{u.name}</span>
+                <span className="text-note text-faint">
+                  {u.slot} · tier {u.tier}
+                  {u.source && ` · ${u.source}`}
+                </span>
+                <span className="w-full text-faint">{describeEffect(u.effect)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="mt-4 max-w-2xl text-body leading-relaxed text-faint">
+          <span className="tnum text-dim">{bossHeld}</span> are on a boss&apos;s table,{" "}
+          <span className="tnum text-dim">{BIOME_TRINKET.size}</span> come with the first contract
+          in each biome, and <span className="tnum text-dim">{CONTRACT_UNIQUES.length}</span> turn
+          up on later contracts.{" "}
+          <Link href="/game/areas" className="text-dim underline underline-offset-2">
+            Each boss names its own
+          </Link>
+          .
+        </p>
+      </Block>
 
       <Block title="By class" aside="what you have seen">
         <Rows

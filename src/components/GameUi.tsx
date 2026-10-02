@@ -2,7 +2,8 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { depthFill, depthInk, groupNumber } from "@/lib/format";
 import { MAX_TIER } from "@/lib/game/tiers";
-import { wash } from "@/lib/palette";
+import { skillKindHue, wash } from "@/lib/palette";
+import type { Step } from "@/lib/game/guide";
 import { Icon, type IconName } from "./Icon";
 
 /**
@@ -279,17 +280,20 @@ export function KindMark({
   name,
   hue,
   className = "",
+  large = false,
 }: {
   name: IconName;
   hue: string;
   className?: string;
+  /** For the one mark on a screen that leads it. */
+  large?: boolean;
 }) {
   return (
     <span
-      className={`inline-flex size-8 shrink-0 items-center justify-center rounded-md ${className}`}
+      className={`inline-flex ${large ? "size-10" : "size-8"} shrink-0 items-center justify-center rounded-md ${className}`}
       style={{ backgroundColor: wash(hue, 18), color: hue }}
     >
-      <Icon name={name} className="size-[18px]" />
+      <Icon name={name} className={large ? "size-[22px]" : "size-[18px]"} />
     </span>
   );
 }
@@ -548,6 +552,95 @@ export function StyleWheel({
         ▸ {order[0]}
       </span>
     </p>
+  );
+}
+
+/**
+ * The route: what to do next, most pressing first.
+ *
+ * The first step is drawn larger than the rest because it is a different kind
+ * of thing — the answer to "what now" rather than an entry in a list — and a
+ * page that gives five suggestions equal weight has not made one.
+ *
+ * Each row is one link, the whole width of it. A step that ended in a small
+ * underlined word would be asking for a second, more careful click to do the
+ * only thing the row is for.
+ */
+export function StepList({ steps }: { steps: Step[] }) {
+  if (steps.length === 0) return null;
+  const [first, ...rest] = steps;
+  return (
+    <div className="mt-8">
+      <Link
+        href={first.href}
+        className="group flex items-start gap-4 border-y border-rule py-5 transition-colors hover:bg-lift/40"
+      >
+        <KindMark
+          name={first.mark as IconName}
+          hue={skillKindHue(first.kind)}
+          className="mt-0.5"
+          large
+        />
+        <div className="min-w-0 flex-1">
+          <p className="text-note uppercase tracking-[0.14em] text-faint">Next</p>
+          <p className="mt-1 text-stat font-medium leading-snug text-text">{first.title}</p>
+          <p className="mt-1.5 max-w-2xl text-body leading-relaxed text-dim">{first.detail}</p>
+          {first.progress && <StepRail progress={first.progress} />}
+        </div>
+        <span
+          className="mt-1 hidden shrink-0 items-center gap-1 text-body sm:inline-flex"
+          style={{ color: "var(--action)" }}
+        >
+          {first.go}
+          <span aria-hidden className="transition-transform group-hover:translate-x-0.5">
+            →
+          </span>
+        </span>
+      </Link>
+
+      {rest.length > 0 && (
+        <ul>
+          {rest.map((step) => (
+            <li key={step.key} className="border-b border-rule last:border-0">
+              <Link
+                href={step.href}
+                className="group flex items-start gap-3 py-3.5 transition-colors hover:bg-lift/40"
+              >
+                <KindMark name={step.mark as IconName} hue={skillKindHue(step.kind)} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-lead text-text">{step.title}</p>
+                  <p className="mt-0.5 max-w-2xl text-body leading-relaxed text-faint">
+                    {step.detail}
+                  </p>
+                  {step.progress && <StepRail progress={step.progress} />}
+                </div>
+                <span className="mt-1 hidden shrink-0 items-center gap-1 text-note text-faint transition-colors group-hover:text-dim sm:inline-flex">
+                  {step.go}
+                  <span aria-hidden>→</span>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function StepRail({ progress }: { progress: { have: number; need: number } }) {
+  const share = progress.need <= 0 ? 0 : Math.min(1, Math.max(0, progress.have / progress.need));
+  return (
+    <div className="mt-2.5 flex max-w-md items-center gap-3">
+      <div className="h-[3px] flex-1 bg-rule">
+        <div
+          className="animate-hairline h-full"
+          style={{ width: `${share * 100}%`, backgroundColor: "var(--tier)" }}
+        />
+      </div>
+      <span className="tnum shrink-0 text-note text-faint">
+        {groupNumber(progress.have)} / {groupNumber(progress.need)}
+      </span>
+    </div>
   );
 }
 

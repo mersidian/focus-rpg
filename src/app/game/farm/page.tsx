@@ -25,13 +25,7 @@ export default async function FarmPage() {
   return (
     <Screen
       title="Farm"
-      lead={
-        <>
-          Plots advance <strong>one stage per completed session</strong>, whatever that session was
-          doing — never by elapsed time. That is the only reason farming is allowed here: your
-          focus is the app's only clock, and nothing may move while you are away.
-        </>
-      }
+      lead="A crop grows one stage for every session you finish, whatever the session was."
     >
       <Block title="Plots" aside={`${o.plots.length} of ${MAX_PLOTS}`}>
         <ul className="mt-2">
@@ -103,9 +97,9 @@ export default async function FarmPage() {
         paragraph that counted them properly. Prose says what a thing is about;
         the page prints the facts.
       */}
-      <Block title="What it grows" aside={`${CROP_LINES.length} lines`}>
+      <Block title="What it grows">
         <Rows
-          head={["Line", "Grows", "Why the wild will not do"]}
+          head={["Seed", "Grows", "Why grow it"]}
           rows={CROP_LINES.map((line) => [
             <span key="l" className="inline-flex items-baseline gap-2 text-dim">
               <Icon
@@ -120,7 +114,7 @@ export default async function FarmPage() {
           ])}
         />
         <p className="mt-4 text-body text-faint">
-          Nothing spoils — this app does not punish absence.
+          Nothing spoils. A grown crop waits until you harvest it, and the shop sells seed.
         </p>
       </Block>
     </Screen>

@@ -399,7 +399,9 @@ sessions, not as a special mode — the difference is entirely in the gate and t
 - **The first kill always drops that boss's signature unique.** Guaranteed, no roll —
   because a 2% chance on a fight you can attempt once a week is not a reward, it is a tax.
 - **Repeat kills** roll normally against the boss table, with the unique at a low rate for
-  a second copy at a better stat band.
+  a second copy at a better stat band. **BUILT** — `rollBossRepeat` and `bossPurse` in
+  `bosses.ts`. Until it was, a second kill paid skill XP and nothing else, and only the forty
+  signatures could be obtained at all; `game-audit.mjs` prints the rate and the purse.
 - Bosses have no rarity ladder: a boss is its own rarity.
 
 | # | Biome | Mid-boss | Biome lord |
@@ -435,7 +437,10 @@ and open tier gating (no corridor), the world needs one.
 - **Slaying level unlocks contract tiers.** Higher tiers name deeper biomes and rarer
   variants, so the ladder doubles as a guided route through content that otherwise has no
   suggested order.
-- Rewards: coins, Slaying XP, upgrade stones, and the skill's own uniques.
+- Rewards: coins, Slaying XP, upgrade stones, and the skill's own uniques. **BUILT** —
+  `contractPurse` in `contracts.ts`. The skill's own uniques are the ones no boss is the source
+  of: each biome's trinket comes with the first contract finished there, and the rest turn up
+  on later contracts no shallower than they are.
 
 **Daily contracts were rejected.** Three-a-day-or-lose-them is a login incentive, and this
 app already has a healthier one in the streak. Expiring dailies would manufacture exactly

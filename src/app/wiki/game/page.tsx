@@ -17,7 +17,18 @@ import {
   rationsPerFailure,
 } from "@/lib/game/combat";
 import { SKILL_XP, tierSkillRequirement } from "@/lib/game/skills";
-import { refineTotal, bankSlotsTotalCost, tierValue, AMMO_COST } from "@/lib/game/economy";
+import {
+  refineTotal,
+  refineStoneCost,
+  refineCoinCost,
+  bankSlotsTotalCost,
+  tierValue,
+  rationPrice,
+  repairCost,
+  buyPrice,
+  sellPrice,
+  AMMO_COST,
+} from "@/lib/game/economy";
 import { groupNumber, tierAccent } from "@/lib/format";
 
 /**
@@ -29,6 +40,11 @@ import { groupNumber, tierAccent } from "@/lib/format";
  */
 
 const pct = (n: number) => `${Math.round(n * 100)}%`;
+
+/** Which tiers the sink tables sample, so the index can count their rows. */
+const REFINE_TOTAL_TIERS = [6, 12, 18, 24];
+const PRICE_TIERS = [6, 12, 24];
+const PRICE_ROWS = TIERS.filter((t) => t.tier % 3 === 0 || t.tier === 1);
 
 function Section({
   id,
@@ -117,7 +133,12 @@ function contents(breakdown: Record<string, number>) {
     { key: "world", title: "The world", source: "biomes.ts", rows: BIOMES.length },
     { key: "archetypes", title: "The weapon archetypes", source: "archetypes.ts", rows: ARCHETYPES.length },
     { key: "skills", title: "Skills", source: "skills.ts", rows: SKILLS.length },
-    { key: "sinks", title: "The sinks", source: "economy.ts", rows: 6 },
+    {
+      key: "sinks",
+      title: "The sinks",
+      source: "economy.ts",
+      rows: REFINE_TOTAL_TIERS.length + MAX_REFINE + PRICE_ROWS.length,
+    },
   ];
 }
 
@@ -152,8 +173,7 @@ export default async function WikiGamePage({
       <p className="mt-3 max-w-2xl text-body leading-relaxed text-faint">
         V2's rules and content, generated from{" "}
         <code className="rounded bg-lift px-1">src/lib/game</code> and read here rather than
-        transcribed. The rules are built and tested; the database, the services and the screens
-        are not. If a number on this page looks wrong, it is the game that is wrong.
+        transcribed. If a number on this page looks wrong, it is the game that is wrong.
       </p>
 
       {/* The way back, above the section rather than buried under it. */}
@@ -436,10 +456,34 @@ export default async function WikiGamePage({
       >
         <Table
           head={["To +10 at tier", "Stones", "Coins"]}
-          rows={[6, 12, 18, 24].map((t) => {
+          rows={REFINE_TOTAL_TIERS.map((t) => {
             const r = refineTotal(t);
             return [String(t), groupNumber(r.stones), groupNumber(r.coins)];
           })}
+        />
+        {/*
+          These two tables lived on the Equipment and Shop screens, where a
+          player met a ten-row cost curve "at tier 12" on the way to pressing a
+          button. They are reference, and this is the reference.
+        */}
+        <Table
+          head={["Step", "Stones", ...PRICE_TIERS.map((t) => `Coins at tier ${t}`)]}
+          rows={Array.from({ length: MAX_REFINE }, (_, i) => [
+            `+${i + 1}`,
+            String(refineStoneCost(i + 1)),
+            ...PRICE_TIERS.map((t) => groupNumber(refineCoinCost(i + 1, t))),
+          ])}
+        />
+        <Table
+          head={["Tier", "Unit value", "Ration", "Repair", "Buy equipment", "Sell equipment"]}
+          rows={PRICE_ROWS.map((t) => [
+            `${t.tier} · ${t.metal}`,
+            groupNumber(tierValue(t.tier)),
+            groupNumber(rationPrice(t.tier)),
+            groupNumber(repairCost(t.tier)),
+            groupNumber(buyPrice(t.tier, "equipment")),
+            groupNumber(sellPrice(t.tier, "equipment")),
+          ])}
         />
         <p className="mt-4 text-body leading-relaxed text-faint">
           Bank slots are the largest sink in the game: 60 to 1,500 costs{" "}

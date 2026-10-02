@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { Screen, Block, Empty } from "@/components/GameUi";
@@ -21,13 +22,7 @@ export default async function BankPage() {
   return (
     <Screen
       title="Bank"
-      lead={
-        <>
-          A slot holds an item <em>type</em>, and stacks are unlimited inside it — four thousand
-          ore is one slot. Equipment instances each take their own, which is where the pressure
-          actually lands, and where the decision is worth making.
-        </>
-      }
+      lead="One slot for each kind of item, however many you stack. Every piece of gear takes a slot of its own."
     >
       <p className="mt-6 text-body text-faint">
         <span className="tnum text-dim">{groupNumber(usage.used)}</span> of{" "}
@@ -45,15 +40,18 @@ export default async function BankPage() {
         <BankFilter rows={rows} />
       )}
 
-      <Block title="Auto-salvage" aside="set once">
-        <p className="mt-3 text-body leading-relaxed text-faint">
-          Found gear is judged before it reaches the bank: anything below the{" "}
-          <span className="tnum text-dim">{(wallet.salvageBelow / 10).toFixed(0)}%</span> band
-          percentile is sold on the way in, anything above{" "}
-          <span className="tnum text-dim">{(wallet.keepAbove / 10).toFixed(0)}%</span> is always
-          kept. Salvage currently pays{" "}
-          <span style={{ color: "var(--tier)" }}>{wallet.salvageOutput}</span>. Without these rules
-          a limited bank would be a sorting job rather than a decision.
+      <Block title="Auto-salvage">
+        <p className="mt-3 max-w-2xl text-body leading-relaxed text-faint">
+          Gear you find is sorted on the way in. A piece in the bottom{" "}
+          <span className="tnum text-dim">{(wallet.salvageBelow / 10).toFixed(0)}%</span> of its
+          range is salvaged for{" "}
+          <span style={{ color: "var(--tier)" }}>{wallet.salvageOutput}</span>; one in the top{" "}
+          <span className="tnum text-dim">{(100 - wallet.keepAbove / 10).toFixed(0)}%</span> is
+          always kept.{" "}
+          <Link href="/game/shop" className="text-dim underline underline-offset-2">
+            Change what salvage pays
+          </Link>
+          .
         </p>
       </Block>
     </Screen>

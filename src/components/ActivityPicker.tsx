@@ -71,7 +71,9 @@ export function ActivityPicker({
         <p className="text-body text-faint">
           Your character{" "}
           {chosen ? (
-            <span className="text-dim">{chosen.label}</span>
+            <>
+              {chosen.verb} <span className="text-text">{chosen.label}</span>
+            </>
           ) : (
             <span className="text-dim">does nothing this session</span>
           )}
@@ -190,7 +192,7 @@ function OfferList({
       {[...groups.entries()].map(([group, rows]) => (
         <div key={group} className="mt-5">
           <p className="text-note text-faint">{group}</p>
-          {rows.slice(0, 12).map((offer) => {
+          {rows.map((offer) => {
             const selected = value !== null && activityKey(offer.activity) === activityKey(value);
             return (
               <button
@@ -220,7 +222,9 @@ function OfferList({
               key={activityKey(offer.activity)}
               className="flex items-baseline justify-between gap-4 border-b border-rule py-2 text-body text-faint last:border-0"
             >
-              <span>{offer.label}</span>
+              <span>
+                {offer.label} <span className="text-note">· {offer.group}</span>
+              </span>
               <span className="shrink-0 text-note">needs {offer.missing[0]}</span>
             </p>
           ))}

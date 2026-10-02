@@ -6,7 +6,16 @@ import { useGameOptional } from "./GameProvider";
 import { CountUp } from "./CountUp";
 import { groupNumber } from "@/lib/format";
 import { itemName } from "@/lib/game/items";
-import { Icon } from "./Icon";
+import {
+  MAX_SKILL_LEVEL,
+  SKILL_BY_KEY,
+  skillFloorXp,
+  skillLevel,
+  skillNextXp,
+} from "@/lib/game/skills";
+import { skillKindHue } from "@/lib/palette";
+import { KindMark } from "./GameUi";
+import { Icon, type IconName } from "./Icon";
 import { markFor } from "./item-mark";
 import { classHue } from "@/lib/palette";
 import type { ResolutionSummary } from "@/lib/game-types";
@@ -129,18 +138,30 @@ function Banked({ result }: { result: ResolutionSummary }) {
           className="cell-in flex items-baseline gap-2 text-body text-dim"
           style={{ animationDelay: `${Math.min(i * 40, 320)}ms` }}
         >
+          {/* A unique is not a class of item, so it takes the earned accent
+              and the star rather than a kind's hue and a generic mark. */}
           <Icon
-            name={markFor({ id: item.itemId ?? "", cls: classOf(item.itemId) })}
+            name={
+              isUnique(item.itemId)
+                ? "achievements"
+                : markFor({ id: item.itemId ?? "", cls: classOf(item.itemId) })
+            }
             className="size-4 shrink-0 self-center"
-            style={{ color: classHue(classOf(item.itemId)) }}
+            style={{
+              color: isUnique(item.itemId) ? "var(--tier)" : classHue(classOf(item.itemId)),
+            }}
           />
-          <span className="tnum">{item.qty.toLocaleString()}</span>
-          {item.itemId ? itemName(item.itemId) : item.name}
+          {!isUnique(item.itemId) && <span className="tnum">{item.qty.toLocaleString()}</span>}
+          <span style={isUnique(item.itemId) ? { color: "var(--tier)" } : undefined}>
+            {item.itemId ? itemName(item.itemId) : item.name}
+          </span>
         </li>
       ))}
     </ul>
   );
 }
+
+const isUnique = (itemId: string | undefined) => (itemId ?? "").startsWith("unique:");
 
 /** The class is the first segment of the id, which is all the mark needs. */
 function classOf(itemId: string | undefined): string {
@@ -441,29 +462,204 @@ function Cost({ result }: { result: ResolutionSummary }) {
   );
 }
 
+/**
+ * What the session moved, as opposed to what it banked.
+ *
+ * This was one line of the smallest type on the screen: "+25 mining XP · +20
+ * fuel". A level arriving, a contract finishing and a crop coming ready all
+ * happened in that same resolution and none of them was said — the session's
+ * most game-like consequences were the ones it kept to itself.
+ */
 function Earnings({ result }: { result: ResolutionSummary }) {
+  const rest: React.ReactNode[] = [];
+  if (result.fuel > 0) {
+    rest.push(
+      <>
+        <span className="tnum text-dim">+{groupNumber(result.fuel)}</span> fuel
+      </>,
+    );
+  }
+  if (result.kind === "gathering" && result.coins > 0) {
+    rest.push(
+      <>
+        <span className="tnum text-dim">+{groupNumber(result.coins)}</span> coins
+      </>,
+    );
+  }
+  if (result.salvageStones !== undefined && result.salvageStones > 0) {
+    rest.push(
+      <>
+        <span className="tnum text-dim">{result.salvageStones}</span> upgrade stones from salvage
+      </>,
+    );
+  }
+
   return (
-    <p className="mt-8 text-body leading-relaxed text-faint">
-      <span className="tnum text-dim">+{groupNumber(result.skillXp)}</span>{" "}
-      {result.skill} XP
-      {result.fuel > 0 && (
-        <>
-          {" · "}
-          <span className="tnum text-dim">+{groupNumber(result.fuel)}</span> fuel
-        </>
+    <section className="mt-10 border-t border-rule pt-6">
+      <SkillGain result={result} />
+      {result.contract && <ContractLine contract={result.contract} />}
+      {result.plots && result.plots.advanced > 0 && <PlotsLine plots={result.plots} />}
+      {rest.length > 0 && (
+        <p className="mt-5 text-body leading-relaxed text-faint">
+          {rest.map((part, i) => (
+            <span key={i}>
+              {i > 0 && " · "}
+              {part}
+            </span>
+          ))}
+        </p>
       )}
-      {result.kind === "gathering" && result.coins > 0 && (
-        <>
-          {" · "}
-          <span className="tnum text-dim">+{groupNumber(result.coins)}</span> coins
-        </>
-      )}
-      {result.salvageStones !== undefined && result.salvageStones > 0 && (
-        <>
-          {" · "}
-          <span className="tnum text-dim">{result.salvageStones}</span> upgrade stones
-        </>
-      )}
-    </p>
+    </section>
+  );
+}
+
+/**
+ * The skill, its level, and how far the session carried it.
+ *
+ * The level before is the total less what this session added, so nothing is
+ * stored that the two figures do not already say. A session recorded before
+ * the total was kept falls back to the bare gain, which is what it always showed.
+ */
+function SkillGain({ result }: { result: ResolutionSummary }) {
+  const skill = SKILL_BY_KEY.get(result.skill);
+  const label = skill?.label ?? result.skill;
+
+  if (result.skillXpTotal === undefined) {
+    return (
+      <p className="text-body text-faint">
+        <span className="tnum text-dim">+{groupNumber(result.skillXp)}</span> {label} XP
+      </p>
+    );
+  }
+
+  const total = result.skillXpTotal;
+  const before = skillLevel(Math.max(0, total - result.skillXp));
+  const after = skillLevel(total);
+  const floor = skillFloorXp(after);
+  const next = skillNextXp(after);
+  const progress = next === null ? 1 : (total - floor) / Math.max(1, next - floor);
+  const rose = after > before;
+
+  return (
+    <div className="flex items-center gap-3">
+      {skill && <KindMark name={skill.key as IconName} hue={skillKindHue(skill.kind)} />}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline justify-between gap-4">
+          <p className="text-lead text-text">
+            {label}{" "}
+            {rose ? (
+              <>
+                <span className="tnum text-faint">{before}</span>
+                <span className="text-faint"> → </span>
+                <span className="tnum animate-pop inline-block" style={{ color: "var(--tier)" }}>
+                  {after}
+                </span>
+              </>
+            ) : (
+              <span className="tnum text-dim">{after}</span>
+            )}
+          </p>
+          <p className="tnum shrink-0 text-body" style={{ color: "var(--tier)" }}>
+            +{groupNumber(result.skillXp)} XP
+          </p>
+        </div>
+        <div className="mt-1.5 h-[3px] w-full bg-rule">
+          <div
+            className="animate-hairline h-full"
+            style={{ width: `${Math.round(progress * 100)}%`, backgroundColor: "var(--tier)" }}
+          />
+        </div>
+        <p className="mt-1 text-note text-faint">
+          {next === null ? (
+            <>Level {MAX_SKILL_LEVEL}. There is no further to go.</>
+          ) : (
+            <>
+              <span className="tnum">{groupNumber(next - total)}</span> XP to level{" "}
+              <span className="tnum">{after + 1}</span>
+            </>
+          )}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ContractLine({ contract }: { contract: NonNullable<ResolutionSummary["contract"]> }) {
+  const gained = contract.after - contract.before;
+  return (
+    <div className="mt-5 flex items-center gap-3">
+      <KindMark name="slaying" hue={skillKindHue("combat")} />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline justify-between gap-4">
+          <p className="min-w-0 truncate text-lead text-text">
+            {contract.done ? (
+              <span style={{ color: "var(--tier)" }}>Contract finished</span>
+            ) : (
+              "Contract"
+            )}{" "}
+            <span className="text-dim">{contract.name}</span>
+          </p>
+          <p className="tnum shrink-0 text-body text-dim">
+            {contract.after} / {contract.required}
+          </p>
+        </div>
+        <div className="mt-1.5 h-[3px] w-full bg-rule">
+          <div
+            className="animate-hairline h-full"
+            style={{
+              width: `${Math.round((contract.after / Math.max(1, contract.required)) * 100)}%`,
+              backgroundColor: "var(--tier)",
+            }}
+          />
+        </div>
+        <p className="mt-1 text-note text-faint">
+          {contract.done ? (
+            <>
+              Paid <span className="tnum text-dim">{groupNumber(contract.coins ?? 0)}</span> coins,{" "}
+              <span className="tnum text-dim">{contract.stones ?? 0}</span> upgrade{" "}
+              {contract.stones === 1 ? "stone" : "stones"} and{" "}
+              <span className="tnum text-dim">{groupNumber(contract.xp ?? 0)}</span> Slaying XP
+              {contract.unique && (
+                <>
+                  {" "}
+                  — and <span style={{ color: "var(--tier)" }}>{contract.unique}</span>
+                </>
+              )}
+              .
+            </>
+          ) : (
+            <>
+              <span className="tnum">{gained}</span> of this session&apos;s kills counted ·{" "}
+              <span className="tnum">{contract.required - contract.after}</span> to go
+            </>
+          )}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function PlotsLine({ plots }: { plots: NonNullable<ResolutionSummary["plots"]> }) {
+  return (
+    <div className="mt-5 flex items-center gap-3">
+      <KindMark name="farm" hue={skillKindHue("gathering")} />
+      <p className="min-w-0 flex-1 text-body text-dim">
+        <span className="tnum">{plots.advanced}</span>{" "}
+        {plots.advanced === 1 ? "plot grew" : "plots grew"} a stage
+        {plots.ready > 0 && (
+          <>
+            {" — "}
+            <Link
+              href="/game/farm"
+              className="underline underline-offset-4"
+              style={{ color: "var(--tier)" }}
+            >
+              <span className="tnum">{plots.ready}</span> ready to harvest
+            </Link>
+          </>
+        )}
+        .
+      </p>
+    </div>
   );
 }

@@ -5,16 +5,36 @@ import type { IconName } from "@/components/Icon";
 import { skillKindHue } from "@/lib/palette";
 import { skillViews } from "@/lib/game-view-service";
 import { depthInk, groupNumber } from "@/lib/format";
-import { MAX_SKILL_LEVEL, SKILL_XP, nextSkillUnlock } from "@/lib/game/skills";
+import { MAX_SKILL_LEVEL, SKILL_XP, nextSkillUnlock, nextTierUnlock } from "@/lib/game/skills";
+import { gatheredItemId, itemName } from "@/lib/game/items";
 import { loadState } from "@/lib/game-state";
 
 export const dynamic = "force-dynamic";
 
 const KINDS = [
-  { key: "gathering", label: "Gathering", note: "The session is the action: minutes are the only input." },
-  { key: "combat", label: "Combat", note: "Also sessions. Kill count comes from minutes and gear." },
-  { key: "processing", label: "Processing", note: "Paid for with fuel, between sessions." },
+  { key: "gathering", label: "Gathering", note: "Levels with the sessions you spend gathering." },
+  { key: "combat", label: "Combat", note: "Levels with the sessions you spend fighting." },
+  { key: "processing", label: "Processing", note: "Levels at the bench, paid for in fuel." },
 ];
+
+/**
+ * What the next level worth having buys.
+ *
+ * A gathering skill opens a material and a processing skill opens the recipes
+ * made from it, both at the same level, because one curve gates the tier for
+ * both. A combat skill gates nothing — an area asks for gear and a character
+ * level — so it says nothing rather than inventing a reward.
+ */
+function opens(s: { key: string; kind: string; level: number }): string | null {
+  if (s.kind === "combat") return null;
+  const next = nextTierUnlock(s.level);
+  if (!next) return null;
+  const what =
+    s.kind === "gathering"
+      ? itemName(gatheredItemId(s.key, next.tier))
+      : `tier ${next.tier} recipes`;
+  return `level ${next.level} opens ${what}`;
+}
 
 export default async function SkillsPage() {
   const session = await auth();
@@ -32,10 +52,9 @@ export default async function SkillsPage() {
       title="Skills"
       lead={
         <>
-          Twenty-two skills, each 1–{MAX_SKILL_LEVEL}. Level {MAX_SKILL_LEVEL} costs{" "}
-          <span className="tnum text-dim">{groupNumber(SKILL_XP[MAX_SKILL_LEVEL - 1])}</span> XP —
-          about six hundred focused hours on that one skill, so nobody maxes all of them. That is
-          deliberate, and it is why no achievement asks you to.
+          Each runs from 1 to {MAX_SKILL_LEVEL}, and a level is what opens the next material. The
+          last one costs <span className="tnum text-dim">{groupNumber(SKILL_XP[MAX_SKILL_LEVEL - 1])}</span>{" "}
+          XP, so pick the ones you want.
         </>
       }
     >
@@ -107,13 +126,18 @@ export default async function SkillsPage() {
                                 {s.level + 1}
                               </>
                             )}
+                            {opens(s) && (
+                              <>
+                                {" · "}
+                                <span className="text-dim">{opens(s)}</span>
+                              </>
+                            )}
                           </p>
                         </>
                       ) : (
                         <p className="mt-1 text-note text-faint">
                           Opens at character level{" "}
-                          <span className="tnum text-dim">{s.unlock}</span> — focused minutes and
-                          nothing else.
+                          <span className="tnum text-dim">{s.unlock}</span>.
                         </p>
                       )}
                     </div>

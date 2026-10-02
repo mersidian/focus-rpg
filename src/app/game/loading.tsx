@@ -16,8 +16,7 @@ export default function GameLoading() {
         <p className="text-lead text-dim">Loading</p>
       </div>
       <p className="mt-3 max-w-prose text-body leading-relaxed text-faint">
-        Every game screen is read fresh from the database, and the database sleeps when it has
-        been idle. The first one after a quiet spell takes a few seconds.
+        The first screen after a quiet spell takes a few seconds.
       </p>
     </main>
   );

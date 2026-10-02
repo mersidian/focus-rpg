@@ -69,13 +69,16 @@ export function CraftFilter({
   rows,
   fuel,
   locked,
+  initialQuery = "",
 }: {
   rows: CraftRow[];
   fuel: number;
   /** Skills the character level has not opened yet, shallowest first. */
   locked: { label: string; at: number }[];
+  /** What the search box opens holding, when a link named a recipe. */
+  initialQuery?: string;
 }) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [skill, setSkill] = useState("all");
   const [ready, setReady] = useState(false);
 
