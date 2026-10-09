@@ -14,7 +14,6 @@ import {
   refineItemAction,
   repairAllAction,
   sellInstanceAction,
-  sellStackAction,
   sowPlotAction,
   takeContractAction,
   unequipAction,
@@ -108,24 +107,6 @@ export function RepairButton() {
 
 export function SellInstanceButton({ instanceId }: { instanceId: string }) {
   return <ActionButton quiet label="Sell" run={() => sellInstanceAction(instanceId)} />;
-}
-
-export function SellStackButton({ itemId, held }: { itemId: string; held: number }) {
-  const [qty, setQty] = useState(1);
-  return (
-    <span className="inline-flex flex-wrap items-center gap-2">
-      {/* Selling had the same preset select, and its "all N" was only ever the
-          max of what you hold — which is what the shortcut says now. */}
-      <Quantity
-        value={qty}
-        onChange={setQty}
-        max={held}
-        cap={MAX_BUY_AT_ONCE}
-        label="How many to sell"
-      />
-      <ActionButton quiet label="Sell" run={() => sellStackAction(itemId, qty)} />
-    </span>
-  );
 }
 
 export function BuyButton({ itemId, max }: { itemId: string; max?: number }) {

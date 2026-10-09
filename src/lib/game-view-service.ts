@@ -90,6 +90,8 @@ export type BankRow = {
   skill?: string;
   /** A weapon's combat style, likewise. */
   style?: string;
+  /** What the shop pays for one, priced exactly as `sellStack` prices it. */
+  worth: number;
 };
 
 /**
@@ -135,6 +137,7 @@ export async function bankRows(userId: string): Promise<BankRow[]> {
         tier: def?.tier ?? 0,
         skill: def?.skill,
         style: def?.style,
+        worth: sellPrice(def?.tier ?? 1, def?.cls ?? "raw"),
       };
     })
     .sort((a, b) => a.cls.localeCompare(b.cls) || b.tier - a.tier || a.name.localeCompare(b.name));

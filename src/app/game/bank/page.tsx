@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { Screen, Block, Empty } from "@/components/GameUi";
-import { BankFilter } from "@/components/BankFilter";
+import { Screen, Block, Empty, Gauge } from "@/components/GameUi";
+import { BankVault } from "@/components/BankVault";
+import { BuySlotsButton } from "@/components/GameActions";
 import { bankRows } from "@/lib/game-view-service";
 import { bankUsage, loadWallet } from "@/lib/inventory-service";
 import { bankSlotCost } from "@/lib/game/economy";
@@ -19,25 +20,64 @@ export default async function BankPage() {
     loadWallet(session.user.id),
   ]);
 
+  const gear = usage.used - rows.length;
+  const worth = rows.reduce((n, r) => n + r.worth * r.qty, 0);
+  const free = Math.max(0, usage.slots - usage.used);
+
   return (
-    <Screen
-      title="Bank"
-      lead="One slot for each kind of item, however many you stack. Every piece of gear takes a slot of its own."
-    >
-      <p className="mt-6 text-body text-faint">
-        <span className="tnum text-dim">{groupNumber(usage.used)}</span> of{" "}
-        <span className="tnum">{groupNumber(usage.slots)}</span> slots used · next ten cost{" "}
-        <span className="tnum text-dim">{groupNumber(bankSlotCost(usage.slots))}</span> coins · you
-        have <span className="tnum text-dim">{groupNumber(wallet.coins)}</span>
-      </p>
+    <Screen title="Bank" lead="One slot for each kind of item, however many you stack.">
+      {/*
+        The three facts a bank has, as figures. They were one sentence of the
+        faintest text on the page, joined with middle dots, and the button that
+        buys more room was on another screen.
+      */}
+      <div className="mt-8 grid gap-x-12 gap-y-6 border-y border-rule py-6 md:grid-cols-[1.4fr_1fr_1fr]">
+        <div>
+          <Gauge label="Slots" value={usage.used} cap={usage.slots} />
+          <p className="mt-2 text-note text-faint">
+            <span className="tnum" style={free === 0 ? { color: "var(--color-warn)" } : undefined}>
+              {groupNumber(free)}
+            </span>{" "}
+            free
+            {gear > 0 && (
+              <>
+                .{" "}
+                <Link href="/game/equipment" className="text-dim underline underline-offset-2">
+                  <span className="tnum">{groupNumber(gear)}</span>{" "}
+                  {gear === 1 ? "piece" : "pieces"} of gear
+                </Link>{" "}
+                {gear === 1 ? "takes" : "take"} a slot each
+              </>
+            )}
+            .
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <BuySlotsButton />
+            <span className="text-note text-faint">
+              <span className="tnum text-dim">{groupNumber(bankSlotCost(usage.slots))}</span> coins
+              for ten more
+            </span>
+          </div>
+        </div>
+        <p className="text-note text-faint">
+          <span className="tnum block text-head leading-none" style={{ color: "var(--tier)" }}>
+            {groupNumber(wallet.coins)}
+          </span>
+          <span className="mt-1.5 block">coins</span>
+        </p>
+        <p className="text-note text-faint">
+          <span className="tnum block text-head leading-none text-dim">{groupNumber(worth)}</span>
+          <span className="mt-1.5 block">what the shop would pay for all of it</span>
+        </p>
+      </div>
 
       {rows.length === 0 ? (
         <Empty>
-          Nothing banked yet. Pick a gathering activity before your next session and it will land
+          Nothing banked yet. Choose something to gather before your next session and it lands
           here when the timer finishes.
         </Empty>
       ) : (
-        <BankFilter rows={rows} />
+        <BankVault rows={rows} />
       )}
 
       <Block title="Auto-salvage">
