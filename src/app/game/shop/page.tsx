@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import Link from "next/link";
-import { Screen, Block, Rows } from "@/components/GameUi";
+import { Screen, Block } from "@/components/GameUi";
 import { loadWallet, bankUsage } from "@/lib/inventory-service";
 import {
   bankSlotCost,
@@ -60,85 +60,135 @@ export default async function ShopPage() {
   ].sort((a, b) => a - b);
   const capStep = Math.max(0, Math.round((wallet.fuelCap - FUEL_CAP_BASE) / FUEL_CAP_STEP));
 
+  const capMaxed = wallet.fuelCap >= FUEL_CAP_MAX;
+  const upgrades = [
+    {
+      name: "Bank slots",
+      now: usage.slots,
+      next: usage.slots + 10,
+      cost: bankSlotCost(usage.slots),
+      button: <BuySlotsButton key="b" />,
+    },
+    {
+      name: "Fuel cap",
+      now: wallet.fuelCap,
+      next: capMaxed ? null : wallet.fuelCap + FUEL_CAP_STEP,
+      cost: capMaxed ? null : fuelCapCost(capStep),
+      button: <BuyFuelCapButton key="f" />,
+    },
+  ];
+
   return (
-    <Screen
-      title="Shop"
-      lead="Fixed prices, paid in coins. Selling happens from the bank."
-    >
-      <p className="mt-6 text-body text-faint">
-        <span className="tnum text-dim">{groupNumber(wallet.coins)}</span> coins
-      </p>
-
-      <Block title="In stock" aside={`up to tier ${openTier}`}>
-        <p className="mt-3 max-w-2xl text-body leading-relaxed text-faint">
-          Tools, ammunition, rations, upgrade stones and seed. Weapons and armour are made or
-          found, never sold.
-        </p>
-        <ShopFilter
-          rows={stock.map((i) => ({
-            id: i.id,
-            name: i.name,
-            cls: i.cls,
-            skill: i.skill,
-            tier: i.tier,
-            price: i.price,
-            held: held.get(i.id) ?? 0,
-            grade: i.quality,
-          }))}
-          coins={wallet.coins}
-        />
-      </Block>
-
-      <Block title="Upgrades">
-        <div className="mt-4 flex flex-wrap gap-4">
-          <BuySlotsButton />
-          <BuyFuelCapButton />
-        </div>
-        <div className="mt-5 space-y-3 border-t border-rule pt-4">
-          <SalvageOutputButtons current={wallet.salvageOutput} />
-          {/*
-            What the choice is, not how it came to be offered. This paragraph
-            was the commit message for the feature: which faucet stones used to
-            have and what that did to the economy.
-          */}
-          <p className="max-w-2xl text-body leading-relaxed text-faint">
-            What auto-salvage turns unwanted gear into: coins, or upgrade stones of the piece&apos;s
-            own tier.
+    <Screen title="Shop" lead="Fixed prices, paid in coins. Selling happens from the bank.">
+      {/*
+        The shelf and the counter, side by side once there is room. The
+        upgrades were under 192 cells of stock, as two buttons with no price on
+        them and a table further down that had the prices.
+      */}
+      <div className="mt-10 grid gap-x-14 gap-y-12 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <Block flush title="On the shelf" aside={`up to tier ${openTier}`}>
+          <p className="mt-3 max-w-[62ch] text-body text-faint">
+            Tools, ammunition, rations, upgrade stones and seed. Weapons and armour are made or
+            found, never sold.
           </p>
-          <div>
-            <ExchangeStonesButton tiers={stoneTiers} />
-            <p className="mt-2 text-note text-faint">
-              Deep stones into shallower ones, at a cut. Never the other way.
+          <ShopFilter
+            rows={stock.map((i) => ({
+              id: i.id,
+              name: i.name,
+              cls: i.cls,
+              skill: i.skill,
+              tier: i.tier,
+              price: i.price,
+              held: held.get(i.id) ?? 0,
+              grade: i.quality,
+            }))}
+            coins={wallet.coins}
+          />
+        </Block>
+
+        <aside className="space-y-10">
+          <p className="text-note text-faint">
+            <span className="tnum block text-title leading-none" style={{ color: "var(--tier)" }}>
+              {groupNumber(wallet.coins)}
+            </span>
+            <span className="mt-2 block">coins to spend</span>
+          </p>
+
+          <Block flush title="Upgrades">
+            <ul className="mt-4 space-y-3">
+              {upgrades.map((u) => (
+                <li key={u.name} className="slot p-4">
+                  <p className="text-note text-faint">{u.name}</p>
+                  {/* Now and next as one figure: what you have, and what the
+                      button turns it into. */}
+                  <p className="tnum mt-1 text-stat leading-none text-text">
+                    {groupNumber(u.now)}
+                    {u.next !== null && (
+                      <span className="text-faint">
+                        {" "}
+                        to <span style={{ color: "var(--tier)" }}>{groupNumber(u.next)}</span>
+                      </span>
+                    )}
+                  </p>
+                  {u.cost === null ? (
+                    <p className="mt-3 text-note text-faint">As high as it goes.</p>
+                  ) : (
+                    <div className="mt-3 flex flex-wrap items-center gap-3">
+                      {u.button}
+                      <span
+                        className="tnum text-note"
+                        style={{
+                          color: u.cost > wallet.coins ? "var(--color-warn)" : "var(--color-dim)",
+                        }}
+                      >
+                        {groupNumber(u.cost)} coins
+                      </span>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </Block>
+
+          <Block flush title="Salvage">
+            <p className="mt-3 text-body text-faint">
+              What auto-salvage turns unwanted gear into: coins, or upgrade stones of the
+              piece&apos;s own tier.
             </p>
-          </div>
-        </div>
-        <Rows
-          head={["", "Now", "Next", "Cost"]}
-          rows={[
-            [
-              "Bank slots",
-              groupNumber(usage.slots),
-              groupNumber(usage.slots + 10),
-              groupNumber(bankSlotCost(usage.slots)),
-            ],
-            [
-              "Fuel cap",
-              groupNumber(wallet.fuelCap),
-              wallet.fuelCap >= FUEL_CAP_MAX ? "maxed" : groupNumber(wallet.fuelCap + FUEL_CAP_STEP),
-              wallet.fuelCap >= FUEL_CAP_MAX ? "—" : groupNumber(fuelCapCost(capStep)),
-            ],
-          ]}
-        />
-        <p className="mt-4 text-body leading-relaxed text-faint">
-          Auto-repair is{" "}
-          <span style={{ color: "var(--tier)" }}>{wallet.autoRepair ? "on" : "off"}</span>
-          {wallet.autoRepair && ", so worn gear is mended as long as you can pay for it"}.{" "}
-          <Link href="/wiki/game?s=sinks" className="text-dim underline underline-offset-2">
-            Every price by tier
-          </Link>
-          .
-        </p>
-      </Block>
+            <div className="mt-3">
+              <SalvageOutputButtons current={wallet.salvageOutput} />
+            </div>
+            <p className="mt-4 text-body text-faint">
+              Auto-repair is{" "}
+              <span style={{ color: "var(--tier)" }}>{wallet.autoRepair ? "on" : "off"}</span>
+              {wallet.autoRepair && ", so worn gear is mended as long as you can pay for it"}.
+            </p>
+          </Block>
+
+          <Block flush title="Trade stones down">
+            {stoneTiers.length === 0 ? (
+              <p className="mt-3 text-body text-faint">
+                You hold no upgrade stones. Salvage, contracts and Jewelcrafting make them.
+              </p>
+            ) : (
+              <>
+                <p className="mt-3 text-body text-faint">
+                  Deep stones into shallower ones, at a cut. Never the other way.
+                </p>
+                <div className="mt-3">
+                  <ExchangeStonesButton tiers={stoneTiers} />
+                </div>
+              </>
+            )}
+          </Block>
+
+          <p className="text-note text-faint">
+            <Link href="/wiki/game?s=sinks" className="text-dim underline underline-offset-2">
+              Every price by tier
+            </Link>
+          </p>
+        </aside>
+      </div>
     </Screen>
   );
 }

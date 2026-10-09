@@ -7,7 +7,6 @@ import {
   buyBankSlotsAction,
   buyFuelCapAction,
   buyPlotAction,
-  buyStockAction,
   dropContractAction,
   equipAction,
   harvestPlotAction,
@@ -20,7 +19,6 @@ import {
   setSalvageOutputAction,
   exchangeStonesAction,
 } from "@/lib/actions";
-import { MAX_BUY_AT_ONCE } from "@/lib/constants";
 
 /**
  * The buttons, one per action.
@@ -30,64 +28,6 @@ import { MAX_BUY_AT_ONCE } from "@/lib/constants";
  * server component — they read a lot and the reads are cheap on the server.
  */
 
-
-/**
- * How many, as a number you type.
- *
- * It was a select of ×1 ×5 ×10 ×25 ×100, which answers "how many" with five
- * guesses — and none of them is the number you want when you hold 33 ore and a
- * bar takes two. A field takes any number; `max` fills in the largest the
- * materials, the coins and the server's own clamp allow, which is the one
- * quantity worth a shortcut.
- *
- * Clamped on the way in as well as on submit, so the box can never show a
- * figure the server would trim. A field that accepts 500 and quietly does 100
- * is a field that lies about what it did.
- */
-function Quantity({
-  value,
-  onChange,
-  max,
-  cap,
-  label,
-}: {
-  value: number;
-  onChange: (n: number) => void;
-  /** The most that is actually possible right now, when the caller knows it. */
-  max?: number;
-  /** The server's own limit on one press. */
-  cap: number;
-  label: string;
-}) {
-  const ceiling = Math.max(1, Math.min(cap, max ?? cap));
-  const clamp = (n: number) => Math.max(1, Math.min(ceiling, Math.trunc(n || 1)));
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <input
-        type="number"
-        inputMode="numeric"
-        min={1}
-        max={ceiling}
-        value={value}
-        onChange={(e) => onChange(clamp(Number(e.target.value)))}
-        aria-label={label}
-        className="tnum h-8 w-14 rounded-[4px] border border-rule bg-transparent px-2 text-right text-note text-text focus:border-current"
-        style={{ caretColor: "var(--tier)" }}
-      />
-      {/* Only worth offering when it is more than one and not what is already
-          in the box. */}
-      {ceiling > 1 && value !== ceiling && (
-        <button
-          type="button"
-          onClick={() => onChange(ceiling)}
-          className="btn-quiet tnum"
-        >
-          max {ceiling}
-        </button>
-      )}
-    </span>
-  );
-}
 
 export function EquipButton({ instanceId }: { instanceId: string }) {
   return <ActionButton quiet label="Wear" run={() => equipAction(instanceId)} />;
@@ -107,22 +47,6 @@ export function RepairButton() {
 
 export function SellInstanceButton({ instanceId }: { instanceId: string }) {
   return <ActionButton quiet label="Sell" run={() => sellInstanceAction(instanceId)} />;
-}
-
-export function BuyButton({ itemId, max }: { itemId: string; max?: number }) {
-  const [qty, setQty] = useState(1);
-  return (
-    <span className="inline-flex flex-wrap items-center gap-2">
-      <Quantity
-        value={qty}
-        onChange={setQty}
-        max={max}
-        cap={MAX_BUY_AT_ONCE}
-        label="How many to buy"
-      />
-      <ActionButton quiet label="Buy" run={() => buyStockAction(itemId, qty)} />
-    </span>
-  );
 }
 
 export function BuySlotsButton() {
