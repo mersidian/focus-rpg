@@ -17,7 +17,6 @@ import {
   FREEZE_METER_XP_SHARE,
   FREEZE_METER_TARGET_FP,
   FREEZE_PURCHASE_XP,
-  ABANDONS_THAT_BREAK,
   MAX_REST_DAYS,
   MAX_VACATION_DAYS,
 } from "@/lib/streak-engine";
@@ -136,12 +135,12 @@ export default function WikiRulesPage() {
         <Rule
           label="If the connection dropped"
           value="−0"
-          note="A lost heartbeat can be reported afterwards as a dropped connection, from the log or the timer. That refunds the penalty and takes the session out of the completion ratio and the streak count. It is your word, the same as the self-report."
+          note="A lost heartbeat can be reported afterwards as a dropped connection, from the log or the timer. That refunds the penalty and takes the session out of the completion ratio. It is your word, the same as the self-report."
         />
         <Rule
-          label="Abandons in a day that break the streak"
-          value={String(ABANDONS_THAT_BREAK)}
-          note="One slip does not cost the streak. A reported dropped connection is not counted."
+          label="Abandons that break the streak"
+          value="none"
+          note="Abandons cost XP and count against the completion ratio, never the streak. A day with nothing finished is a missed day, and a banked freeze covers it."
         />
         <div className="mt-4">
           <p className="text-body text-dim">The ways a session ends badly</p>

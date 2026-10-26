@@ -312,8 +312,8 @@ export async function abandonRow(
  * when lost heartbeats were free — and the counter only moves back if the
  * charge moved it, so the cache never undercounts against `db:recompute`.
  *
- * A day the streak walk has already judged stays judged; clearing an abandon
- * changes today and the ratio, not a streak that broke last week.
+ * Abandons do not touch the streak, so this changes the XP and the ratio and
+ * nothing else.
  */
 export async function reportLostConnection(
   userId: string,

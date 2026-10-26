@@ -84,10 +84,10 @@ export async function saveStreakState(
 /**
  * Completed and abandoned sessions per game day.
  *
- * The abandon count here is the one that decides streaks, and it counts only
- * what `abandonCounts` counts: giving up, starting a second session on top of a
- * live one, and a desktop page that went quiet. A lost heartbeat its owner has
- * reported as a dropped connection does not.
+ * The streak walk reads only `completed` — abandons no longer touch a streak.
+ * The abandon count rides along for what still reads it, and counts only what
+ * `abandonCounts` counts: giving up, superseding, and a desktop page that went
+ * quiet. A lost heartbeat reported as a dropped connection does not.
  *
  * Filtered in the query the walk reads rather than at the moment of abandoning:
  * `db:recompute` rebuilds counts off this same table, so a rule applied only to

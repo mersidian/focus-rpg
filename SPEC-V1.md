@@ -116,7 +116,9 @@ minutes · starting a new session while one is live.
 - **−30 XP**, applied immediately.
 - Permanently logged; the profile shows a **completion ratio**.
 - Breaks the "clean month" and no-pause achievements.
-- **The streak breaks only on the second abandon in one day.**
+- **The streak breaks only on the second abandon in one day.** *Amended after shipping, by the
+  author: "no rule of 2 abandon. just use freeze." Abandons never touch the streak; a day with
+  nothing finished is a missed day like any other, and a banked freeze covers it.*
 
 ---
 
@@ -235,7 +237,8 @@ went, because nothing is hard-deleted.
 - **The day rolls over at 4am**, so a 1am session counts toward the day the user thinks
   they are in.
 - The streak breaks only if the user is away, unannounced, with an empty bank, on a
-  non-rest day — or abandons twice in one day.
+  non-rest day. *(It also broke on two abandons in one day; the author removed that rule — see
+  §3.)*
 
 ### Freezes — four sources
 

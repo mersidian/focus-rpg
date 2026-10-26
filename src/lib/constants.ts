@@ -64,8 +64,8 @@ export const ABANDON_REASON_LABEL: Record<AbandonReason, string> = {
 };
 
 /**
- * Whether an abandon counts: against the completion ratio, toward the two in a
- * day that break a streak (§3), and for the −30.
+ * Whether an abandon counts: against the completion ratio, and for the −30.
+ * Abandons do not touch the streak at all (§3, amended).
  *
  * The author's rule: "make it ratio of finish of started make sense, if i lost
  * heartbeat is abandon. unless lost connection and can make request to change
@@ -89,7 +89,7 @@ export const ABANDON_REASON_LABEL: Record<AbandonReason, string> = {
  * of pause restarts the clock — and survive as labels on old rows, uncounted.
  *
  * One question, and every reader asks it: the penalty, `abandonRow`'s counter,
- * the streak walk, the dashboard, the achievement loader and `db:recompute`.
+ * the dashboard, the achievement loader and `db:recompute`.
  * `COUNTED_ABANDONS` is the same list for the SQL ones.
  */
 export const COUNTED_ABANDONS = ["gave_up", "superseded", "heartbeat_lost"] as const;

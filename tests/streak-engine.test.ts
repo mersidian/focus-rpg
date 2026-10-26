@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { dayRange } from "../src/lib/game-day.ts";
 import {
-  ABANDONS_THAT_BREAK,
   FREEZE_CAP,
   FREEZE_METER_TARGET,
   FREEZE_PURCHASE_XP,
@@ -65,14 +64,40 @@ test("one abandon in a day does not cost the streak", () => {
   assert.equal(state.streak, 2);
 });
 
-test("the second abandon in one day breaks it, even on a worked day", () => {
+/*
+ * The author's rule: "no rule of 2 abandon. just use freeze". Abandons are not
+ * a streak question; a day is worked, frozen, rested or a gap.
+ */
+test("any number of abandons on a worked day keeps the streak", () => {
   const { state, verdicts } = walk("2026-09-01", "2026-09-02", {
     "2026-09-01": worked,
-    "2026-09-02": { completed: 1, abandoned: ABANDONS_THAT_BREAK },
+    "2026-09-02": { completed: 1, abandoned: 5 },
   });
   assert.equal(verdicts[1].state, "active");
+  assert.equal(verdicts[1].brokeStreak, false);
+  assert.equal(state.streak, 2);
+});
+
+test("a day of only abandons spends a freeze, and the freeze holds", () => {
+  const { state, verdicts } = walk(
+    "2026-09-01",
+    "2026-09-02",
+    { "2026-09-01": worked, "2026-09-02": { completed: 0, abandoned: 3 } },
+    { ...emptyState(), freezes: 1 },
+  );
+  assert.equal(verdicts[1].state, "frozen");
+  assert.equal(verdicts[1].brokeStreak, false, "the freeze was spent and the streak broke anyway");
+  assert.equal(state.freezes, 0);
+  assert.equal(state.streak, 1);
+});
+
+test("a day of only abandons with no freeze is a gap", () => {
+  const { verdicts } = walk("2026-09-01", "2026-09-02", {
+    "2026-09-01": worked,
+    "2026-09-02": { completed: 0, abandoned: 2 },
+  });
+  assert.equal(verdicts[1].state, "gap");
   assert.equal(verdicts[1].brokeStreak, true);
-  assert.equal(state.streak, 0);
 });
 
 test("crediting a day is idempotent", () => {

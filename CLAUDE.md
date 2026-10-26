@@ -153,7 +153,7 @@ before `git push`, and this says whether it took.
 - **The completion ratio is finished over started, and a lost page is an abandon.** The author's
   words: *"make it ratio of finish of started make sense, if i lost heartbeat is abandon. unless
   lost connection and can make request to change that is not my fault."* So `heartbeat_lost`
-  counts — the −30, the ratio, and the two-in-a-day that breaks a streak — the same as giving up
+  counts — the −30 and the ratio — the same as giving up
   and superseding. The carve-out is `connection_lost`: the owner says a lost heartbeat was the
   network (`reportLostConnection`, "My connection dropped" in the log and on the timer), which
   refunds what the row was charged and takes it out of every count. The server cannot tell a
@@ -164,6 +164,11 @@ before `git push`, and this says whether it took.
   This replaced, within a week, a rule that finished a quiet page's session at half XP; every
   row that rule wrote carries `unfocused_at`, and `scripts/restore-lost-page-abandons.mjs` puts
   them back. `pause_budget` and `pause_count` end nothing now and are uncounted labels on old rows.
+- **Abandons are not a streak question.** The author: *"no rule of 2 abandon. just use freeze."*
+  §3's second abandon in a day broke the streak whatever else happened, and it wasted freezes
+  doing it — a day of two abandons and nothing finished spent a freeze to cover itself and then
+  broke anyway. `walkDays` now asks one thing of a day: worked, vacation, rest, frozen or gap,
+  and only a gap breaks. Abandons cost their XP and the ratio. Days already judged stay judged.
 - **The pause budget is a budget, not a trap.** Running out of the five minutes used to abandon
   at −30 and lose everything focused so far, so a six-minute break cost more than never having
   started — and it landed on somebody who had told the app they were stepping away. It restarts

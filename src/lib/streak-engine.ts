@@ -19,8 +19,6 @@ export const FREEZE_METER_TARGET_FP = 300;
 export const FREEZE_METER_TARGET = FREEZE_METER_TARGET_FP * 100;
 /** Direct purchase from the streak panel. */
 export const FREEZE_PURCHASE_XP = 400;
-/** Two abandons in one day break the streak; one slip does not (§3). */
-export const ABANDONS_THAT_BREAK = 2;
 /** Rest days and vacation limits. */
 export const MAX_REST_DAYS = 2;
 export const MAX_VACATION_DAYS = 21;
@@ -169,7 +167,6 @@ export function walkDays(input: WalkInput): { verdicts: DayVerdict[]; state: Str
   for (const day of input.days) {
     const activity = input.activity(day);
     const completed = activity?.completed ?? 0;
-    const abandoned = activity?.abandoned ?? 0;
 
     let dayState: DayState;
     const previous = input.judged?.(day);
@@ -193,18 +190,26 @@ export function walkDays(input: WalkInput): { verdicts: DayVerdict[]; state: Str
       dayState = "gap";
     }
 
-    // A second abandon in one day breaks the streak whatever else happened (§3).
-    const brokeByAbandons = abandoned >= ABANDONS_THAT_BREAK;
+    /*
+     * Only an empty day breaks a streak, and only when no freeze covers it.
+     *
+     * §3 had a second rule — two abandons in one day broke the streak whatever
+     * else happened — and the author took it out: "no rule of 2 abandon. just
+     * use freeze". It was also wasting freezes: a day with two abandons and
+     * nothing finished spent a freeze to cover itself and then broke anyway.
+     * Abandons cost their XP and count against the completion ratio; the
+     * streak only asks whether the day was worked, frozen or rested.
+     */
     const brokeByGap = dayState === "gap";
 
-    if (brokeByAbandons || brokeByGap) {
+    if (brokeByGap) {
       state = { ...state, streak: 0, streakFreezesGranted: 0 };
     }
 
     verdicts.push({
       day,
       state: dayState,
-      brokeStreak: brokeByAbandons || brokeByGap,
+      brokeStreak: brokeByGap,
       streakAfter: state.streak,
       freezesAfter: state.freezes,
     });
