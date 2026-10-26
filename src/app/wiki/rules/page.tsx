@@ -123,7 +123,7 @@ export default function WikiRulesPage() {
         <Rule
           label="Grace before the page counts as gone"
           value={minutes(HEARTBEAT_GRACE_MS)}
-          note="Desktop only. Past it the session still finishes, at half XP: it counts for the streak and toward no total. Phone sessions have no heartbeat, because mobile browsers freeze background tabs."
+          note="Desktop only. Mobile browsers freeze background tabs, so phone sessions have no heartbeat."
         />
       </Section>
 
@@ -131,17 +131,17 @@ export default function WikiRulesPage() {
         <Rule
           label="XP penalty"
           value={`−${ABANDON_XP_PENALTY}`}
-          note="For giving up, or starting a second session while one is live. Applied immediately. Levels ratchet, so this can delay a rank but never take one."
+          note="For giving up, starting a second session while one is live, or a desktop page that stops reporting in. Applied immediately. Levels ratchet, so this can delay a rank but never take one."
         />
         <Rule
-          label="If the page stops reporting in"
+          label="If the connection dropped"
           value="−0"
-          note="The session ends, and costs nothing. Browsers freeze background tabs, so a page that has gone quiet is not the same as a person who gave up — which is why phone sessions have no heartbeat at all."
+          note="A lost heartbeat can be reported afterwards as a dropped connection, from the log or the timer. That refunds the penalty and takes the session out of the completion ratio and the streak count. It is your word, the same as the self-report."
         />
         <Rule
           label="Abandons in a day that break the streak"
           value={String(ABANDONS_THAT_BREAK)}
-          note="One slip does not cost the streak, and a lost heartbeat is not counted at all."
+          note="One slip does not cost the streak. A reported dropped connection is not counted."
         />
         <div className="mt-4">
           <p className="text-body text-dim">The ways a session ends badly</p>

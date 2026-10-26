@@ -96,11 +96,11 @@ because it is one tap on mobile.
 - A gap over **2 minutes** during a session abandons it. Reopening inside 2 minutes
   resumes cleanly.
 
-  **Amended after shipping, by the author:** *"if it lacked focus, do not count to total but
-  count as streak with half of xp."* A gap over 2 minutes no longer ends the session. It
-  finishes at its planned time and is marked as lacking focus (`focus_session.unfocused_at`):
-  it pays **half** its XP, credits the day for the streak, and counts toward no total —
-  sessions completed, hours focused, project hours, or the achievements that count them.
+  **Amended after shipping, by the author:** *"make it ratio of finish of started make sense,
+  if i lost heartbeat is abandon. unless lost connection and can make request to change that is
+  not my fault."* A lost heartbeat is an abandon in full — the −30 and the completion ratio. Its
+  owner can report it afterwards as a dropped connection, which refunds the −30 and takes it out
+  of the ratio and the streak count.
 
 ### Phone sessions
 

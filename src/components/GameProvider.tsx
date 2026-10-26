@@ -396,7 +396,6 @@ export function GameProvider({
             pausedMs: 0,
             pauseCount: 0,
             lastHeartbeatAt: at,
-            unfocusedAt: null,
             xpAwarded: 0,
           },
         };

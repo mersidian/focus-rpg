@@ -11,8 +11,6 @@ export type ClientSession = {
   pausedMs: number;
   pauseCount: number;
   lastHeartbeatAt: number;
-  /** When the desktop page first went quiet past the grace, if it did. */
-  unfocusedAt: number | null;
   xpAwarded: number;
 };
 
@@ -58,8 +56,6 @@ export type LogEntry = {
   projectName: string | null;
   note: string | null;
   honest: boolean | null;
-  /** The page went quiet: half XP, no totals, still a streak day. */
-  lackedFocus: boolean;
 };
 
 export type StreakSummary = {
@@ -138,13 +134,7 @@ export type UnlockedAchievement = {
 };
 
 export type SettleEvent =
-  | {
-      kind: "completed";
-      sessionId: string;
-      xp: number;
-      plannedMinutes: number;
-      lackedFocus?: boolean;
-    }
+  | { kind: "completed"; sessionId: string; xp: number; plannedMinutes: number }
   | { kind: "abandoned"; sessionId: string; reason: AbandonReason; xp: number };
 
 export type { LevelChange };

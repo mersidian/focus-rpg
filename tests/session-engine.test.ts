@@ -12,9 +12,9 @@ import {
   ABANDON_REASON_LABEL,
   ABANDON_XP_PENALTY,
   abandonIsAFailure,
-  abandonWasChosen,
+  abandonCounts,
+  COUNTED_ABANDONS,
   abandonPenalty,
-  UNFOCUSED_XP_MULTIPLIER,
   type AbandonReason,
 } from "../src/lib/constants.ts";
 
@@ -58,39 +58,13 @@ test("paused time pushes the finish line out but pays the same", () => {
   assert.equal(focusedMs(s, T0 + 27 * MIN), 24 * MIN);
 });
 
-/*
- * The author's rule, written from its own words rather than from the code:
- * "if it lacked focus, do not count to total but count as streak with half of
- * xp". A desktop page quiet for over two minutes no longer ends the session.
- */
-test("a desktop heartbeat gap over two minutes does not end the session", () => {
+test("a desktop heartbeat gap over two minutes abandons the session", () => {
   const s = session({ lastHeartbeatAt: T0 + 5 * MIN });
-  const inGrace = evaluate(s, T0 + 6.9 * MIN);
-  assert.equal(inGrace.kind === "running" && inGrace.quiet, false);
-  const past = evaluate(s, T0 + 7.1 * MIN);
-  assert.equal(past.kind, "running", "a quiet page ended the session");
-  assert.equal(past.kind === "running" && past.quiet, true);
-});
-
-test("a session whose page went quiet finishes on time, marked as lacking focus", () => {
-  const s = session({ lastHeartbeatAt: T0 + 5 * MIN });
-  const v = evaluate(s, T0 + 25 * MIN);
-  assert.equal(v.kind, "complete");
-  assert.equal(v.kind === "complete" && v.at, T0 + 25 * MIN, "it finished late or early");
-  assert.equal(v.kind === "complete" && v.lackedFocus, true);
-});
-
-test("a session watched to the end did not lack focus", () => {
-  const s = session({ lastHeartbeatAt: T0 + 24.5 * MIN });
-  const v = evaluate(s, T0 + 25 * MIN);
-  assert.equal(v.kind === "complete" && v.lackedFocus, false);
-});
-
-test("half is half, and it is the only thing a lost page costs", () => {
-  assert.equal(UNFOCUSED_XP_MULTIPLIER, 0.5);
-  // No penalty: the app does not produce a lost-heartbeat abandon any more,
-  // and the label that remains on old rows still costs nothing.
-  assert.equal(abandonPenalty("heartbeat_lost"), 0);
+  assert.equal(evaluate(s, T0 + 6.9 * MIN).kind, "running");
+  const v = evaluate(s, T0 + 7.1 * MIN);
+  assert.equal(v.kind, "abandon");
+  assert.equal(v.kind === "abandon" && v.reason, "heartbeat_lost");
+  assert.equal(v.kind === "abandon" && v.at, T0 + 7 * MIN);
 });
 
 test("reopening inside the grace period resumes cleanly", () => {
@@ -110,15 +84,13 @@ test("a tab that closes after the timer ran out still completes", () => {
   const v = evaluate(s, T0 + 60 * MIN);
   assert.equal(v.kind, "complete");
   assert.equal(v.kind === "complete" && v.at, T0 + 25 * MIN);
-  assert.equal(v.kind === "complete" && v.lackedFocus, false, "the page was there to the end");
 });
 
-test("a tab that closes before the end still finishes, however late it is checked", () => {
+test("a tab that closes before the end abandons, even if checked much later", () => {
   const s = session({ lastHeartbeatAt: T0 + 10 * MIN });
   const v = evaluate(s, T0 + 60 * MIN);
-  assert.equal(v.kind, "complete");
-  assert.equal(v.kind === "complete" && v.at, T0 + 25 * MIN);
-  assert.equal(v.kind === "complete" && v.lackedFocus, true);
+  assert.equal(v.kind, "abandon");
+  assert.equal(v.kind === "abandon" && v.at, T0 + 12 * MIN);
 });
 
 test("the heartbeat requirement is suspended while paused", () => {
@@ -220,18 +192,31 @@ test("settled sessions are left alone", () => {
 /*  What an abandon costs, and who decided it                                  */
 /* -------------------------------------------------------------------------- */
 
-test("only the abandons somebody chose carry the penalty", () => {
+test("a lost heartbeat is an abandon, and a reported dropped connection is not", () => {
   /*
-   * §3 lists four triggers under one −30 and treats them as one thing. Two are
-   * a person choosing to stop. The other two were the app deciding on their
-   * behalf, and neither can happen any more: a frozen tab looks exactly like a
-   * closed one, and running out of pause time now restarts the clock.
+   * Written from the author's words: "make it ratio of finish of started make
+   * sense, if i lost heartbeat is abandon. unless lost connection and can make
+   * request to change that is not my fault."
    */
   assert.equal(abandonPenalty("gave_up"), ABANDON_XP_PENALTY);
   assert.equal(abandonPenalty("superseded"), ABANDON_XP_PENALTY);
-  assert.equal(abandonPenalty("heartbeat_lost"), 0);
+  assert.equal(abandonPenalty("heartbeat_lost"), ABANDON_XP_PENALTY);
+  assert.equal(abandonIsAFailure("heartbeat_lost"), true, "a lost page is a start not finished");
+  assert.equal(abandonPenalty("connection_lost"), 0);
+  assert.equal(abandonIsAFailure("connection_lost"), false, "a dropped connection still counts");
+  // Old labels a pause used to write; nothing produces them now.
   assert.equal(abandonPenalty("pause_budget"), 0);
   assert.equal(abandonPenalty("pause_count"), 0);
+});
+
+test("the SQL list of counted abandons is the rule's own list", () => {
+  for (const reason of REASONS) {
+    assert.equal(
+      (COUNTED_ABANDONS as readonly string[]).includes(reason),
+      abandonCounts(reason),
+      `${reason} is counted in SQL and not in code, or the other way`,
+    );
+  }
 });
 
 test("charged, counted and streak-breaking are one question asked once", () => {
@@ -243,7 +228,7 @@ test("charged, counted and streak-breaking are one question asked once", () => {
       abandonPenalty(reason) > 0,
       `${reason} is charged and counted inconsistently`,
     );
-    assert.equal(abandonIsAFailure(reason), abandonWasChosen(reason));
+    assert.equal(abandonIsAFailure(reason), abandonCounts(reason));
   }
 });
 
@@ -258,4 +243,26 @@ test("every abandon reason has a label that does not accuse anyone", () => {
     !ABANDON_REASON_LABEL.heartbeat_lost.includes("went away"),
     "the lost-heartbeat label still says the user left",
   );
+});
+
+test("every SQL that counts abandons counts the same ones", async () => {
+  /*
+   * Four queries spell the list as SQL rather than reading the constant, and a
+   * rule changed in one place and not another survives until the next rebuild.
+   * The streak walk, the dashboard and db:recompute all have to agree.
+   */
+  const { readFile } = await import("node:fs/promises");
+  const list = `(${COUNTED_ABANDONS.map((r) => `'${r}'`).join(", ")})`;
+  for (const file of [
+    "src/lib/streak-service.ts",
+    "src/lib/project-service.ts",
+    "scripts/recompute-state.mjs",
+  ]) {
+    const text = await readFile(new URL(`../${file}`, import.meta.url), "utf8");
+    const lists = text.match(/abandon_reason\}?\s+in\s+\([^)]*\)/g) ?? [];
+    assert.ok(lists.length > 0, `${file} no longer filters abandons by reason`);
+    for (const found of lists) {
+      assert.ok(found.endsWith(list), `${file} counts ${found}, not ${list}`);
+    }
+  }
 });

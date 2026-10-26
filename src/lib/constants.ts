@@ -24,26 +24,14 @@ export const ABANDON_XP_PENALTY = 30;
  */
 export const SLACKED_XP_MULTIPLIER = 0.5;
 
-/**
- * What a desktop session that lost its page pays: half, decided by the author.
- *
- * It used to end the session at the moment the page went quiet and pay
- * nothing — forty focused minutes of a fifty lost whole because a laptop lid
- * closed. The rule now is the author's own: "if it lacked focus, do not count
- * to total but count as streak with half of xp". The session runs to its
- * planned end, pays half, keeps the day for the streak, and is left out of
- * every total. The full planned time still has to pass, so it cannot be
- * farmed faster than a session can be run.
- */
-export const UNFOCUSED_XP_MULTIPLIER = 0.5;
-
 /** 2 pauses per session, 5 minutes total. Exceeding either abandons. (§3) */
 export const MAX_PAUSES = 2;
 export const MAX_PAUSED_MS = 5 * 60 * 1000;
 
 /**
- * Desktop presence: ping every 15s; a gap over two minutes means the session
- * lacked focus (§3, amended). It still finishes, at `UNFOCUSED_XP_MULTIPLIER`.
+ * Desktop presence: ping every 15s, abandon after a 2-minute gap (§3). An
+ * abandon the owner says was a dropped connection can be cleared afterwards;
+ * see `abandonCounts`.
  */
 export const HEARTBEAT_INTERVAL_MS = 15 * 1000;
 export const HEARTBEAT_GRACE_MS = 2 * 60 * 1000;
@@ -63,69 +51,65 @@ export type AbandonReason =
   | "pause_count"
   | "pause_budget"
   | "heartbeat_lost"
-  | "superseded";
+  | "superseded"
+  | "connection_lost";
 
 export const ABANDON_REASON_LABEL: Record<AbandonReason, string> = {
   gave_up: "Gave up",
   pause_count: "Used a third pause",
   pause_budget: "Ran out of pause time",
-  // No longer produced: a quiet page now finishes the session at half XP. The
-  // label stays for rows written before that.
   heartbeat_lost: "The page stopped reporting in",
   superseded: "Started another session",
+  connection_lost: "The connection dropped",
 };
 
 /**
- * Whether a person actually decided this abandon.
+ * Whether an abandon counts: against the completion ratio, toward the two in a
+ * day that break a streak (§3), and for the −30.
  *
- * §3 lists four triggers under one −30 and treats them as one thing. They are
- * not. Two of them are a person choosing to stop:
+ * The author's rule: "make it ratio of finish of started make sense, if i lost
+ * heartbeat is abandon. unless lost connection and can make request to change
+ * that is not my fault." So the ratio is finished over started, honestly, and
+ * three ways of not finishing count:
  *
- *   `gave_up`     — they pressed the button that says Give up.
- *   `superseded`  — they started a second session on top of a live one.
+ *   `gave_up`        — the Give up button.
+ *   `superseded`     — starting a second session on top of a live one.
+ *   `heartbeat_lost` — the desktop page went quiet past the grace: closed, a
+ *                      sleeping laptop, a tab left to freeze.
  *
- * The other two were the app deciding on their behalf, and both have been taken
- * out of the code that could produce them:
+ * One does not:
  *
- *   `heartbeat_lost` is an *inference*, and the spec says elsewhere that it is
- *   an unreliable one — phone sessions have no heartbeat at all precisely
- *   because "mobile browsers freeze background tabs and would register false
- *   abandons". Desktop browsers freeze tabs now too, and a sleeping laptop
- *   always did, so a page that is open and a page that is pinging are no longer
- *   the same thing — while §3's own rule is about existence: "Other tabs do not
- *   matter. Only the page's existence is checked." A frozen tab exists.
+ *   `connection_lost` — a lost heartbeat its owner has said was the network,
+ *                       not them, with `reportLostConnection`. The page was
+ *                       open and could not reach the server. It is an honour
+ *                       claim, like the self-report, and it is the only way a
+ *                       reason changes after the fact.
  *
- *   `pause_budget` and `pause_count` no longer end a session at all. Running
- *   out of pause time restarts the clock (see `evaluate`), and pressing Pause
- *   with nothing left is refused rather than forfeited. They survive as labels
- *   because rows on the books still carry them.
+ * `pause_budget` and `pause_count` no longer end a session at all — running out
+ * of pause restarts the clock — and survive as labels on old rows, uncounted.
  *
- * So this is the one question worth asking about an abandon, and three things
- * read it: the penalty, the completion ratio, and the streak.
+ * One question, and every reader asks it: the penalty, `abandonRow`'s counter,
+ * the streak walk, the dashboard, the achievement loader and `db:recompute`.
+ * `COUNTED_ABANDONS` is the same list for the SQL ones.
  */
-export function abandonWasChosen(reason: AbandonReason): boolean {
-  return reason === "gave_up" || reason === "superseded";
+export const COUNTED_ABANDONS = ["gave_up", "superseded", "heartbeat_lost"] as const;
+
+export function abandonCounts(reason: AbandonReason): boolean {
+  return (COUNTED_ABANDONS as readonly string[]).includes(reason);
 }
 
-/**
- * What an abandon costs. The session ends either way — the server cannot
- * witness focus it was not shown, and will not take a client's word for it
- * later — but the −30 is for giving up, and nobody gave up.
- */
+/** What an abandon costs: −30 if it counts, nothing if it does not. */
 export function abandonPenalty(reason: AbandonReason): number {
-  return abandonWasChosen(reason) ? ABANDON_XP_PENALTY : 0;
+  return abandonCounts(reason) ? ABANDON_XP_PENALTY : 0;
 }
 
 /**
- * Whether it counts as a failed session: against the completion ratio, and
- * toward the two-in-a-day that breaks a streak (§3).
- *
- * The same answer as the penalty, deliberately. A free abandon that still broke
- * a streak and still dragged a ratio down would be the same punishment wearing
- * a different name.
+ * Whether it counts as a failed session. The same answer as the penalty,
+ * deliberately: a free abandon that still dragged the ratio down would be the
+ * same charge wearing a different name.
  */
 export function abandonIsAFailure(reason: AbandonReason): boolean {
-  return abandonWasChosen(reason);
+  return abandonCounts(reason);
 }
 
 /* ------------------------- how many at a time ------------------------- */

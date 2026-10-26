@@ -123,17 +123,6 @@ export const focusSessions = pgTable(
     pausedAt: timestamp("paused_at", { mode: "date", withTimezone: true }),
     pausedMs: integer("paused_ms").notNull().default(0),
     pauseCount: integer("pause_count").notNull().default(0),
-    /**
-     * When a desktop page went quiet for longer than the grace, if it ever did.
-     *
-     * A session that lost its page used to be abandoned on the spot and pay
-     * nothing, however much of it had been focused. Now it runs to its end and
-     * is marked here: it pays half its XP, keeps the streak, and is left out of
-     * every total — sessions completed, hours focused, project hours, and the
-     * achievements that count them. Null is a session that was watched all
-     * the way through.
-     */
-    unfocusedAt: timestamp("unfocused_at", { mode: "date", withTimezone: true }),
     lastHeartbeatAt: timestamp("last_heartbeat_at", { mode: "date", withTimezone: true })
       .notNull()
       .defaultNow(),

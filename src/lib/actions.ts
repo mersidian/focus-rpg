@@ -31,6 +31,7 @@ import {
   withGame,
   withUnlocked,
   type Reconciliation,
+  reportLostConnection,
 } from "./session-service";
 import { evaluateAchievements, setWornTitle } from "./achievements/service";
 import {
@@ -447,6 +448,18 @@ export async function resumeSession(sessionId: string, deviceId: string): Promis
     .where(and(eq(focusSessions.id, row.id), eq(focusSessions.status, "paused")));
 
   return withSettled(await buildSnapshot(userId, deviceId), earlier);
+}
+
+/** The owner's claim that a lost heartbeat was the network; see `reportLostConnection`. */
+export async function reportLostConnectionAction(sessionId: string) {
+  const userId = await requireUserId();
+  const result = await reportLostConnection(userId, sessionId, null);
+  if (result.ok) {
+    revalidatePath("/log");
+    revalidatePath("/");
+    revalidatePath("/dashboard");
+  }
+  return result;
 }
 
 export async function giveUp(sessionId: string, deviceId: string): Promise<Snapshot> {

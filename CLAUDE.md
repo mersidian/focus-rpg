@@ -150,30 +150,20 @@ before `git push`, and this says whether it took.
   the statuses a running session can be in, exactly one caller comes away having changed the
   row, and only that one pays. An integration probe races four reconciles at one session;
   without the guard it banks four.
-- **An abandon is only charged to whoever decided it.** §3 lists four triggers under one −30
-  and treats them as one thing. Two of them are a person choosing to stop — `gave_up` and
-  `superseded` — and those keep the penalty. The other two were the app deciding on somebody's
-  behalf, and neither can happen any more. `heartbeat_lost` is an *inference*, and the spec
-  already knows it is unreliable: phone sessions have no heartbeat at all to avoid "false
-  abandons", and desktop browsers freeze backgrounded tabs now too, while §3's own rule is about
-  existence — *"Other tabs do not matter. Only the page's existence is checked."* A frozen tab
-  exists. `pause_budget` and `pause_count` no longer end anything either; see below.
-  `abandonWasChosen` is the single question, and three things read it: the penalty, the
-  completion ratio, and the streak. It is applied in `abandonRow`, in `loadActivity` and in
-  `db:recompute` — all three, because a rule enforced where the row is written but not where the
-  counters are rebuilt survives exactly until the next rebuild.
-- **A session that lacked focus pays half, keeps the streak, and is in no total.** The author's
-  words: *"if it lacked focus, do not count to total but count as streak with half of xp."* A
-  desktop page quiet past the grace used to end the session at that moment and pay nothing, and
-  the heartbeat that brought the page back was the request that wrote the abandon — so forty
-  minutes of a fifty, on a laptop that slept for three, came back as zero. Eight sessions on the
-  author's account went that way. Now `evaluate` never ends a session for a quiet page; it
-  finishes on time with `lackedFocus`, and `checkIn` writes `unfocused_at` *before* recording
-  the ping, because the ping erases the gap. "No total" is a filter on `unfocused_at is null`,
-  and it has to be applied everywhere a total is read: `bankCompletion`'s delta, the streak
-  walk's minutes (its completed count keeps the day), both project queries, the dashboard, the
-  achievement loader and `db:recompute`. Miss one and the next rebuild disagrees with the cache.
-  `scripts/settle-lost-pages.mjs` re-settles rows the old rule ended.
+- **The completion ratio is finished over started, and a lost page is an abandon.** The author's
+  words: *"make it ratio of finish of started make sense, if i lost heartbeat is abandon. unless
+  lost connection and can make request to change that is not my fault."* So `heartbeat_lost`
+  counts — the −30, the ratio, and the two-in-a-day that breaks a streak — the same as giving up
+  and superseding. The carve-out is `connection_lost`: the owner says a lost heartbeat was the
+  network (`reportLostConnection`, "My connection dropped" in the log and on the timer), which
+  refunds what the row was charged and takes it out of every count. The server cannot tell a
+  closed tab from an offline one, so it is an honour claim, on the same footing as the
+  self-report, made once per session under a status guard. `abandonCounts` is the one question
+  and `COUNTED_ABANDONS` its SQL spelling; the streak walk, the dashboard, the achievement loader
+  and `db:recompute` all filter on it, and a test reads those files to hold them to the list.
+  This replaced, within a week, a rule that finished a quiet page's session at half XP; every
+  row that rule wrote carries `unfocused_at`, and `scripts/restore-lost-page-abandons.mjs` puts
+  them back. `pause_budget` and `pause_count` end nothing now and are uncounted labels on old rows.
 - **The pause budget is a budget, not a trap.** Running out of the five minutes used to abandon
   at −30 and lose everything focused so far, so a six-minute break cost more than never having
   started — and it landed on somebody who had told the app they were stepping away. It restarts

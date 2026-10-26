@@ -1,5 +1,6 @@
 import "server-only";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, or } from "drizzle-orm";
+import { COUNTED_ABANDONS } from "../constants";
 import { db } from "../db";
 import { achievementUnlocks, focusSessions, dayLedger, userSettings } from "../db/schema";
 import { loadState, applyDelta } from "../game-state";
@@ -88,10 +89,15 @@ async function loadStatsFor(userId: string) {
       .where(
         and(
           eq(focusSessions.userId, userId),
-          inArray(focusSessions.status, ["completed", "abandoned"]),
-          // Achievements count sessions, and a session that lacked focus
-          // counts toward no total. The streak ones read the day ledger.
-          isNull(focusSessions.unfocusedAt),
+          // Finished sessions, and the abandons that count. A dropped
+          // connection its owner reported is in no achievement's history.
+          or(
+            eq(focusSessions.status, "completed"),
+            and(
+              eq(focusSessions.status, "abandoned"),
+              inArray(focusSessions.abandonReason, [...COUNTED_ABANDONS]),
+            ),
+          ),
         ),
       ),
     db.select().from(dayLedger).where(eq(dayLedger.userId, userId)),

@@ -15,6 +15,7 @@ import {
   sellInstanceAction,
   sowPlotAction,
   takeContractAction,
+  reportLostConnectionAction,
   unequipAction,
   setSalvageOutputAction,
   exchangeStonesAction,
@@ -169,4 +170,15 @@ export function TakeContractButton() {
 
 export function DropContractButton() {
   return <ActionButton quiet label="Drop it" run={() => dropContractAction()} />;
+}
+
+/** "That was my connection, not me" — clears a lost-heartbeat abandon. */
+export function LostConnectionButton({ sessionId }: { sessionId: string }) {
+  return (
+    <ActionButton
+      quiet
+      label="My connection dropped"
+      run={() => reportLostConnectionAction(sessionId)}
+    />
+  );
 }

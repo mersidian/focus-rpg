@@ -36,11 +36,13 @@ export async function listProjectDetails(
       createdAt: projects.createdAt,
       archivedAt: projects.archivedAt,
       mergedIntoId: projects.mergedIntoId,
-      sessions: sql<number>`count(*) filter (where ${focusSessions.status} = 'completed' and ${focusSessions.unfocusedAt} is null)::int`,
-      abandons: sql<number>`count(*) filter (where ${focusSessions.status} = 'abandoned')::int`,
-      focusedMs: sql<number>`coalesce(sum(${focusSessions.plannedMinutes} * 60000) filter (where ${focusSessions.status} = 'completed' and ${focusSessions.unfocusedAt} is null), 0)::bigint`,
-      firstAt: sql<Date | null>`min(${focusSessions.startedAt}) filter (where ${focusSessions.status} = 'completed' and ${focusSessions.unfocusedAt} is null)`,
-      lastAt: sql<Date | null>`max(${focusSessions.startedAt}) filter (where ${focusSessions.status} = 'completed' and ${focusSessions.unfocusedAt} is null)`,
+      sessions: sql<number>`count(*) filter (where ${focusSessions.status} = 'completed')::int`,
+      // Only the abandons that count (`abandonCounts`), so a reported dropped
+      // connection is not a failure on the project either.
+      abandons: sql<number>`count(*) filter (where ${focusSessions.status} = 'abandoned' and ${focusSessions.abandonReason} in ('gave_up', 'superseded', 'heartbeat_lost'))::int`,
+      focusedMs: sql<number>`coalesce(sum(${focusSessions.plannedMinutes} * 60000) filter (where ${focusSessions.status} = 'completed'), 0)::bigint`,
+      firstAt: sql<Date | null>`min(${focusSessions.startedAt}) filter (where ${focusSessions.status} = 'completed')`,
+      lastAt: sql<Date | null>`max(${focusSessions.startedAt}) filter (where ${focusSessions.status} = 'completed')`,
     })
     .from(projects)
     .leftJoin(focusSessions, eq(focusSessions.projectId, projects.id))
@@ -50,7 +52,7 @@ export async function listProjectDetails(
         : and(eq(projects.userId, userId), isNull(projects.archivedAt)),
     )
     .groupBy(projects.id, projects.name, projects.createdAt, projects.archivedAt, projects.mergedIntoId)
-    .orderBy(desc(sql`coalesce(sum(${focusSessions.plannedMinutes} * 60000) filter (where ${focusSessions.status} = 'completed' and ${focusSessions.unfocusedAt} is null), 0)`));
+    .orderBy(desc(sql`coalesce(sum(${focusSessions.plannedMinutes} * 60000) filter (where ${focusSessions.status} = 'completed'), 0)`));
 
   const names = new Map(rows.map((r) => [r.id, r.name]));
 
@@ -179,9 +181,11 @@ export async function loadDashboard(userId: string, days = 120): Promise<Dashboa
       status,
       planned_minutes as minutes
     from focus_session
-    where user_id = ${userId} and status in ('completed', 'abandoned')
-      -- A session that lacked focus is in no total, here or anywhere.
-      and unfocused_at is null`);
+    where user_id = ${userId}
+      -- Finished over started: an abandon that does not count (abandonCounts)
+      -- is not a start that failed, so it is in neither.
+      and (status = 'completed'
+           or (status = 'abandoned' and abandon_reason in ('gave_up', 'superseded', 'heartbeat_lost')))`);
 
   const list = rows.rows ?? (rows as unknown as { day: string; month: string; hour: number; project_id: string | null; status: string; minutes: number }[]);
 

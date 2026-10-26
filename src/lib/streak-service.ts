@@ -85,9 +85,9 @@ export async function saveStreakState(
  * Completed and abandoned sessions per game day.
  *
  * The abandon count here is the one that decides streaks, and it counts only
- * what `abandonWasChosen` calls chosen: giving up, and starting a second
- * session on top of a live one. A frozen tab and a spent pause budget are the
- * app deciding on somebody's behalf, and a streak is a record of showing up.
+ * what `abandonCounts` counts: giving up, starting a second session on top of a
+ * live one, and a desktop page that went quiet. A lost heartbeat its owner has
+ * reported as a dropped connection does not.
  *
  * Filtered in the query the walk reads rather than at the moment of abandoning:
  * `db:recompute` rebuilds counts off this same table, so a rule applied only to
@@ -109,14 +109,11 @@ export async function loadActivity(
         'YYYY-MM-DD'
       ) as day,
       count(*) filter (where status = 'completed')::int as completed,
-      -- only the abandons somebody chose; see abandonWasChosen in constants.ts
+      -- only the abandons that count; see abandonCounts in constants.ts
       count(*) filter (
-        where status = 'abandoned' and abandon_reason in ('gave_up', 'superseded')
+        where status = 'abandoned' and abandon_reason in ('gave_up', 'superseded', 'heartbeat_lost')
       )::int as abandoned,
-      -- A session that lacked focus keeps the day but adds no minutes to it.
-      coalesce(sum(planned_minutes * 60000) filter (
-        where status = 'completed' and unfocused_at is null
-      ), 0)::bigint as focused_ms
+      coalesce(sum(planned_minutes * 60000) filter (where status = 'completed'), 0)::bigint as focused_ms
     from focus_session
     where user_id = ${userId} and status in ('completed', 'abandoned')
     group by 1`);

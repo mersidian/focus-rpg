@@ -49,23 +49,6 @@ const columns = tables.has("session_activity")
   : new Set();
 const missingColumns = V2_COLUMNS.filter((c) => !columns.has(c));
 
-/*
- * Columns V1's own tables grew later. The probe would not notice these either:
- * every session it writes sets them or leaves them null, and a deploy that
- * reads `unfocused_at` against a table without it fails on the first session
- * to settle, not on the first page load.
- */
-const V1_COLUMNS = { focus_session: ["unfocused_at"] };
-for (const [table, wanted] of Object.entries(V1_COLUMNS)) {
-  const have = new Set(
-    (
-      await sql`select column_name from information_schema.columns
-                where table_schema = 'public' and table_name = ${table}`
-    ).map((r) => r.column_name),
-  );
-  for (const c of wanted) if (!have.has(c)) missingColumns.push(`${table}.${c}`);
-}
-
 console.log(`public tables            ${tables.size}`);
 console.log(`V2 tables present       ${V2_TABLES.length - missingTables.length} / ${V2_TABLES.length}`);
 console.log(`session_activity columns ${columns.size}`);

@@ -1,15 +1,13 @@
 import "server-only";
-import { and, count, desc, eq, inArray, isNull, sql, sum } from "drizzle-orm";
+import { and, count, desc, eq, inArray, sql, sum } from "drizzle-orm";
 import { db } from "./db";
 import { focusSessions, projects } from "./db/schema";
 import { applyDelta, loadState } from "./game-state";
 import {
   abandonIsAFailure,
   abandonPenalty,
-  HEARTBEAT_GRACE_MS,
   MAX_PAUSED_MS,
   SESSION_LENGTHS,
-  UNFOCUSED_XP_MULTIPLIER,
   XP_BY_LENGTH,
   type AbandonReason,
   type SessionLength,
@@ -68,7 +66,6 @@ export function toClientSession(row: Row): ClientSession {
     pausedMs: row.pausedMs,
     pauseCount: row.pauseCount,
     lastHeartbeatAt: row.lastHeartbeatAt.getTime(),
-    unfocusedAt: row.unfocusedAt?.getTime() ?? null,
     xpAwarded: row.xpAwarded,
   };
 }
@@ -166,11 +163,7 @@ async function bankCompletion(
   row: Row,
   completedAt: Date,
   deviceId: string | null,
-  /** The page was quiet when the time ran out; see `evaluate`. */
-  quietAtEnd = false,
 ) {
-  // Either a gap that closed earlier and was written down, or one still open.
-  const lackedFocus = row.unfocusedAt !== null || quietAtEnd;
   /**
    * Stars pay a permanent bonus (§4.2) and the chain pays a temporary one. Both
    * multiply the same base, and the chain is measured from the session's own
@@ -184,8 +177,7 @@ async function bankCompletion(
   const xp = Math.round(
     xpForLength(row.plannedMinutes) *
       xpMultiplier(prestige.stars) *
-      chainMultiplier(links, row.plannedMinutes) *
-      (lackedFocus ? UNFOCUSED_XP_MULTIPLIER : 1),
+      chainMultiplier(links, row.plannedMinutes),
   );
   /*
    * The status transition IS the marker, and it is checked in the WHERE clause.
@@ -207,9 +199,6 @@ async function bankCompletion(
       endedAt: completedAt,
       xpAwarded: xp,
       baseXp: xp,
-      // A gap still open at the end is written down now, from the last moment
-      // the page was known to be there.
-      unfocusedAt: row.unfocusedAt ?? (lackedFocus ? row.lastHeartbeatAt : null),
       updatedAt: new Date(),
     })
     .where(
@@ -227,15 +216,11 @@ async function bankCompletion(
     userId,
     deviceId,
     `session-complete:${row.id}`,
-    // Half the XP, and nothing toward the totals. The streak is credited when
-    // the report lands, the same as any finished session.
-    lackedFocus
-      ? { xp }
-      : {
-          xp,
-          focusedMs: requiredMs(row.plannedMinutes),
-          completed: 1,
-        },
+    {
+      xp,
+      focusedMs: requiredMs(row.plannedMinutes),
+      completed: 1,
+    },
   );
 
   return {
@@ -244,7 +229,6 @@ async function bankCompletion(
       sessionId: row.id,
       xp,
       plannedMinutes: row.plannedMinutes,
-      lackedFocus,
     },
     levelChange: result.levelChange,
   };
@@ -257,8 +241,8 @@ export async function abandonRow(
   at: Date,
   deviceId: string | null,
 ) {
-  // Not every abandon is a decision — see `abandonPenalty`. A lost heartbeat
-  // ends the session and costs nothing, because nobody chose it.
+  // Not every abandon counts — see `abandonCounts`. A lost heartbeat does,
+  // until its owner reports it as a dropped connection.
   const penalty = abandonPenalty(reason);
 
   // The same claim the completion path makes, for the same reason: two
@@ -310,6 +294,75 @@ export async function abandonRow(
   };
 }
 
+/**
+ * "That was my connection, not me."
+ *
+ * The author's carve-out from "a lost heartbeat is an abandon": a page that
+ * was open but could not reach the server did not walk away. The server cannot
+ * tell the two apart — a closed tab and an offline one both simply stop
+ * pinging — so this is an honour claim made by the person who was there, the
+ * same footing as the self-report, and it is made once per session.
+ *
+ * Only a lost heartbeat can be reported. Giving up was a choice and starting a
+ * second session was too; neither is anybody's connection.
+ *
+ * The claim is the status guard: the WHERE narrows to a `heartbeat_lost` row,
+ * so two presses race to one change and only the winner refunds. The refund is
+ * what that row was charged — the −30 if it was charged, nothing for a row from
+ * when lost heartbeats were free — and the counter only moves back if the
+ * charge moved it, so the cache never undercounts against `db:recompute`.
+ *
+ * A day the streak walk has already judged stays judged; clearing an abandon
+ * changes today and the ratio, not a streak that broke last week.
+ */
+export async function reportLostConnection(
+  userId: string,
+  sessionId: string,
+  deviceId: string | null,
+): Promise<{ ok: true; note: string } | { ok: false; reason: string }> {
+  const [row] = await db
+    .select({ xpAwarded: focusSessions.xpAwarded })
+    .from(focusSessions)
+    .where(
+      and(
+        eq(focusSessions.id, sessionId),
+        eq(focusSessions.userId, userId),
+        eq(focusSessions.status, "abandoned"),
+        eq(focusSessions.abandonReason, "heartbeat_lost"),
+      ),
+    )
+    .limit(1);
+  if (!row) return { ok: false, reason: "Only a session the page lost can be reported." };
+
+  const [claimed] = await db
+    .update(focusSessions)
+    .set({ abandonReason: "connection_lost", xpAwarded: 0, updatedAt: new Date() })
+    .where(
+      and(
+        eq(focusSessions.id, sessionId),
+        eq(focusSessions.userId, userId),
+        eq(focusSessions.abandonReason, "heartbeat_lost"),
+      ),
+    )
+    .returning({ id: focusSessions.id });
+  if (!claimed) return { ok: false, reason: "Already reported." };
+
+  const refund = Math.max(0, -row.xpAwarded);
+  if (refund > 0) {
+    await applyDelta(userId, deviceId, `connection-lost:${sessionId}`, {
+      xp: refund,
+      abandoned: -1,
+    });
+  }
+  return {
+    ok: true,
+    note:
+      refund > 0
+        ? `Cleared. The ${refund} XP is back and it no longer counts against you.`
+        : "Cleared. It no longer counts against you.",
+  };
+}
+
 export type Reconciliation = {
   settled: SettleEvent | null;
   levelChange: LevelChange | null;
@@ -317,9 +370,8 @@ export type Reconciliation = {
 
 /**
  * Brings the stored session up to date with the server clock: completes it if
- * its time ran out. Nothing here ends a session early any more — a pause that
- * runs out puts the clock back on, and a desktop page that goes quiet makes the
- * session pay half rather than nothing (§3, amended).
+ * its time ran out, abandons it if the pause budget blew or the desktop
+ * heartbeat went quiet for more than two minutes (§3).
  */
 export async function reconcile(
   userId: string,
@@ -352,49 +404,18 @@ export async function reconcile(
   }
 
   if (verdict.kind === "complete") {
-    return bankCompletion(userId, row, new Date(verdict.at), deviceId, verdict.lackedFocus);
+    return bankCompletion(userId, row, new Date(verdict.at), deviceId);
+  }
+  if (verdict.kind === "abandon") {
+    return abandonRow(
+      userId,
+      row,
+      verdict.reason,
+      new Date(verdict.at),
+      deviceId,
+    );
   }
   return { settled: null, levelChange: null };
-}
-
-/**
- * A desktop page reporting in.
- *
- * The gap is judged before the ping is recorded, because the ping erases it:
- * a page back from five minutes away is, a moment later, a page that checked
- * in fifteen seconds ago. So a gap past the grace is written to the row first,
- * from the last moment the page was known to be there, and only then is the
- * heartbeat moved on. `unfocused_at` is set once and never moved — the first
- * gap is the one that decided the session.
- *
- * Only an active session can lose focus. While paused the requirement is
- * suspended, so a page closed during a pause owes nothing for it.
- */
-export async function checkIn(userId: string, sessionId: string): Promise<void> {
-  const now = new Date();
-  const quietSince = new Date(now.getTime() - HEARTBEAT_GRACE_MS);
-  await db
-    .update(focusSessions)
-    .set({ unfocusedAt: sql`coalesce(${focusSessions.unfocusedAt}, ${focusSessions.lastHeartbeatAt})` })
-    .where(
-      and(
-        eq(focusSessions.id, sessionId),
-        eq(focusSessions.userId, userId),
-        eq(focusSessions.status, "active"),
-        eq(focusSessions.ruleset, "desktop"),
-        sql`${focusSessions.lastHeartbeatAt} < ${quietSince}`,
-      ),
-    );
-  await db
-    .update(focusSessions)
-    .set({ lastHeartbeatAt: now })
-    .where(
-      and(
-        eq(focusSessions.id, sessionId),
-        eq(focusSessions.userId, userId),
-        inArray(focusSessions.status, ["active", "paused"]),
-      ),
-    );
 }
 
 /**
@@ -438,8 +459,6 @@ async function listProjects(userId: string): Promise<ProjectSummary[]> {
       and(
         eq(focusSessions.projectId, projects.id),
         eq(focusSessions.status, "completed"),
-        // A session that lacked focus counts toward no total.
-        isNull(focusSessions.unfocusedAt),
       ),
     )
     .where(
@@ -522,7 +541,6 @@ export async function listLog(userId: string, limit = 60): Promise<LogEntry[]> {
     projectName,
     note: s.note,
     honest: s.honest,
-    lackedFocus: s.unfocusedAt !== null,
   }));
 }
 

@@ -1,3 +1,4 @@
+import { LostConnectionButton } from "@/components/GameActions";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { Nav } from "@/components/Nav";
@@ -93,12 +94,6 @@ export default async function LogPage() {
                               {entry.honest === false && (
                                 <span className="text-faint"> — slacked</span>
                               )}
-                              {entry.lackedFocus && (
-                                <span className="text-faint">
-                                  {" "}
-                                  — lacked focus, half XP, not in totals
-                                </span>
-                              )}
                             </>
                           ) : (
                             <span className="text-dim">
@@ -109,10 +104,20 @@ export default async function LogPage() {
                                 {" "}
                                 — <span className="tnum">{entry.plannedMinutes}</span> minute
                                 session
+                                {entry.abandonReason === "connection_lost" && (
+                                  <>, not counted against you</>
+                                )}
                               </span>
                             </span>
                           )}
                         </p>
+                        {/* The one abandon that can be taken back, and only by
+                            the person who knows whether the page was open. */}
+                        {entry.abandonReason === "heartbeat_lost" && (
+                          <div className="mt-2">
+                            <LostConnectionButton sessionId={entry.id} />
+                          </div>
+                        )}
                         {entry.note && (
                           <p className="mt-1 leading-relaxed text-faint">{entry.note}</p>
                         )}
