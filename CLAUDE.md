@@ -162,6 +162,18 @@ before `git push`, and this says whether it took.
   completion ratio, and the streak. It is applied in `abandonRow`, in `loadActivity` and in
   `db:recompute` — all three, because a rule enforced where the row is written but not where the
   counters are rebuilt survives exactly until the next rebuild.
+- **A session that lacked focus pays half, keeps the streak, and is in no total.** The author's
+  words: *"if it lacked focus, do not count to total but count as streak with half of xp."* A
+  desktop page quiet past the grace used to end the session at that moment and pay nothing, and
+  the heartbeat that brought the page back was the request that wrote the abandon — so forty
+  minutes of a fifty, on a laptop that slept for three, came back as zero. Eight sessions on the
+  author's account went that way. Now `evaluate` never ends a session for a quiet page; it
+  finishes on time with `lackedFocus`, and `checkIn` writes `unfocused_at` *before* recording
+  the ping, because the ping erases the gap. "No total" is a filter on `unfocused_at is null`,
+  and it has to be applied everywhere a total is read: `bankCompletion`'s delta, the streak
+  walk's minutes (its completed count keeps the day), both project queries, the dashboard, the
+  achievement loader and `db:recompute`. Miss one and the next rebuild disagrees with the cache.
+  `scripts/settle-lost-pages.mjs` re-settles rows the old rule ended.
 - **The pause budget is a budget, not a trap.** Running out of the five minutes used to abandon
   at −30 and lose everything focused so far, so a six-minute break cost more than never having
   started — and it landed on somebody who had told the app they were stepping away. It restarts

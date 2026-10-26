@@ -93,6 +93,12 @@ export default async function LogPage() {
                               {entry.honest === false && (
                                 <span className="text-faint"> — slacked</span>
                               )}
+                              {entry.lackedFocus && (
+                                <span className="text-faint">
+                                  {" "}
+                                  — lacked focus, half XP, not in totals
+                                </span>
+                              )}
                             </>
                           ) : (
                             <span className="text-dim">

@@ -123,7 +123,7 @@ export default function WikiRulesPage() {
         <Rule
           label="Grace before the page counts as gone"
           value={minutes(HEARTBEAT_GRACE_MS)}
-          note="Desktop only. Mobile browsers freeze background tabs, so phone sessions have no heartbeat."
+          note="Desktop only. Past it the session still finishes, at half XP: it counts for the streak and toward no total. Phone sessions have no heartbeat, because mobile browsers freeze background tabs."
         />
       </Section>
 

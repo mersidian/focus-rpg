@@ -29,14 +29,17 @@ for (const prev of await sql`select * from game_state`) {
   const [t] = await sql`
     select
       coalesce(sum(xp_awarded), 0)::int                                         as xp,
-      count(*) filter (where status = 'completed')::int                         as completed,
+      -- A session that lacked focus pays its XP and counts toward no total.
+      count(*) filter (where status = 'completed' and unfocused_at is null)::int as completed,
       -- Only the abandons somebody chose; see abandonWasChosen in constants.ts.
       -- The same test abandonRow applies when it writes the counter, so the
       -- cache and this rebuild cannot disagree about what is a failed session.
       count(*) filter (
         where status = 'abandoned' and abandon_reason in ('gave_up', 'superseded')
       )::int                                                                    as abandoned,
-      coalesce(sum(planned_minutes) filter (where status = 'completed'), 0)::int as focused_minutes
+      coalesce(sum(planned_minutes) filter (
+        where status = 'completed' and unfocused_at is null
+      ), 0)::int as focused_minutes
     from focus_session
     where user_id = ${prev.user_id} and status in ('completed', 'abandoned')`;
 

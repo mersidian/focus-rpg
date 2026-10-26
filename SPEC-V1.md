@@ -96,6 +96,12 @@ because it is one tap on mobile.
 - A gap over **2 minutes** during a session abandons it. Reopening inside 2 minutes
   resumes cleanly.
 
+  **Amended after shipping, by the author:** *"if it lacked focus, do not count to total but
+  count as streak with half of xp."* A gap over 2 minutes no longer ends the session. It
+  finishes at its planned time and is marked as lacking focus (`focus_session.unfocused_at`):
+  it pays **half** its XP, credits the day for the streak, and counts toward no total —
+  sessions completed, hours focused, project hours, or the achievements that count them.
+
 ### Phone sessions
 
 Allowed, with **the heartbeat disabled** — mobile browsers freeze background tabs and would

@@ -107,7 +107,12 @@ export function TimerScreen() {
   return (
     <>
       {session && remainingMs !== null ? (
-        <Running remainingMs={remainingMs} paused={verdict?.kind === "paused"} now={now} />
+        <Running
+          remainingMs={remainingMs}
+          paused={verdict?.kind === "paused"}
+          quiet={verdict?.kind === "running" && verdict.quiet}
+          now={now}
+        />
       ) : (
         <Idle
           choice={choice}
@@ -302,7 +307,13 @@ function Idle({
         >
           Last session was abandoned —{" "}
           {ABANDON_REASON_LABEL[lastSettled.reason].toLowerCase()}.{" "}
-          <span className="tnum">−30</span> XP, and it is in the log.
+          {lastSettled.xp < 0 ? (
+            <>
+              <span className="tnum">{lastSettled.xp}</span> XP, and it is in the log.
+            </>
+          ) : (
+            <>It cost nothing, and it is in the log.</>
+          )}
         </p>
       )}
 
@@ -380,10 +391,13 @@ function Stat({ label, value }: { label: string; value: string }) {
 function Running({
   remainingMs,
   paused,
+  quiet,
   now,
 }: {
   remainingMs: number;
   paused: boolean;
+  /** The desktop page is past the grace right now, as the clock here sees it. */
+  quiet: boolean;
   now: number;
 }) {
   const { snapshot, pause, resume, abandon, pending, ruleset, checkedIn } = useGame();
@@ -470,6 +484,22 @@ function Running({
       </div>
 
       {/*
+        Said once the page has been away, so the half is not a surprise at the
+        end. It shows on the page that came back, and on a phone watching a
+        desktop session whose page has gone quiet.
+      */}
+      {session.ruleset === "desktop" && (session.unfocusedAt !== null || quiet) && (
+        <p
+          role="status"
+          className="mt-8 max-w-sm border-l-2 pl-4 text-left text-body leading-relaxed text-dim"
+          style={{ borderColor: "var(--color-warn)" }}
+        >
+          This page was away for more than two minutes, so the session lacked focus. It still
+          finishes on time and pays half its XP. It counts for your streak, not your totals.
+        </p>
+      )}
+
+      {/*
         A check-in that is failing, said while there is still time to do
         something about it.
 
@@ -484,9 +514,9 @@ function Running({
           className="mt-8 max-w-sm border-l-2 pl-4 text-left text-body leading-relaxed"
           style={{ borderColor: "var(--color-warn)", color: "var(--color-warn)" }}
         >
-          The timer has lost touch with the server and is retrying. Your session keeps running
-          here; if the connection does not come back within two minutes it will end on its own,
-          at no cost.
+          The timer has lost touch with the server and is retrying. Your session keeps running.
+          If the connection is not back within two minutes, the session still finishes but pays
+          half its XP.
         </p>
       )}
 
@@ -515,8 +545,9 @@ function RulesetNote({
     >
       {ruleset === "desktop" ? (
         <>
-          Desktop rules: keep this page open. Other tabs are fine — close it for more than{" "}
-          <span className="tnum">2</span> minutes and the session is abandoned.
+          Desktop rules: keep this page open. Other tabs are fine. If it is closed for more than{" "}
+          <span className="tnum">2</span> minutes the session still finishes, at half XP, and
+          counts for your streak but not your totals.
         </>
       ) : (
         <>

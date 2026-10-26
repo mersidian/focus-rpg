@@ -36,11 +36,11 @@ export async function listProjectDetails(
       createdAt: projects.createdAt,
       archivedAt: projects.archivedAt,
       mergedIntoId: projects.mergedIntoId,
-      sessions: sql<number>`count(*) filter (where ${focusSessions.status} = 'completed')::int`,
+      sessions: sql<number>`count(*) filter (where ${focusSessions.status} = 'completed' and ${focusSessions.unfocusedAt} is null)::int`,
       abandons: sql<number>`count(*) filter (where ${focusSessions.status} = 'abandoned')::int`,
-      focusedMs: sql<number>`coalesce(sum(${focusSessions.plannedMinutes} * 60000) filter (where ${focusSessions.status} = 'completed'), 0)::bigint`,
-      firstAt: sql<Date | null>`min(${focusSessions.startedAt}) filter (where ${focusSessions.status} = 'completed')`,
-      lastAt: sql<Date | null>`max(${focusSessions.startedAt}) filter (where ${focusSessions.status} = 'completed')`,
+      focusedMs: sql<number>`coalesce(sum(${focusSessions.plannedMinutes} * 60000) filter (where ${focusSessions.status} = 'completed' and ${focusSessions.unfocusedAt} is null), 0)::bigint`,
+      firstAt: sql<Date | null>`min(${focusSessions.startedAt}) filter (where ${focusSessions.status} = 'completed' and ${focusSessions.unfocusedAt} is null)`,
+      lastAt: sql<Date | null>`max(${focusSessions.startedAt}) filter (where ${focusSessions.status} = 'completed' and ${focusSessions.unfocusedAt} is null)`,
     })
     .from(projects)
     .leftJoin(focusSessions, eq(focusSessions.projectId, projects.id))
@@ -50,7 +50,7 @@ export async function listProjectDetails(
         : and(eq(projects.userId, userId), isNull(projects.archivedAt)),
     )
     .groupBy(projects.id, projects.name, projects.createdAt, projects.archivedAt, projects.mergedIntoId)
-    .orderBy(desc(sql`coalesce(sum(${focusSessions.plannedMinutes} * 60000) filter (where ${focusSessions.status} = 'completed'), 0)`));
+    .orderBy(desc(sql`coalesce(sum(${focusSessions.plannedMinutes} * 60000) filter (where ${focusSessions.status} = 'completed' and ${focusSessions.unfocusedAt} is null), 0)`));
 
   const names = new Map(rows.map((r) => [r.id, r.name]));
 
@@ -179,7 +179,9 @@ export async function loadDashboard(userId: string, days = 120): Promise<Dashboa
       status,
       planned_minutes as minutes
     from focus_session
-    where user_id = ${userId} and status in ('completed', 'abandoned')`);
+    where user_id = ${userId} and status in ('completed', 'abandoned')
+      -- A session that lacked focus is in no total, here or anywhere.
+      and unfocused_at is null`);
 
   const list = rows.rows ?? (rows as unknown as { day: string; month: string; hour: number; project_id: string | null; status: string; minutes: number }[]);
 

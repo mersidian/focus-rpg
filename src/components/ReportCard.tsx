@@ -98,6 +98,17 @@ export function ReportCard() {
       >
         <span className="tnum animate-pop inline-block">+{session.xpAwarded}</span> XP banked
       </h1>
+      {/* Why it is half, said where the half is shown. A number the user
+          cannot take apart is one they cannot trust. */}
+      {session.unfocusedAt !== null && (
+        <p
+          className="mt-4 max-w-prose border-l-2 pl-4 text-body leading-relaxed text-dim"
+          style={{ borderColor: "var(--color-warn)" }}
+        >
+          The page was away for more than two minutes, so this session lacked focus and pays half
+          its XP. It still counts for your streak, but not toward your totals.
+        </p>
+      )}
       <p className="mt-3 max-w-prose text-body leading-relaxed text-faint">
         It stays banked once you log it. Nothing else in the app works until you do.
       </p>

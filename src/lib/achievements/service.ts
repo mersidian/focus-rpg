@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../db";
 import { achievementUnlocks, focusSessions, dayLedger, userSettings } from "../db/schema";
 import { loadState, applyDelta } from "../game-state";
@@ -89,6 +89,9 @@ async function loadStatsFor(userId: string) {
         and(
           eq(focusSessions.userId, userId),
           inArray(focusSessions.status, ["completed", "abandoned"]),
+          // Achievements count sessions, and a session that lacked focus
+          // counts toward no total. The streak ones read the day ledger.
+          isNull(focusSessions.unfocusedAt),
         ),
       ),
     db.select().from(dayLedger).where(eq(dayLedger.userId, userId)),

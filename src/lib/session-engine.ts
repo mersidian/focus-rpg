@@ -28,6 +28,8 @@ export type Verdict =
       elapsedMs: number;
       remainingMs: number;
       completeAt: number;
+      /** The page is quiet right now, past the grace. Desktop only. */
+      quiet: boolean;
       /**
        * Set when the session is running because its pause budget ran out rather
        * than because anybody pressed Resume. The stored row still says
@@ -37,8 +39,17 @@ export type Verdict =
       resumedAt?: number;
     }
   | { kind: "paused"; elapsedMs: number; remainingMs: number; pauseExhaustAt: number }
-  | { kind: "complete"; at: number }
-  | { kind: "abandon"; reason: AbandonReason; at: number }
+  | {
+      kind: "complete";
+      at: number;
+      /**
+       * True when the page was quiet for longer than the grace before the time
+       * ran out. A gap that opened and closed again earlier is recorded on the
+       * row instead (`unfocused_at`), because the heartbeat that closes it
+       * also overwrites the evidence.
+       */
+      lackedFocus: boolean;
+    }
   | { kind: "settled" };
 
 export function requiredMs(plannedMinutes: number): number {
@@ -109,15 +120,22 @@ export function evaluate(s: EngineSession, now: number): Verdict {
   }
 
   const completeAt = s.startedAt + need + pausedMsUsed(s, now);
-  // The heartbeat requirement is suspended while paused and absent on mobile (§3).
-  const abandonAt =
+  /*
+   * The page going quiet no longer ends anything.
+   *
+   * It used to return an abandon at the moment of the gap, and the heartbeat
+   * that brought the page back was the request that wrote it — so a session
+   * forty minutes into a fifty, on a laptop that slept for three, came back to
+   * find itself over and worth nothing. The gap is now a fact about the
+   * session rather than its end: it finishes on time and pays half.
+   *
+   * The requirement is suspended while paused and absent on mobile (§3).
+   */
+  const quietAt =
     s.ruleset === "desktop" ? s.lastHeartbeatAt + HEARTBEAT_GRACE_MS : Infinity;
 
-  if (abandonAt < completeAt && now >= abandonAt) {
-    return { kind: "abandon", reason: "heartbeat_lost", at: abandonAt };
-  }
   if (now >= completeAt) {
-    return { kind: "complete", at: completeAt };
+    return { kind: "complete", at: completeAt, lackedFocus: quietAt < completeAt };
   }
 
   const elapsed = focusedMs(s, now);
@@ -126,6 +144,7 @@ export function evaluate(s: EngineSession, now: number): Verdict {
     elapsedMs: elapsed,
     remainingMs: need - elapsed,
     completeAt,
+    quiet: now >= quietAt,
     resumedAt,
   };
 }

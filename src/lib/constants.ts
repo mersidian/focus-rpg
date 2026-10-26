@@ -24,11 +24,27 @@ export const ABANDON_XP_PENALTY = 30;
  */
 export const SLACKED_XP_MULTIPLIER = 0.5;
 
+/**
+ * What a desktop session that lost its page pays: half, decided by the author.
+ *
+ * It used to end the session at the moment the page went quiet and pay
+ * nothing — forty focused minutes of a fifty lost whole because a laptop lid
+ * closed. The rule now is the author's own: "if it lacked focus, do not count
+ * to total but count as streak with half of xp". The session runs to its
+ * planned end, pays half, keeps the day for the streak, and is left out of
+ * every total. The full planned time still has to pass, so it cannot be
+ * farmed faster than a session can be run.
+ */
+export const UNFOCUSED_XP_MULTIPLIER = 0.5;
+
 /** 2 pauses per session, 5 minutes total. Exceeding either abandons. (§3) */
 export const MAX_PAUSES = 2;
 export const MAX_PAUSED_MS = 5 * 60 * 1000;
 
-/** Desktop presence: ping every 15s, abandon after a 2-minute gap. (§3) */
+/**
+ * Desktop presence: ping every 15s; a gap over two minutes means the session
+ * lacked focus (§3, amended). It still finishes, at `UNFOCUSED_XP_MULTIPLIER`.
+ */
 export const HEARTBEAT_INTERVAL_MS = 15 * 1000;
 export const HEARTBEAT_GRACE_MS = 2 * 60 * 1000;
 
@@ -53,6 +69,8 @@ export const ABANDON_REASON_LABEL: Record<AbandonReason, string> = {
   gave_up: "Gave up",
   pause_count: "Used a third pause",
   pause_budget: "Ran out of pause time",
+  // No longer produced: a quiet page now finishes the session at half XP. The
+  // label stays for rows written before that.
   heartbeat_lost: "The page stopped reporting in",
   superseded: "Started another session",
 };

@@ -14,6 +14,7 @@ import {
   abandonIsAFailure,
   abandonWasChosen,
   abandonPenalty,
+  UNFOCUSED_XP_MULTIPLIER,
   type AbandonReason,
 } from "../src/lib/constants.ts";
 
@@ -57,13 +58,39 @@ test("paused time pushes the finish line out but pays the same", () => {
   assert.equal(focusedMs(s, T0 + 27 * MIN), 24 * MIN);
 });
 
-test("a desktop heartbeat gap over two minutes abandons the session", () => {
+/*
+ * The author's rule, written from its own words rather than from the code:
+ * "if it lacked focus, do not count to total but count as streak with half of
+ * xp". A desktop page quiet for over two minutes no longer ends the session.
+ */
+test("a desktop heartbeat gap over two minutes does not end the session", () => {
   const s = session({ lastHeartbeatAt: T0 + 5 * MIN });
-  assert.equal(evaluate(s, T0 + 6.9 * MIN).kind, "running");
-  const v = evaluate(s, T0 + 7.1 * MIN);
-  assert.equal(v.kind, "abandon");
-  assert.equal(v.kind === "abandon" && v.reason, "heartbeat_lost");
-  assert.equal(v.kind === "abandon" && v.at, T0 + 7 * MIN);
+  const inGrace = evaluate(s, T0 + 6.9 * MIN);
+  assert.equal(inGrace.kind === "running" && inGrace.quiet, false);
+  const past = evaluate(s, T0 + 7.1 * MIN);
+  assert.equal(past.kind, "running", "a quiet page ended the session");
+  assert.equal(past.kind === "running" && past.quiet, true);
+});
+
+test("a session whose page went quiet finishes on time, marked as lacking focus", () => {
+  const s = session({ lastHeartbeatAt: T0 + 5 * MIN });
+  const v = evaluate(s, T0 + 25 * MIN);
+  assert.equal(v.kind, "complete");
+  assert.equal(v.kind === "complete" && v.at, T0 + 25 * MIN, "it finished late or early");
+  assert.equal(v.kind === "complete" && v.lackedFocus, true);
+});
+
+test("a session watched to the end did not lack focus", () => {
+  const s = session({ lastHeartbeatAt: T0 + 24.5 * MIN });
+  const v = evaluate(s, T0 + 25 * MIN);
+  assert.equal(v.kind === "complete" && v.lackedFocus, false);
+});
+
+test("half is half, and it is the only thing a lost page costs", () => {
+  assert.equal(UNFOCUSED_XP_MULTIPLIER, 0.5);
+  // No penalty: the app does not produce a lost-heartbeat abandon any more,
+  // and the label that remains on old rows still costs nothing.
+  assert.equal(abandonPenalty("heartbeat_lost"), 0);
 });
 
 test("reopening inside the grace period resumes cleanly", () => {
@@ -83,13 +110,15 @@ test("a tab that closes after the timer ran out still completes", () => {
   const v = evaluate(s, T0 + 60 * MIN);
   assert.equal(v.kind, "complete");
   assert.equal(v.kind === "complete" && v.at, T0 + 25 * MIN);
+  assert.equal(v.kind === "complete" && v.lackedFocus, false, "the page was there to the end");
 });
 
-test("a tab that closes before the end abandons, even if checked much later", () => {
+test("a tab that closes before the end still finishes, however late it is checked", () => {
   const s = session({ lastHeartbeatAt: T0 + 10 * MIN });
   const v = evaluate(s, T0 + 60 * MIN);
-  assert.equal(v.kind, "abandon");
-  assert.equal(v.kind === "abandon" && v.at, T0 + 12 * MIN);
+  assert.equal(v.kind, "complete");
+  assert.equal(v.kind === "complete" && v.at, T0 + 25 * MIN);
+  assert.equal(v.kind === "complete" && v.lackedFocus, true);
 });
 
 test("the heartbeat requirement is suspended while paused", () => {

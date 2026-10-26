@@ -20,7 +20,7 @@ import {
 import { checkVacation } from "../src/lib/streak-service.ts";
 import { gameDay, addDays } from "../src/lib/game-day.ts";
 import { applyDelta, loadState } from "../src/lib/game-state.ts";
-import { reconcile } from "../src/lib/session-service.ts";
+import { checkIn, reconcile } from "../src/lib/session-service.ts";
 import {
   chooseActivity,
   ensureStarterKit,
@@ -368,27 +368,64 @@ console.log("\n11. a session settles once, however many reconciles race for it")
         settled.status);
 }
 
-console.log("\n12. an abandon nobody chose costs nothing");
+console.log("\n12. a page that went quiet costs half, and nothing toward the totals");
+/*
+ * The author's rule: "if it lacked focus, do not count to total but count as
+ * streak with half of xp". It used to end the session on the spot and pay
+ * nothing — and the heartbeat that brought the page back was what ended it.
+ */
 {
   const lostId = crypto.randomUUID();
-  // Started 30 minutes ago on desktop, last heard from 25 minutes ago: the
-  // grace period ran out long before the 50 minutes would have been up.
-  const began = new Date(Date.now() - 30 * 60_000);
+  // Started 30 minutes ago on desktop, last heard from 25 minutes ago.
   await sql`insert into focus_session
     (id, user_id, planned_minutes, ruleset, device_id, status, started_at, last_heartbeat_at, paused_ms)
     values (${lostId}, ${userId}, 50, 'desktop', 'probe', 'active',
-            ${began}, ${new Date(Date.now() - 25 * 60_000)}, 0)`;
+            ${new Date(Date.now() - 30 * 60_000)}, ${new Date(Date.now() - 25 * 60_000)}, 0)`;
 
+  await reconcile(userId, "probe");
+  const [still] = await sql`select status from focus_session where id = ${lostId}`;
+  check("the quiet page does not end it", still.status === "active", still.status);
+
+  // The page comes back: the gap is written down before the ping erases it.
+  await checkIn(userId, lostId);
+  const [marked] = await sql`select unfocused_at, last_heartbeat_at from focus_session where id = ${lostId}`;
+  check("the gap is recorded when the page returns", marked.unfocused_at !== null);
+  const first = String(marked.unfocused_at);
+  await checkIn(userId, lostId);
+  const [again] = await sql`select unfocused_at from focus_session where id = ${lostId}`;
+  check("and a later check-in does not move it", String(again.unfocused_at) === first);
+
+  // Let its time run out, with the page present to the end.
+  await sql`update focus_session
+      set started_at = ${new Date(Date.now() - 55 * 60_000)}, last_heartbeat_at = ${new Date()}
+    where id = ${lostId}`;
   const before = await loadState(userId);
   await reconcile(userId, "probe");
   const after = await loadState(userId);
-  const [row] = await sql`select status, abandon_reason, xp_awarded from focus_session where id = ${lostId}`;
+  const [row] = await sql`select status, xp_awarded, base_xp from focus_session where id = ${lostId}`;
 
-  check("the session ends", row.status === "abandoned" && row.abandon_reason === "heartbeat_lost",
-        `${row.status} / ${row.abandon_reason}`);
-  check("its row carries no penalty", row.xp_awarded === 0, `${row.xp_awarded} XP`);
-  check("and the character sheet is untouched", after.xp === before.xp,
-        `${before.xp} -> ${after.xp}`);
+  check("it still finishes", row.status === "awaiting_report", row.status);
+  check("and pays what its row says", after.xp - before.xp === row.xp_awarded,
+        `${before.xp} -> ${after.xp}, row ${row.xp_awarded}`);
+  check("which is half of a fifty at most", row.xp_awarded > 0 && row.xp_awarded <= 60,
+        `${row.xp_awarded} XP`);
+  check("it adds nothing to sessions completed", after.sessionsCompleted === before.sessionsCompleted,
+        `${before.sessionsCompleted} -> ${after.sessionsCompleted}`);
+  check("or to hours focused", Number(after.lifetimeFocusedMs) === Number(before.lifetimeFocusedMs));
+
+  // A session that never came back is judged at the end, from the last ping.
+  const goneId = crypto.randomUUID();
+  await sql`insert into focus_session
+    (id, user_id, planned_minutes, ruleset, device_id, status, started_at, last_heartbeat_at, paused_ms)
+    values (${goneId}, ${userId}, 15, 'desktop', 'probe', 'active',
+            ${new Date(Date.now() - 20 * 60_000)}, ${new Date(Date.now() - 18 * 60_000)}, 0)`;
+  await sql`update focus_session set status = 'completed' where id = ${lostId}`;
+  await reconcile(userId, "probe");
+  const [gone] = await sql`select status, unfocused_at, last_heartbeat_at from focus_session where id = ${goneId}`;
+  check("a page that never came back finishes too", gone.status === "awaiting_report", gone.status);
+  check("marked from its last ping",
+        gone.unfocused_at !== null && String(gone.unfocused_at) === String(gone.last_heartbeat_at));
+  await sql`update focus_session set status = 'completed' where id = ${goneId}`;
 }
 
 console.log("\n13. a spent pause budget puts the clock back on");

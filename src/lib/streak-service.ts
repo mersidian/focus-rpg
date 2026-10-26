@@ -113,7 +113,10 @@ export async function loadActivity(
       count(*) filter (
         where status = 'abandoned' and abandon_reason in ('gave_up', 'superseded')
       )::int as abandoned,
-      coalesce(sum(planned_minutes * 60000) filter (where status = 'completed'), 0)::bigint as focused_ms
+      -- A session that lacked focus keeps the day but adds no minutes to it.
+      coalesce(sum(planned_minutes * 60000) filter (
+        where status = 'completed' and unfocused_at is null
+      ), 0)::bigint as focused_ms
     from focus_session
     where user_id = ${userId} and status in ('completed', 'abandoned')
     group by 1`);
