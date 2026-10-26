@@ -501,6 +501,32 @@ export async function worldView(userId: string): Promise<WorldView> {
   };
 }
 
+/** Contracts finished, and the last few of them, newest first. */
+export async function contractsFinished(
+  userId: string,
+): Promise<{ total: number; recent: { variantName: string; biome: number; at: Date }[] }> {
+  const [count, recent] = await Promise.all([
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(slayingContracts)
+      .where(and(eq(slayingContracts.userId, userId), sql`${slayingContracts.completedAt} is not null`)),
+    db
+      .select({
+        variantName: slayingContracts.variantName,
+        biome: slayingContracts.biome,
+        at: slayingContracts.completedAt,
+      })
+      .from(slayingContracts)
+      .where(and(eq(slayingContracts.userId, userId), sql`${slayingContracts.completedAt} is not null`))
+      .orderBy(desc(slayingContracts.completedAt))
+      .limit(5),
+  ]);
+  return {
+    total: count[0]?.n ?? 0,
+    recent: recent.map((r) => ({ variantName: r.variantName, biome: r.biome, at: r.at! })),
+  };
+}
+
 export async function collectionProgress(userId: string): Promise<Map<string, number>> {
   const rows = await db
     .select({ itemId: collectionLog.itemId, bestRoll: collectionLog.bestRoll })
