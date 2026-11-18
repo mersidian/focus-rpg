@@ -28,24 +28,6 @@ export const SLACKED_XP_MULTIPLIER = 0.5;
 export const MAX_PAUSES = 2;
 export const MAX_PAUSED_MS = 5 * 60 * 1000;
 
-/**
- * Desktop presence: ping every 15s, abandon after a 2-minute gap (§3). An
- * abandon the owner says was a dropped connection can be cleared afterwards;
- * see `abandonCounts`.
- */
-export const HEARTBEAT_INTERVAL_MS = 15 * 1000;
-export const HEARTBEAT_GRACE_MS = 2 * 60 * 1000;
-
-/**
- * Spec-silent: how soon to try again after a check-in fails.
- *
- * Waiting a full interval after a failure spends a twelfth of the grace period
- * doing nothing, and failures come in blips — a redeploy, a cold database, a
- * dropped wifi second. Three seconds turns the two-minute grace into forty
- * attempts instead of eight.
- */
-export const HEARTBEAT_RETRY_MS = 3 * 1000;
-
 export type AbandonReason =
   | "gave_up"
   | "pause_count"
@@ -67,23 +49,21 @@ export const ABANDON_REASON_LABEL: Record<AbandonReason, string> = {
  * Whether an abandon counts: against the completion ratio, and for the −30.
  * Abandons do not touch the streak at all (§3, amended).
  *
- * The author's rule: "make it ratio of finish of started make sense, if i lost
- * heartbeat is abandon. unless lost connection and can make request to change
- * that is not my fault." So the ratio is finished over started, honestly, and
- * three ways of not finishing count:
+ * The ratio is finished over started, and three ways of not finishing count:
  *
  *   `gave_up`        — the Give up button.
  *   `superseded`     — starting a second session on top of a live one.
- *   `heartbeat_lost` — the desktop page went quiet past the grace: closed, a
- *                      sleeping laptop, a tab left to freeze.
+ *   `heartbeat_lost` — old rows only. There is no heartbeat any more (§3,
+ *                      amended: the author's connection is unstable), so
+ *                      nothing writes this; rows from before still count
+ *                      until their owner clears them.
  *
  * One does not:
  *
- *   `connection_lost` — a lost heartbeat its owner has said was the network,
- *                       not them, with `reportLostConnection`. The page was
- *                       open and could not reach the server. It is an honour
- *                       claim, like the self-report, and it is the only way a
- *                       reason changes after the fact.
+ *   `connection_lost` — an old lost-heartbeat row its owner has said was the
+ *                       network, with `reportLostConnection`. An honour claim,
+ *                       like the self-report, and the only way a reason
+ *                       changes after the fact.
  *
  * `pause_budget` and `pause_count` no longer end a session at all — running out
  * of pause restarts the clock — and survive as labels on old rows, uncounted.

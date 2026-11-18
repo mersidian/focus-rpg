@@ -16,7 +16,7 @@ const REFERENCES = [
     href: "/wiki/rules",
     title: "Rules",
     blurb:
-      "Every number the game actually runs on — session lengths, the pause budget, the heartbeat, the chain, freezes, prestige — read from the modules that own them.",
+      "Every number the game actually runs on — session lengths, the pause budget, the chain, freezes, prestige — read from the modules that own them.",
     count: "the live constants",
   },
   {

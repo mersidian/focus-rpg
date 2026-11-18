@@ -214,24 +214,6 @@ test("quarters do not drift across a year boundary", () => {
 
 /* ----------------------------------------------------- session engine */
 
-test("a zero-length gap between heartbeat and completion still completes", () => {
-  const T0 = 1_700_000_000_000;
-  const session: EngineSession = {
-    plannedMinutes: 25,
-    ruleset: "desktop",
-    status: "active",
-    startedAt: T0,
-    pausedAt: null,
-    pausedMs: 0,
-    pauseCount: 0,
-    // The last ping lands exactly two minutes before the end: the abandon
-    // moment and the completion moment coincide.
-    lastHeartbeatAt: T0 + requiredMs(25) - 2 * 60_000,
-  };
-  const verdict = evaluate(session, T0 + requiredMs(25) + 1000);
-  assert.equal(verdict.kind, "complete", "a tie must go to completion");
-});
-
 /* ------------------------------------------- session engine, harder cases */
 
 const T = 1_700_000_000_000;
@@ -244,7 +226,6 @@ function sess(over: Partial<EngineSession> = {}): EngineSession {
     pausedAt: null,
     pausedMs: 0,
     pauseCount: 0,
-    lastHeartbeatAt: T,
     ...over,
   };
 }
@@ -255,7 +236,6 @@ test("a paused session cannot complete while it is paused", () => {
     status: "paused",
     pausedAt: T + 24 * 60_000,
     pauseCount: 1,
-    lastHeartbeatAt: T + 24 * 60_000,
   });
   const verdict = evaluate(paused, T + 27 * 60_000);
   assert.equal(verdict.kind, "paused", "time spent paused is not focused time");
@@ -263,13 +243,13 @@ test("a paused session cannot complete while it is paused", () => {
 });
 
 test("pausing pushes the finish line out by exactly the pause", () => {
-  const resumed = sess({ pausedMs: 3 * 60_000, lastHeartbeatAt: T + 28 * 60_000 });
+  const resumed = sess({ pausedMs: 3 * 60_000});
   assert.equal(evaluate(resumed, T + 27.9 * 60_000).kind, "running");
   assert.equal(evaluate(resumed, T + 28 * 60_000).kind, "complete");
 });
 
 test("focused time never exceeds the session that was planned", () => {
-  const overrun = sess({ lastHeartbeatAt: T + 100 * 60_000 });
+  const overrun = sess({});
   const verdict = evaluate(overrun, T + 100 * 60_000);
   assert.equal(verdict.kind, "complete");
   assert.equal(focusedMs(overrun, T + 100 * 60_000), requiredMs(25));
@@ -287,16 +267,10 @@ test("a mobile session left paused spends its budget and runs on", () => {
     status: "paused",
     pausedAt: T,
     pauseCount: 1,
-    lastHeartbeatAt: T,
   });
   const verdict = evaluate(paused, T + 6 * 60_000);
   assert.equal(verdict.kind, "running");
   assert.equal(verdict.kind === "running" && verdict.resumedAt, T + 5 * 60_000);
-});
-
-test("a heartbeat from a clock running fast does not abandon early", () => {
-  const skewed = sess({ lastHeartbeatAt: T + 60 * 60_000 });
-  assert.equal(evaluate(skewed, T + 5 * 60_000).kind, "running");
 });
 
 test("a session paused twice for five minutes in total is at its limit", () => {

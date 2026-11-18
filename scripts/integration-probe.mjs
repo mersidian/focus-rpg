@@ -20,7 +20,7 @@ import {
 import { checkVacation } from "../src/lib/streak-service.ts";
 import { gameDay, addDays } from "../src/lib/game-day.ts";
 import { applyDelta, loadState } from "../src/lib/game-state.ts";
-import { reconcile, reportLostConnection } from "../src/lib/session-service.ts";
+import { abandonRow, reconcile, reportLostConnection } from "../src/lib/session-service.ts";
 import {
   chooseActivity,
   ensureStarterKit,
@@ -368,27 +368,53 @@ console.log("\n11. a session settles once, however many reconciles race for it")
         settled.status);
 }
 
-console.log("\n12. a lost page is an abandon, and a dropped connection can be cleared");
+console.log("\n12. silence never ends a session, and an old lost page can still be cleared");
 /*
- * The author's rule: "if i lost heartbeat is abandon. unless lost connection
- * and can make request to change that is not my fault."
+ * The author's rule: "remove cron and no heartbeat anymore. my internet
+ * connection sometimes not stable."
  */
 {
-  const lostId = crypto.randomUUID();
+  const quietId = crypto.randomUUID();
   // Started 30 minutes ago on desktop, last heard from 25 minutes ago.
+  await sql`insert into focus_session
+    (id, user_id, planned_minutes, ruleset, device_id, status, started_at, last_heartbeat_at, paused_ms)
+    values (${quietId}, ${userId}, 50, 'desktop', 'probe', 'active',
+            ${new Date(Date.now() - 30 * 60_000)}, ${new Date(Date.now() - 25 * 60_000)}, 0)`;
+  await reconcile(userId, "probe");
+  const [still] = await sql`select status from focus_session where id = ${quietId}`;
+  check("a silent desktop session keeps running", still.status === "active", still.status);
+
+  await sql`update focus_session set started_at = ${new Date(Date.now() - 55 * 60_000)} where id = ${quietId}`;
+  await reconcile(userId, "probe");
+  const [done] = await sql`select status, xp_awarded from focus_session where id = ${quietId}`;
+  check("and finishes on time with nobody watching", done.status === "awaiting_report",
+        `${done.status}, ${done.xp_awarded} XP`);
+  await sql`update focus_session set status = 'completed' where id = ${quietId}`;
+
+  // A lost-heartbeat abandon from before, charged the way it was charged then.
+  const lostId = crypto.randomUUID();
   await sql`insert into focus_session
     (id, user_id, planned_minutes, ruleset, device_id, status, started_at, last_heartbeat_at, paused_ms)
     values (${lostId}, ${userId}, 50, 'desktop', 'probe', 'active',
             ${new Date(Date.now() - 30 * 60_000)}, ${new Date(Date.now() - 25 * 60_000)}, 0)`;
-
+  const [old] = await sql`select * from focus_session where id = ${lostId}`;
   const before = await loadState(userId);
-  await reconcile(userId, "probe");
+  await abandonRow(
+    userId,
+    {
+      id: old.id,
+      userId,
+      status: old.status,
+      startedAt: old.started_at,
+      plannedMinutes: old.planned_minutes,
+    },
+    "heartbeat_lost",
+    new Date(),
+    "probe",
+  );
   const after = await loadState(userId);
   const [row] = await sql`select status, abandon_reason, xp_awarded from focus_session where id = ${lostId}`;
-
-  check("the session is abandoned", row.status === "abandoned" && row.abandon_reason === "heartbeat_lost",
-        `${row.status} / ${row.abandon_reason}`);
-  check("it costs the penalty", row.xp_awarded === -30, `${row.xp_awarded} XP`);
+  check("an old lost-page abandon still costs the penalty", row.xp_awarded === -30, `${row.xp_awarded} XP`);
   check("and counts as a start not finished", after.sessionsAbandoned === before.sessionsAbandoned + 1,
         `${before.sessionsAbandoned} -> ${after.sessionsAbandoned}`);
 

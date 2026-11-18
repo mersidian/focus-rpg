@@ -14,8 +14,9 @@ export function deviceId(): string {
 }
 
 /**
- * Mobile browsers freeze background tabs, so the heartbeat would register a
- * false abandon. Sessions started here run under the mobile ruleset (§3).
+ * Which kind of device a session was started on, recorded on the row. It used
+ * to choose whether a heartbeat was enforced; there is none now, and both
+ * kinds of session follow the same rule.
  */
 export function detectRuleset(): "desktop" | "mobile" {
   if (typeof window === "undefined") return "desktop";

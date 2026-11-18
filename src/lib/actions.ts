@@ -94,7 +94,6 @@ function engineOf(row: Row): EngineSession {
     pausedAt: row.pausedAt?.getTime() ?? null,
     pausedMs: row.pausedMs,
     pauseCount: row.pauseCount,
-    lastHeartbeatAt: row.lastHeartbeatAt.getTime(),
   };
 }
 
@@ -160,7 +159,6 @@ export async function startSession(input: {
       deviceId: input.deviceId,
       status: "active",
       startedAt: now,
-      lastHeartbeatAt: now,
     })
     .onConflictDoNothing();
 
@@ -441,8 +439,6 @@ export async function resumeSession(sessionId: string, deviceId: string): Promis
       status: "active",
       pausedMs: row.pausedMs + (now.getTime() - row.pausedAt.getTime()),
       pausedAt: null,
-      // The heartbeat was suspended while paused; restart its clock now (§3).
-      lastHeartbeatAt: now,
       updatedAt: now,
     })
     .where(and(eq(focusSessions.id, row.id), eq(focusSessions.status, "paused")));

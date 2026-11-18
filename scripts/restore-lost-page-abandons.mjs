@@ -24,7 +24,10 @@
  */
 import { randomUUID } from "node:crypto";
 import { neon } from "@neondatabase/serverless";
-import { ABANDON_XP_PENALTY, HEARTBEAT_GRACE_MS } from "../src/lib/constants.ts";
+import { ABANDON_XP_PENALTY } from "../src/lib/constants.ts";
+
+/** The two-minute grace the old heartbeat allowed, written here now it is gone. */
+const HEARTBEAT_GRACE_MS = 2 * 60 * 1000;
 
 const apply = process.argv.includes("--apply");
 const sql = neon(process.env.DATABASE_URL);

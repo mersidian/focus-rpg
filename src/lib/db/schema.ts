@@ -110,7 +110,11 @@ export const focusSessions = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
 
     plannedMinutes: integer("planned_minutes").notNull(),
-    /** "desktop" enforces the heartbeat; "mobile" does not (§3). */
+    /**
+     * Which device a session was started on. It used to decide whether a
+     * heartbeat was enforced; there is no heartbeat now, so it is a record and
+     * nothing reads it to judge a session.
+     */
     ruleset: text("ruleset").$type<"desktop" | "mobile">().notNull(),
     deviceId: text("device_id").notNull(),
 
@@ -123,6 +127,11 @@ export const focusSessions = pgTable(
     pausedAt: timestamp("paused_at", { mode: "date", withTimezone: true }),
     pausedMs: integer("paused_ms").notNull().default(0),
     pauseCount: integer("pause_count").notNull().default(0),
+    /**
+     * When a desktop page last pinged, back when it did. Kept so old rows keep
+     * their history; nothing writes it after a session starts, and nothing
+     * reads it.
+     */
     lastHeartbeatAt: timestamp("last_heartbeat_at", { mode: "date", withTimezone: true })
       .notNull()
       .defaultNow(),

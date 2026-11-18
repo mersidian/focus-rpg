@@ -105,6 +105,10 @@ block of time that ticks, so the mapping is direct and needs no idle loop.
 
 ### The session is recorded live — **DECIDED**
 
+*(The heartbeat this relied on was removed — see V1 §3. Nothing below depends on it: the
+server works the session out from its clock, and the page asks only when it comes back into
+view, comes back online, or reaches the end.)*
+
 The heartbeat already fires every 15 seconds (V1 §3). It is extended to persist progress:
 focused minutes so far, the provisional yield accumulating, the skill and character XP in
 flight.

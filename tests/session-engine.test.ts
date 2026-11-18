@@ -32,73 +32,75 @@ function session(over: Partial<EngineSession> = {}): EngineSession {
     pausedAt: null,
     pausedMs: 0,
     pauseCount: 0,
-    lastHeartbeatAt: T0,
     ...over,
   };
 }
 
 test("a running session counts down from wall-clock start", () => {
-  const s = session({ lastHeartbeatAt: T0 + 10 * MIN });
+  const s = session({});
   const v = evaluate(s, T0 + 10 * MIN);
   assert.equal(v.kind, "running");
   assert.equal(v.kind === "running" && v.remainingMs, 15 * MIN);
 });
 
 test("it completes once the planned minutes have passed", () => {
-  const s = session({ lastHeartbeatAt: T0 + 25 * MIN });
+  const s = session({});
   const v = evaluate(s, T0 + 25 * MIN);
   assert.equal(v.kind, "complete");
   assert.equal(v.kind === "complete" && v.at, T0 + 25 * MIN);
 });
 
 test("paused time pushes the finish line out but pays the same", () => {
-  const s = session({ pausedMs: 3 * MIN, lastHeartbeatAt: T0 + 27 * MIN });
+  const s = session({ pausedMs: 3 * MIN});
   assert.equal(evaluate(s, T0 + 27 * MIN).kind, "running");
   assert.equal(evaluate(s, T0 + 28 * MIN).kind, "complete");
   assert.equal(focusedMs(s, T0 + 27 * MIN), 24 * MIN);
 });
 
-test("a desktop heartbeat gap over two minutes abandons the session", () => {
-  const s = session({ lastHeartbeatAt: T0 + 5 * MIN });
-  assert.equal(evaluate(s, T0 + 6.9 * MIN).kind, "running");
-  const v = evaluate(s, T0 + 7.1 * MIN);
-  assert.equal(v.kind, "abandon");
-  assert.equal(v.kind === "abandon" && v.reason, "heartbeat_lost");
-  assert.equal(v.kind === "abandon" && v.at, T0 + 7 * MIN);
+/*
+ * The author's rule: "remove cron and no heartbeat anymore. my internet
+ * connection sometimes not stable." Silence never ends a session now.
+ */
+test("a desktop page silent for as long as you like does not end the session", () => {
+  const s = session();
+  assert.equal(evaluate(s, T0 + 7 * MIN).kind, "running", "two minutes of silence ended it");
+  assert.equal(evaluate(s, T0 + 24 * MIN).kind, "running");
 });
 
-test("reopening inside the grace period resumes cleanly", () => {
-  const s = session({ lastHeartbeatAt: T0 + 5 * MIN });
-  assert.equal(evaluate(s, T0 + 6 * MIN).kind, "running");
+test("a session nobody watched still finishes on time", () => {
+  const v = evaluate(session(), T0 + 60 * MIN);
+  assert.equal(v.kind, "complete");
+  assert.equal(v.kind === "complete" && v.at, T0 + 25 * MIN);
 });
 
-test("mobile sessions ignore the heartbeat entirely", () => {
-  const s = session({ ruleset: "mobile", lastHeartbeatAt: T0 });
+test("desktop and phone sessions follow the same rule", () => {
+  for (const at of [T0 + 7 * MIN, T0 + 25 * MIN, T0 + 90 * MIN]) {
+    assert.deepEqual(
+      evaluate(session({ ruleset: "desktop" }), at),
+      evaluate(session({ ruleset: "mobile" }), at),
+    );
+  }
+});
+
+test("a phone session runs to its end", () => {
+  const s = session({ ruleset: "mobile"});
   assert.equal(evaluate(s, T0 + 20 * MIN).kind, "running");
   assert.equal(evaluate(s, T0 + 25 * MIN).kind, "complete");
 });
 
-test("a tab that closes after the timer ran out still completes", () => {
+test("a tab closed after the timer ran out completes at the end", () => {
   // Last ping at minute 25.5; the session was already over at minute 25.
-  const s = session({ lastHeartbeatAt: T0 + 25.5 * MIN });
+  const s = session({});
   const v = evaluate(s, T0 + 60 * MIN);
   assert.equal(v.kind, "complete");
   assert.equal(v.kind === "complete" && v.at, T0 + 25 * MIN);
 });
 
-test("a tab that closes before the end abandons, even if checked much later", () => {
-  const s = session({ lastHeartbeatAt: T0 + 10 * MIN });
-  const v = evaluate(s, T0 + 60 * MIN);
-  assert.equal(v.kind, "abandon");
-  assert.equal(v.kind === "abandon" && v.at, T0 + 12 * MIN);
-});
-
-test("the heartbeat requirement is suspended while paused", () => {
+test("a paused session stays paused while the page is gone", () => {
   const s = session({
     status: "paused",
     pausedAt: T0 + 5 * MIN,
     pauseCount: 1,
-    lastHeartbeatAt: T0 + 5 * MIN,
   });
   assert.equal(evaluate(s, T0 + 9 * MIN).kind, "paused");
 });
@@ -109,16 +111,13 @@ test("running out of pause time restarts the clock", () => {
    * far, so a six-minute break cost more than never having started. The budget
    * is a budget: it runs out, and the session is running again.
    *
-   * Two minutes already spent, so the remaining three run out at T0+8. The
-   * heartbeat is kept alive because this is a desktop session whose page is
-   * still open — a page that went away is a separate question, answered below.
+   * Two minutes already spent, so the remaining three run out at T0+8.
    */
   const s = session({
     status: "paused",
     pausedAt: T0 + 5 * MIN,
     pausedMs: 2 * MIN,
     pauseCount: 2,
-    lastHeartbeatAt: T0 + 9 * MIN,
   });
   assert.equal(evaluate(s, T0 + 7.9 * MIN).kind, "paused");
 
@@ -140,7 +139,6 @@ test("the pause budget is spent, never overspent", () => {
     pausedAt: T0 + 1 * MIN,
     pausedMs: 0,
     pauseCount: 1,
-    lastHeartbeatAt: T0 + 400 * MIN,
   });
   const v = evaluate(fresh, T0 + 20 * MIN);
   assert.equal(v.kind === "running" && v.completeAt, T0 + 30 * MIN);
@@ -155,7 +153,6 @@ test("a pause left until the session would have finished completes it", () => {
     pausedAt: T0 + 1 * MIN,
     pausedMs: 0,
     pauseCount: 1,
-    lastHeartbeatAt: T0 + 400 * MIN,
   });
   const v = evaluate(s, T0 + 31 * MIN);
   assert.equal(v.kind, "complete");
@@ -192,11 +189,12 @@ test("settled sessions are left alone", () => {
 /*  What an abandon costs, and who decided it                                  */
 /* -------------------------------------------------------------------------- */
 
-test("a lost heartbeat is an abandon, and a reported dropped connection is not", () => {
+test("an old lost-heartbeat abandon counts until it is cleared as a dropped connection", () => {
   /*
-   * Written from the author's words: "make it ratio of finish of started make
-   * sense, if i lost heartbeat is abandon. unless lost connection and can make
-   * request to change that is not my fault."
+   * Nothing writes `heartbeat_lost` now that there is no heartbeat, but rows
+   * from before still carry it, and the author's rule for them stands: "if i
+   * lost heartbeat is abandon. unless lost connection and can make request to
+   * change that is not my fault."
    */
   assert.equal(abandonPenalty("gave_up"), ABANDON_XP_PENALTY);
   assert.equal(abandonPenalty("superseded"), ABANDON_XP_PENALTY);

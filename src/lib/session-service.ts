@@ -51,7 +51,6 @@ function toEngine(row: Row): EngineSession {
     pausedAt: row.pausedAt?.getTime() ?? null,
     pausedMs: row.pausedMs,
     pauseCount: row.pauseCount,
-    lastHeartbeatAt: row.lastHeartbeatAt.getTime(),
   };
 }
 
@@ -65,7 +64,6 @@ export function toClientSession(row: Row): ClientSession {
     pausedAt: row.pausedAt?.getTime() ?? null,
     pausedMs: row.pausedMs,
     pauseCount: row.pauseCount,
-    lastHeartbeatAt: row.lastHeartbeatAt.getTime(),
     xpAwarded: row.xpAwarded,
   };
 }
@@ -241,8 +239,7 @@ export async function abandonRow(
   at: Date,
   deviceId: string | null,
 ) {
-  // Not every abandon counts — see `abandonCounts`. A lost heartbeat does,
-  // until its owner reports it as a dropped connection.
+  // Not every abandon counts — see `abandonCounts`.
   const penalty = abandonPenalty(reason);
 
   // The same claim the completion path makes, for the same reason: two
@@ -297,8 +294,9 @@ export async function abandonRow(
 /**
  * "That was my connection, not me."
  *
- * The author's carve-out from "a lost heartbeat is an abandon": a page that
- * was open but could not reach the server did not walk away. The server cannot
+ * For old rows only: nothing writes `heartbeat_lost` now that there is no
+ * heartbeat, but sessions from before still carry it and still count. A page
+ * that was open but could not reach the server did not walk away. The server cannot
  * tell the two apart — a closed tab and an offline one both simply stop
  * pinging — so this is an honour claim made by the person who was there, the
  * same footing as the self-report, and it is made once per session.
@@ -370,8 +368,8 @@ export type Reconciliation = {
 
 /**
  * Brings the stored session up to date with the server clock: completes it if
- * its time ran out, abandons it if the pause budget blew or the desktop
- * heartbeat went quiet for more than two minutes (§3).
+ * its time ran out. Nothing here ends a session early — that is only ever Give
+ * up or starting another (§3, amended).
  */
 export async function reconcile(
   userId: string,
@@ -405,15 +403,6 @@ export async function reconcile(
 
   if (verdict.kind === "complete") {
     return bankCompletion(userId, row, new Date(verdict.at), deviceId);
-  }
-  if (verdict.kind === "abandon") {
-    return abandonRow(
-      userId,
-      row,
-      verdict.reason,
-      new Date(verdict.at),
-      deviceId,
-    );
   }
   return { settled: null, levelChange: null };
 }
@@ -558,8 +547,7 @@ export async function buildSnapshot(
    * *after* this batch, and the prestige view was itself four round trips deep
    * and re-read the `game_state` this batch had already loaded. That put about
    * 300ms of pure latency on the end of every snapshot — and a snapshot is not
-   * a page load, it is what every button returns and what the heartbeat asks
-   * for every fifteen seconds.
+   * a page load, it is what every button returns.
    *
    * Neither of them ever needed to be last. `chainHistory` takes its exclusion
    * as a *filter applied in JavaScript*, so it never depended on `live` at all;
@@ -625,7 +613,7 @@ export async function buildSnapshot(
     settled,
     levelChange,
     unlocked: [],
-    // Never read back here. This runs on every heartbeat and every visibility
+    // Never read back here. This runs on every button and every visibility
     // change; `submitReport` is the only thing that attaches a result.
     game: null,
     chain,

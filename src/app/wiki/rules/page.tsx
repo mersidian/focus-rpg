@@ -5,8 +5,6 @@ import {
   SLACKED_XP_MULTIPLIER,
   MAX_PAUSES,
   MAX_PAUSED_MS,
-  HEARTBEAT_INTERVAL_MS,
-  HEARTBEAT_GRACE_MS,
   ABANDON_REASON_LABEL,
 } from "@/lib/constants";
 import { CHAIN_WINDOW_MS, CHAIN_STEP, MAX_CHAIN_LINKS, chainMultiplier } from "@/lib/chain";
@@ -107,7 +105,7 @@ export default function WikiRulesPage() {
         />
       </Section>
 
-      <Section title="Pausing and presence" source="lib/constants.ts">
+      <Section title="Pausing" source="lib/constants.ts">
         <Rule label="Pauses allowed per session" value={String(MAX_PAUSES)} />
         <Rule
           label="Total paused time allowed"
@@ -115,14 +113,9 @@ export default function WikiRulesPage() {
           note="Paused time earns no XP. Run past it and the clock simply starts again, so a long break costs you the five minutes and nothing else."
         />
         <Rule
-          label="Heartbeat interval"
-          value={`${HEARTBEAT_INTERVAL_MS / 1000}s`}
-          note="A liveness ping only. Other tabs do not matter; research freely."
-        />
-        <Rule
-          label="Grace before the page counts as gone"
-          value={minutes(HEARTBEAT_GRACE_MS)}
-          note="Desktop only. Mobile browsers freeze background tabs, so phone sessions have no heartbeat."
+          label="Presence check"
+          value="none"
+          note="The session runs on the server's clock and finishes on time whether the page is open, closed or offline. Only Give up or starting another session ends it early."
         />
       </Section>
 
@@ -130,12 +123,12 @@ export default function WikiRulesPage() {
         <Rule
           label="XP penalty"
           value={`−${ABANDON_XP_PENALTY}`}
-          note="For giving up, starting a second session while one is live, or a desktop page that stops reporting in. Applied immediately. Levels ratchet, so this can delay a rank but never take one."
+          note="For giving up, or starting a second session while one is live. Applied immediately. Levels ratchet, so this can delay a rank but never take one."
         />
         <Rule
           label="If the connection dropped"
           value="−0"
-          note="A lost heartbeat can be reported afterwards as a dropped connection, from the log or the timer. That refunds the penalty and takes the session out of the completion ratio. It is your word, the same as the self-report."
+          note="Sessions from before the heartbeat was removed may still be abandoned as a lost page. Each can be cleared from the log as a dropped connection, which refunds the penalty and takes it out of the completion ratio. It is your word, the same as the self-report."
         />
         <Rule
           label="Abandons that break the streak"

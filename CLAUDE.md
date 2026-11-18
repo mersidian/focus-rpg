@@ -150,7 +150,18 @@ before `git push`, and this says whether it took.
   the statuses a running session can be in, exactly one caller comes away having changed the
   row, and only that one pays. An integration probe races four reconciles at one session;
   without the guard it banks four.
-- **The completion ratio is finished over started, and a lost page is an abandon.** The author's
+- **There is no heartbeat, and nothing runs on a timer.** The author: *"remove cron and no
+  heartbeat anymore. my internet connection sometimes not stable."* The desktop page used to
+  ping every fifteen seconds and two minutes of silence abandoned the session at −30; phones
+  polled every fifteen. Both are gone, with `/api/heartbeat`. A session lives on the server's
+  clock: `evaluate` never ends one early, and any request settles it — every snapshot runs
+  `reconcile`. The page asks only when something happened: back into view, focus, back
+  `online`, or the countdown reaching its end. `ruleset` and `last_heartbeat_at` stay on the row
+  as history and nothing judges a session by them. Do not add a ping, a poll or a scheduler
+  back to decide a session; an unstable connection is not an abandon.
+- **The completion ratio is finished over started, and a lost page is an abandon.** *(Written
+  while the heartbeat existed. Nothing writes `heartbeat_lost` now; old rows keep counting until
+  cleared as a dropped connection.)* The author's
   words: *"make it ratio of finish of started make sense, if i lost heartbeat is abandon. unless
   lost connection and can make request to change that is not my fault."* So `heartbeat_lost`
   counts — the −30 and the ratio — the same as giving up

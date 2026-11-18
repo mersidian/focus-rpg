@@ -19,7 +19,6 @@ import {
   startSession,
   submitReport,
 } from "@/lib/actions";
-import { HEARTBEAT_INTERVAL_MS, HEARTBEAT_RETRY_MS } from "@/lib/constants";
 import { describeLevel } from "@/lib/levels";
 import { tierAccent, tierAction } from "@/lib/format";
 import { deviceId as readDeviceId, detectRuleset } from "@/lib/client/device";
@@ -42,9 +41,6 @@ type Ctx = {
   pending: boolean;
   error: string | null;
   clearError: () => void;
-  /** False when check-ins are failing, so the screen can say so before the
-   *  session is lost rather than after. */
-  checkedIn: boolean;
   lastSettled: SettleEvent | null;
   levelChange: LevelChange | null;
   dismissLevelChange: () => void;
@@ -112,21 +108,13 @@ export function GameProvider({
 }) {
   const [snapshot, setSnapshot] = useState<Snapshot>(initial);
   const [error, setError] = useState<string | null>(null);
-  /**
-   * Whether the server is still being told this page exists.
-   *
-   * Only meaningful while a desktop session runs. It starts true because a
-   * session that has not yet pinged has not yet failed, and the very first ping
-   * fires on mount.
-   */
-  const [checkedIn, setCheckedIn] = useState(true);
   const [levelChange, setLevelChange] = useState<LevelChange | null>(
     initial.levelChange ?? null,
   );
   const [lastSettled, setLastSettled] = useState<SettleEvent | null>(initial.settled);
   /*
    * Held in provider state rather than read off the snapshot, because the
-   * snapshot is replaced by every heartbeat and every visibility change — and
+   * snapshot is replaced by every button and every visibility change — and
    * `buildSnapshot` deliberately sets this to null, so reading it there would
    * make the screen vanish the moment the next ping landed.
    */
@@ -169,7 +157,7 @@ export function GameProvider({
     if (snap.settled) {
       setLastSettled(snap.settled);
       // Chime and notification fire once per session, wherever the transition
-      // was noticed — a countdown running out, a heartbeat, or a page load.
+      // was noticed — a countdown running out, a wake, or a page load.
       if (!announced.current.has(snap.settled.sessionId)) {
         announced.current.add(snap.settled.sessionId);
         if (snap.settled.kind === "completed") {
@@ -237,117 +225,17 @@ export function GameProvider({
     style.setProperty("--action", tierAction(tier.hue, tier.intensity));
   }, [snapshot.state.level]);
 
-  /* -------------------------------------------------------- desktop pings */
-
-  const activeId = snapshot.active?.id ?? null;
-  const activeStatus = snapshot.active?.status ?? null;
-
-  /**
-   * The desktop heartbeat, and the two ways it used to go quiet without saying
-   * so.
-   *
-   * A ping that failed did nothing at all: a thrown fetch hit an empty `catch`
-   * and a 401 or a 500 hit `if (!res.ok) return`. Either way the page carried
-   * on showing a running timer while the server stopped being told the page
-   * existed, and two minutes later the session was gone. The app knew at the
-   * first failed ping and said nothing until the session was already lost.
-   *
-   * So a failure is now visible and is retried quickly rather than at the next
-   * scheduled tick. The grace period is two minutes and the interval fifteen
-   * seconds, which leaves eight attempts inside it — plenty for a blip, as long
-   * as a blip does not cost a whole interval to notice.
-   *
-   * It also pings the moment the page comes back. Browsers freeze backgrounded
-   * tabs, and a thawed tab whose next tick is fourteen seconds away is a tab
-   * that can still be judged absent while its user is looking straight at it.
-   */
-  useEffect(() => {
-    if (!activeId || ruleset !== "desktop") return;
-
-    let cancelled = false;
-    let timer: ReturnType<typeof setTimeout>;
-
-    const schedule = (ms: number) => {
-      if (cancelled) return;
-      timer = setTimeout(ping, ms);
-    };
-
-    async function ping() {
-      if (cancelled) return;
-      try {
-        const res = await fetch("/api/heartbeat", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ sessionId: activeId, deviceId: device.current }),
-          keepalive: true,
-        });
-        if (cancelled) return;
-        if (!res.ok) throw new Error(`The server refused the check-in (${res.status}).`);
-        adopt((await res.json()) as Snapshot);
-        setCheckedIn(true);
-        schedule(HEARTBEAT_INTERVAL_MS);
-      } catch {
-        if (cancelled) return;
-        // Say so, and try again sooner than the next scheduled tick would.
-        setCheckedIn(false);
-        schedule(HEARTBEAT_RETRY_MS);
-      }
-    }
-
-    void ping();
-    // A tab the browser froze wakes with a stale clock and a pending tick. Ping
-    // on the way back so the gap ends when the page returns, not up to fifteen
-    // seconds later.
-    const onBack = () => {
-      if (document.visibilityState === "visible") void ping();
-    };
-    document.addEventListener("visibilitychange", onBack);
-    window.addEventListener("focus", onBack);
-    window.addEventListener("online", onBack);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-      document.removeEventListener("visibilitychange", onBack);
-      window.removeEventListener("focus", onBack);
-      window.removeEventListener("online", onBack);
-    };
-  }, [activeId, ruleset, adopt]);
-
-  /* ------------------------------------------------------- phone polling */
-
-  /**
-   * Mobile sends no heartbeat, because a frozen background tab would stop
-   * pinging and register a false abandon (§3) — but that left a phone with no
-   * way to learn that the session had been paused on another device.
-   *
-   * This reads the state and writes nothing, so it can neither cause an abandon
-   * nor prevent one. It needs no visibility check either: a phone that
-   * backgrounds this tab suspends its timers, which stops the polling on its
-   * own, and `visibilitychange` already refreshes on the way back.
-   */
-  useEffect(() => {
-    if (!activeId || ruleset !== "mobile") return;
-
-    let cancelled = false;
-    const poll = async () => {
-      try {
-        const snap = await refreshSnapshot(device.current);
-        if (!cancelled) adopt(snap);
-      } catch {
-        // A dropped poll costs nothing; the next one is fifteen seconds away.
-      }
-    };
-
-    const id = setInterval(poll, HEARTBEAT_INTERVAL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, [activeId, ruleset, adopt]);
-
   /* ------------------------------------ come back from sleep or a new tab */
 
+  /*
+   * The page asks the server only when something happened: it came back into
+   * view, it regained focus, the network came back, or the countdown ran out
+   * (below). Nothing runs on a timer. There used to be a desktop heartbeat
+   * every fifteen seconds, which abandoned the session after two minutes of
+   * silence, and a fifteen-second poll on phones; both are gone (§3, amended),
+   * because an unstable connection was costing whole sessions and the server
+   * settles a session on its own clock whoever is watching.
+   */
   useEffect(() => {
     const onWake = () => {
       if (document.visibilityState !== "visible") return;
@@ -355,13 +243,17 @@ export function GameProvider({
     };
     document.addEventListener("visibilitychange", onWake);
     window.addEventListener("focus", onWake);
+    // Back online after a drop: the countdown may have ended while the
+    // request that would have noticed it could not be sent.
+    window.addEventListener("online", onWake);
     return () => {
       document.removeEventListener("visibilitychange", onWake);
       window.removeEventListener("focus", onWake);
+      window.removeEventListener("online", onWake);
     };
   }, [run]);
 
-  /* ------------------------------ mobile has no heartbeat, so watch the end */
+  /* ----------------------------------------------- ask once, when it ends */
 
   useEffect(() => {
     const session = snapshot.active;
@@ -395,7 +287,6 @@ export function GameProvider({
             pausedAt: null,
             pausedMs: 0,
             pauseCount: 0,
-            lastHeartbeatAt: at,
             xpAwarded: 0,
           },
         };
@@ -467,7 +358,6 @@ export function GameProvider({
       pending,
       error,
       clearError: () => setError(null),
-      checkedIn,
       lastSettled,
       levelChange,
       dismissLevelChange: () => setLevelChange(null),
@@ -486,7 +376,6 @@ export function GameProvider({
       serverNow,
       pending,
       error,
-      checkedIn,
       lastSettled,
       levelChange,
       gameResult,
@@ -498,9 +387,6 @@ export function GameProvider({
       refresh,
     ],
   );
-
-  // `activeStatus` participates so a pause/resume re-renders consumers promptly.
-  void activeStatus;
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
 }

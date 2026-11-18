@@ -10,7 +10,6 @@ export type ClientSession = {
   pausedAt: number | null;
   pausedMs: number;
   pauseCount: number;
-  lastHeartbeatAt: number;
   xpAwarded: number;
 };
 

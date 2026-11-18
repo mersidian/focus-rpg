@@ -5,7 +5,6 @@
  */
 
 import {
-  HEARTBEAT_GRACE_MS,
   MAX_PAUSED_MS,
   MAX_PAUSES,
   type AbandonReason,
@@ -19,7 +18,6 @@ export type EngineSession = {
   pausedAt: number | null;
   pausedMs: number;
   pauseCount: number;
-  lastHeartbeatAt: number;
 };
 
 export type Verdict =
@@ -38,7 +36,6 @@ export type Verdict =
     }
   | { kind: "paused"; elapsedMs: number; remainingMs: number; pauseExhaustAt: number }
   | { kind: "complete"; at: number }
-  | { kind: "abandon"; reason: AbandonReason; at: number }
   | { kind: "settled" };
 
 export function requiredMs(plannedMinutes: number): number {
@@ -109,13 +106,16 @@ export function evaluate(s: EngineSession, now: number): Verdict {
   }
 
   const completeAt = s.startedAt + need + pausedMsUsed(s, now);
-  // The heartbeat requirement is suspended while paused and absent on mobile (§3).
-  const abandonAt =
-    s.ruleset === "desktop" ? s.lastHeartbeatAt + HEARTBEAT_GRACE_MS : Infinity;
-
-  if (abandonAt < completeAt && now >= abandonAt) {
-    return { kind: "abandon", reason: "heartbeat_lost", at: abandonAt };
-  }
+  /*
+   * Nothing ends a session early but the person running it.
+   *
+   * A desktop page used to ping every fifteen seconds, and two minutes of
+   * silence abandoned the session at −30. The author's connection is not
+   * stable, and the server cannot tell a closed tab from an offline one, so the
+   * ping cost real sessions to dropped wifi. It is gone (§3, amended): the
+   * session lives on the server's clock, finishes on time whether or not any
+   * page is watching, and ends early only by Give up or by starting another.
+   */
   if (now >= completeAt) {
     return { kind: "complete", at: completeAt };
   }

@@ -102,6 +102,13 @@ because it is one tap on mobile.
   owner can report it afterwards as a dropped connection, which refunds the −30 and takes it out
   of the ratio and the streak count.
 
+**Removed after shipping, by the author:** *"remove cron and no heartbeat anymore. my
+internet connection sometimes not stable."* There is no heartbeat and no presence check on
+any device. A session runs on the server's clock and finishes on time whether its page is
+open, closed or offline; it ends early only by giving up or by starting another session.
+Desktop and phone follow the same rule. Abandons already written as a lost heartbeat keep
+counting until their owner clears them as a dropped connection.
+
 ### Phone sessions
 
 Allowed, with **the heartbeat disabled** — mobile browsers freeze background tabs and would

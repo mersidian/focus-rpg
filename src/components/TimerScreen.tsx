@@ -27,7 +27,6 @@ import { describeLevel } from "@/lib/levels";
 import { xpMultiplier } from "@/lib/prestige";
 import { CHAIN_WINDOW_MS } from "@/lib/chain";
 import { clock, completionRatio, groupNumber, hours } from "@/lib/format";
-import { LostConnectionButton } from "./GameActions";
 import { ActivityPicker } from "./ActivityPicker";
 import type { Activity } from "@/lib/game/activity";
 import { SessionResultScreen } from "./SessionResultScreen";
@@ -142,7 +141,7 @@ function Idle({
   tonic: string | null;
   onTonic: (t: string | null) => void;
 }) {
-  const { snapshot, ruleset, begin, pending, error, clearError, lastSettled } = useGame();
+  const { snapshot, begin, pending, error, clearError, lastSettled } = useGame();
   const { state } = snapshot;
   const info = describeLevel(state.level);
   const ratio = completionRatio(state.sessionsCompleted, state.sessionsAbandoned);
@@ -265,7 +264,7 @@ function Idle({
         </p>
       )}
 
-      <RulesetNote ruleset={ruleset} align="left" />
+      <RulesetNote align="left" />
 
       <dl className="mt-12 flex flex-wrap items-baseline gap-x-10 gap-y-4 border-t border-rule pt-6 text-body">
         <Stat label="focused" value={hours(state.lifetimeFocusedMs)} />
@@ -312,14 +311,6 @@ function Idle({
               <>It cost nothing, and it is in the log.</>
             )}
           </p>
-          {/* Said where the abandon is reported, while it is fresh: if the page
-              was open and the network was not, this is not yours. */}
-          {lastSettled.reason === "heartbeat_lost" && (
-            <div className="mt-2 flex flex-wrap items-center gap-3">
-              <span className="text-faint">If the page was open and the connection dropped:</span>
-              <LostConnectionButton sessionId={lastSettled.sessionId} />
-            </div>
-          )}
         </div>
       )}
 
@@ -403,7 +394,7 @@ function Running({
   paused: boolean;
   now: number;
 }) {
-  const { snapshot, pause, resume, abandon, pending, ruleset, checkedIn } = useGame();
+  const { snapshot, pause, resume, abandon, pending } = useGame();
   const session = snapshot.active!;
   const total = session.plannedMinutes * 60_000;
   const progress = Math.min(1, Math.max(0, 1 - remainingMs / total));
@@ -486,29 +477,8 @@ function Running({
         </button>
       </div>
 
-      {/*
-        A check-in that is failing, said while there is still time to do
-        something about it.
-
-        This used to be silent on both paths — a thrown fetch and a rejected
-        response both ended the ping function without a word — so the first the
-        user knew of it was the session gone and 30 XP with it. Two minutes of
-        grace is plenty of warning, but only if the warning is given.
-      */}
-      {!checkedIn && ruleset === "desktop" && (
-        <p
-          role="status"
-          className="mt-8 max-w-sm border-l-2 pl-4 text-left text-body leading-relaxed"
-          style={{ borderColor: "var(--color-warn)", color: "var(--color-warn)" }}
-        >
-          The timer has lost touch with the server and is retrying. Your session keeps running
-          here. If the connection is not back within two minutes the session is abandoned, and
-          you can report the dropped connection afterwards so it does not count against you.
-        </p>
-      )}
-
       <div className="safe-bottom fixed inset-x-0 bottom-0 px-6">
-        <RulesetNote ruleset={ruleset} />
+        <RulesetNote />
       </div>
     </main>
   );
@@ -516,32 +486,22 @@ function Running({
 
 /* ---------------------------------------------------------------- chrome */
 
-/** The two rulesets must never feel arbitrary, so the active one is on screen (§3). */
-function RulesetNote({
-  ruleset,
-  align = "center",
-}: {
-  ruleset: "desktop" | "mobile";
-  align?: "left" | "center";
-}) {
+/**
+ * The one rule a running session has, said where it runs.
+ *
+ * There were two — desktop kept a heartbeat and abandoned after two minutes of
+ * silence, phones did not — and the author's connection is not stable, so the
+ * desktop one cost sessions to dropped wifi. One rule now, on every device.
+ */
+function RulesetNote({ align = "center" }: { align?: "left" | "center" }) {
   return (
     <p
       className={`mt-6 text-note leading-relaxed text-faint ${
         align === "left" ? "text-left" : "text-center"
       }`}
     >
-      {ruleset === "desktop" ? (
-        <>
-          Desktop rules: keep this page open. Other tabs are fine — close it for more than{" "}
-          <span className="tnum">2</span> minutes and the session is abandoned. A dropped
-          connection can be reported afterwards and does not count.
-        </>
-      ) : (
-        <>
-          Phone rules: no presence check, because mobile browsers freeze background tabs. This
-          session ends only when it finishes, you give up, or you run out of pause.
-        </>
-      )}
+      The session runs on the server and finishes on time, whether or not this page is open or
+      online. It ends early only if you give up or start another.
     </p>
   );
 }
