@@ -108,14 +108,22 @@ export async function loadActivity(
         (started_at at time zone ${timezone}) - interval '${sql.raw(String(DAY_ROLLOVER_HOUR))} hours',
         'YYYY-MM-DD'
       ) as day,
-      count(*) filter (where status = 'completed')::int as completed,
+      -- A finished session not yet logged is a worked day. It only waits on the
+      -- self-report, and the report can arrive after the day has rolled over —
+      -- offline at the end, or simply logged the next morning — while this walk
+      -- runs on the first request after 4am and would judge that day empty:
+      -- spending a freeze, or breaking the streak. The report's own creditDay is
+      -- idempotent, so counting it here and there credits the day once.
+      count(*) filter (where status in ('completed', 'awaiting_report'))::int as completed,
       -- only the abandons that count; see abandonCounts in constants.ts
       count(*) filter (
         where status = 'abandoned' and abandon_reason in ('gave_up', 'superseded', 'heartbeat_lost')
       )::int as abandoned,
-      coalesce(sum(planned_minutes * 60000) filter (where status = 'completed'), 0)::bigint as focused_ms
+      coalesce(sum(planned_minutes * 60000) filter (
+        where status in ('completed', 'awaiting_report')
+      ), 0)::bigint as focused_ms
     from focus_session
-    where user_id = ${userId} and status in ('completed', 'abandoned')
+    where user_id = ${userId} and status in ('completed', 'awaiting_report', 'abandoned')
     group by 1`);
 
   const map = new Map<string, DayActivity & { focusedMs: number }>();

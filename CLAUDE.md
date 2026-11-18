@@ -175,6 +175,12 @@ before `git push`, and this says whether it took.
   This replaced, within a week, a rule that finished a quiet page's session at half XP; every
   row that rule wrote carries `unfocused_at`, and `scripts/restore-lost-page-abandons.mjs` puts
   them back. `pause_budget` and `pause_count` end nothing now and are uncounted labels on old rows.
+- **A finished session not yet logged is a worked day.** The report can land after 4am — offline
+  when the timer ran out, or logged the next morning — and the streak walk runs on the first
+  request of the new day, after `reconcile` has set the session to `awaiting_report` and before
+  any report. It counted only `completed`, so it judged that day empty and spent a freeze or
+  broke the streak. `loadActivity` counts `awaiting_report` too; the report's `creditDay` is
+  idempotent, so the day is credited once. Probe 11b fails without it.
 - **Abandons are not a streak question.** The author: *"no rule of 2 abandon. just use freeze."*
   §3's second abandon in a day broke the streak whatever else happened, and it wasted freezes
   doing it — a day of two abandons and nothing finished spent a freeze to cover itself and then

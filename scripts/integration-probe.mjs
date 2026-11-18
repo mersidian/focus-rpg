@@ -368,6 +368,43 @@ console.log("\n11. a session settles once, however many reconciles race for it")
         settled.status);
 }
 
+console.log("\n11b. a finished session logged after the day rolled over still keeps the streak");
+/*
+ * Offline at the end, or simply logged the next morning: the first request
+ * after 4am walks the streak while the session is still awaiting its report.
+ * It used to judge that day empty and spend a freeze or break the streak.
+ * A user of its own, so nothing above can colour the walk.
+ */
+{
+  const lateId = `probe-${crypto.randomUUID()}`;
+  await sql`insert into "user" (id, name, email) values (${lateId}, 'probe', ${lateId + "@probe.invalid"})`;
+  await sql`insert into user_settings (user_id, timezone) values (${lateId}, 'Asia/Bangkok')`;
+  const put = async (back, status) => {
+    const s = day(back);
+    await sql`insert into focus_session (id, user_id, planned_minutes, ruleset, device_id, status,
+        started_at, last_heartbeat_at, ended_at, xp_awarded, base_xp, honest, reported_at)
+      values (${crypto.randomUUID()}, ${lateId}, 25, 'desktop', 'probe', ${status},
+        ${s.toISOString()}, ${s.toISOString()}, ${new Date(s.getTime() + 25 * 60000).toISOString()},
+        25, 25, ${status === "completed" ? true : null},
+        ${status === "completed" ? s.toISOString() : null})`;
+    return s;
+  };
+  await put(3, "completed");
+  await put(2, "completed");
+  const lateStart = await put(1, "awaiting_report");
+
+  const walked = await advanceStreak(lateId);
+  const [ledger] = await sql`select state from day_ledger where user_id = ${lateId} order by day desc limit 1`;
+  check("the unlogged day is judged worked", ledger?.state === "active", ledger?.state);
+  check("so the streak holds", walked.state.streak === 3, `streak ${walked.state.streak}`);
+  check("and no freeze was spent on it", walked.frozeDays.length === 0, walked.frozeDays.join(", "));
+
+  // The report lands afterwards and credits the same day; it must not count twice.
+  await recordCompletedSession(lateId, lateStart, 25);
+  const after = await loadStreakState(lateId);
+  check("logging it afterwards does not count the day twice", after.streak === 3, `streak ${after.streak}`);
+}
+
 console.log("\n12. silence never ends a session, and an old lost page can still be cleared");
 /*
  * The author's rule: "remove cron and no heartbeat anymore. my internet
